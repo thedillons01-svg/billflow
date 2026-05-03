@@ -45,3 +45,5 @@ supabase/.temp/
 
 # local claude code settings
 .claude/
+
+.vercel
