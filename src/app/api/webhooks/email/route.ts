@@ -48,13 +48,11 @@ const STORAGE_BUCKET = 'bill-pdfs'
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  // 1. Verify shared secret sent by Postmark as Authorization header.
-  //    Configure in Postmark: Settings → Inbound → Add Header
-  //    Header name:  Authorization
-  //    Header value: Bearer <EMAIL_WEBHOOK_SECRET>
-  const authHeader = request.headers.get('authorization')
+  // 1. Verify shared secret passed as a query param.
+  //    Webhook URL: /api/webhooks/email?secret=<EMAIL_WEBHOOK_SECRET>
+  const token = request.nextUrl.searchParams.get('secret')
   const secret = process.env.EMAIL_WEBHOOK_SECRET
-  if (!secret || authHeader !== `Bearer ${secret}`) {
+  if (!secret || token !== secret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
