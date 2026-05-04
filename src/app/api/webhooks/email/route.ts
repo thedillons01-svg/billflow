@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
+import { processBill } from '@/lib/ocr/process'
 
 // Increase Vercel function timeout — large PDFs need time to upload
 export const maxDuration = 60
@@ -157,6 +158,11 @@ export async function POST(request: NextRequest) {
         attachment_name: attachment.Name,
         pdf_url:         storagePath,
       },
+    })
+
+    // Kick off OCR — runs inline within the same Vercel invocation (maxDuration = 60s)
+    processBill(billId).catch((err) => {
+      console.error(`[email-webhook] processBill failed (${billId}):`, err)
     })
 
     created.push(billId)

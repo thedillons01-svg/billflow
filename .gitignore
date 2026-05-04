@@ -46,4 +46,7 @@ supabase/.temp/
 # local claude code settings
 .claude/
 
+# accidentally created key files
+*.txt
+
 .vercel
