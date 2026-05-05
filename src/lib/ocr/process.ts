@@ -18,6 +18,25 @@ function getServiceClient() {
 const STORAGE_BUCKET = 'bill-pdfs'
 
 // ---------------------------------------------------------------------------
+// Error helper — marks bill as ocr_error and writes a processing log entry
+// ---------------------------------------------------------------------------
+
+type SupabaseClient = ReturnType<typeof getServiceClient>
+
+async function markOcrError(supabase: SupabaseClient, billId: string, error: string): Promise<void> {
+  console.error(`[ocr] ${billId} → ocr_error: ${error}`)
+  await Promise.all([
+    supabase.from('bills').update({ status: 'ocr_error' }).eq('bill_id', billId),
+    supabase.from('processing_log').insert({
+      bill_id:     billId,
+      action:      'ocr_error',
+      actor:       'system',
+      after_state: { status: 'ocr_error', error },
+    }),
+  ])
+}
+
+// ---------------------------------------------------------------------------
 // processBill — entry point called after a bill record is created
 // ---------------------------------------------------------------------------
 
@@ -47,7 +66,7 @@ export async function processBill(billId: string): Promise<void> {
     .download(bill.pdf_url)
 
   if (downloadErr || !fileData) {
-    console.error(`[ocr] PDF download failed (${billId}):`, downloadErr?.message)
+    await markOcrError(supabase, billId, `PDF download failed: ${downloadErr?.message ?? 'no data'}`)
     return
   }
 
@@ -58,7 +77,7 @@ export async function processBill(billId: string): Promise<void> {
   try {
     result = await runTieredExtraction(pdfBuffer)
   } catch (err) {
-    console.error(`[ocr] Extraction failed (${billId}):`, err)
+    await markOcrError(supabase, billId, `Extraction failed: ${err instanceof Error ? err.message : String(err)}`)
     return
   }
 
@@ -81,7 +100,7 @@ export async function processBill(billId: string): Promise<void> {
     .eq('bill_id', billId)
 
   if (updateErr) {
-    console.error(`[ocr] Bill update failed (${billId}):`, updateErr.message)
+    await markOcrError(supabase, billId, `Bill update failed: ${updateErr.message}`)
     return
   }
 

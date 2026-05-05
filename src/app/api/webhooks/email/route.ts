@@ -160,10 +160,12 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Kick off OCR — runs inline within the same Vercel invocation (maxDuration = 60s)
-    processBill(billId).catch((err) => {
-      console.error(`[email-webhook] processBill failed (${billId}):`, err)
-    })
+    // Await OCR inline — must complete before response returns or Vercel may terminate the function
+    try {
+      await processBill(billId)
+    } catch (err) {
+      console.error(`[email-webhook] processBill threw (${billId}):`, err)
+    }
 
     created.push(billId)
   }
