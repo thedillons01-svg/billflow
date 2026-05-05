@@ -65,15 +65,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  // 3. Email filtering: subject or body must contain "invoice" (case-insensitive).
-  //    Per spec: forward rule fires on "invoice" — not "bill", not "statement".
+  // 3. Resolve company from the capture address prefix (e.g. "acme" → acme@billflow.com)
+  //    Filtering responsibility belongs to the client's email forwarding rule, not the webhook.
   const subject = payload.Subject ?? ''
-  const bodyText = (payload.TextBody ?? '') + (payload.HtmlBody ?? '')
-  if (!/invoice/i.test(subject) && !/invoice/i.test(bodyText)) {
-    return NextResponse.json({ skipped: true, reason: 'no_invoice_keyword' })
-  }
-
-  // 4. Resolve company from the capture address prefix (e.g. "acme" → acme@billflow.com)
   const toAddress =
     payload.OriginalRecipient ??
     payload.ToFull?.[0]?.Email ??
@@ -95,14 +89,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ skipped: true, reason: 'unknown_recipient' })
   }
 
-  // 5. Filter to PDF attachments
+  // 4. Filter to PDF attachments
   const pdfs = (payload.Attachments ?? []).filter(isPdf)
 
   if (pdfs.length === 0) {
     return NextResponse.json({ skipped: true, reason: 'no_pdf_attachments' })
   }
 
-  // 6. Process each PDF: store → create bill record → log
+  // 5. Process each PDF: store → create bill record → log
   const created: string[] = []
   const errors: string[] = []
 
