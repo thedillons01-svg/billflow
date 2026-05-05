@@ -7,8 +7,20 @@ import type { TierResult, LineItem } from './types'
 // ---------------------------------------------------------------------------
 
 export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { rawText: string }> {
-  const data = await pdfParse(pdfBuffer)
-  const text = data.text ?? ''
+  let text: string
+  try {
+    const data = await pdfParse(pdfBuffer)
+    text = data.text ?? ''
+  } catch (err) {
+    // pdf-parse structural errors (bad XRef, corrupt object table, etc.) mean we have no text.
+    // Return a zero-confidence empty result so the orchestrator routes to Tier 3 (vision).
+    console.warn(`[ocr] Tier 1 pdf-parse failed: ${err instanceof Error ? err.message : String(err)} — routing to Tier 3`)
+    return {
+      vendor_name_raw: null, invoice_number: null, invoice_date: null, due_date: null,
+      vendor_po_reference: null, total: null, subtotal: null, tax_amount: null,
+      line_items: [], confidence: 0, raw_text: '', rawText: '',
+    }
+  }
 
   const vendor_name_raw    = extractVendorName(text)
   const invoice_number     = extractInvoiceNumber(text)
