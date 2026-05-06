@@ -1,20 +1,27 @@
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-type BillStatus = 'Needs Review' | 'Pending Job Match' | 'Sync Error'
+type DbBillStatus =
+  | 'needs_review'
+  | 'draft'
+  | 'ready'
+  | 'pending_job_match'
+  | 'publishing'
+  | 'published'
+  | 'sync_error'
 
 type Bill = {
-  id: string
-  vendor: string
-  invoiceNumber: string
-  invoiceDate: string
-  total: number
-  status: BillStatus
-  holdReason?: string
+  bill_id: string
+  vendor_name_raw: string | null
+  invoice_number: string | null
+  invoice_date: string | null
+  total: number | null
+  status: DbBillStatus
+  autopublish_hold_reason: string | null
 }
 
-// Empty until wired to DB — structure ready for data
-const reviewBills: Bill[] = []
-const pendingBills: Bill[] = []
+const REVIEW_STATUSES = ['needs_review', 'draft', 'ready', 'sync_error']
+const PENDING_STATUSES = ['pending_job_match']
 
 export default async function BillsPage({
   searchParams,
@@ -23,7 +30,19 @@ export default async function BillsPage({
 }) {
   const { tab } = await searchParams
   const activeTab = tab === 'pending' ? 'pending' : 'review'
-  const bills = activeTab === 'review' ? reviewBills : pendingBills
+
+  const supabase = await createClient()
+  const statuses = activeTab === 'review' ? REVIEW_STATUSES : PENDING_STATUSES
+
+  const { data, error } = await supabase
+    .from('bills')
+    .select('bill_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason')
+    .in('status', statuses)
+    .order('created_at', { ascending: false })
+
+  if (error) console.error('Error fetching bills:', error)
+
+  const bills = (data as Bill[] | null) ?? []
 
   return (
     <div>
@@ -96,17 +115,23 @@ export default async function BillsPage({
                 </tr>
               ) : (
                 bills.map((bill) => (
-                  <tr key={bill.id} className="cursor-pointer transition-colors hover:bg-gray-50">
+                  <tr key={bill.bill_id} className="cursor-pointer transition-colors hover:bg-gray-50">
                     <td className="px-5 py-3.5">
-                      <div className="text-sm font-medium text-gray-900">{bill.vendor}</div>
-                      {activeTab === 'review' && bill.holdReason && (
-                        <div className="mt-0.5 text-xs text-amber-600">{bill.holdReason}</div>
+                      <div className="text-sm font-medium text-gray-900">
+                        {bill.vendor_name_raw ?? '—'}
+                      </div>
+                      {bill.autopublish_hold_reason && (
+                        <div className="mt-0.5 text-xs text-amber-600">{bill.autopublish_hold_reason}</div>
                       )}
                     </td>
-                    <td className="px-5 py-3.5 font-mono text-sm text-gray-500">{bill.invoiceNumber}</td>
-                    <td className="px-5 py-3.5 text-sm text-gray-500">{bill.invoiceDate}</td>
+                    <td className="px-5 py-3.5 font-mono text-sm text-gray-500">
+                      {bill.invoice_number ?? '—'}
+                    </td>
+                    <td className="px-5 py-3.5 text-sm text-gray-500">
+                      {formatDate(bill.invoice_date)}
+                    </td>
                     <td className="px-5 py-3.5 text-right text-sm font-medium tabular-nums text-gray-900">
-                      {formatCurrency(bill.total)}
+                      {bill.total != null ? formatCurrency(bill.total) : '—'}
                     </td>
                     <td className="px-5 py-3.5">
                       <StatusBadge status={bill.status} />
@@ -126,15 +151,42 @@ function formatCurrency(amount: number) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount)
 }
 
-function StatusBadge({ status }: { status: BillStatus }) {
-  const styles: Record<BillStatus, string> = {
-    'Needs Review': 'bg-amber-50 text-amber-700 ring-amber-600/20',
-    'Pending Job Match': 'bg-blue-50 text-blue-700 ring-blue-600/20',
-    'Sync Error': 'bg-red-50 text-red-700 ring-red-600/20',
-  }
+function formatDate(dateStr: string | null) {
+  if (!dateStr) return '—'
+  const [year, month, day] = dateStr.split('-').map(Number)
+  return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+}
+
+const STATUS_LABEL: Record<string, string> = {
+  needs_review:      'Needs Review',
+  draft:             'Needs Review',
+  ready:             'Ready',
+  sync_error:        'Sync Error',
+  pending_job_match: 'Pending Job Match',
+  publishing:        'Publishing',
+  published:         'Published',
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  needs_review:      'bg-amber-50 text-amber-700 ring-amber-600/20',
+  draft:             'bg-amber-50 text-amber-700 ring-amber-600/20',
+  ready:             'bg-green-50 text-green-700 ring-green-600/20',
+  sync_error:        'bg-red-50 text-red-700 ring-red-600/20',
+  pending_job_match: 'bg-blue-50 text-blue-700 ring-blue-600/20',
+  publishing:        'bg-gray-50 text-gray-500 ring-gray-400/20',
+  published:         'bg-green-50 text-green-700 ring-green-600/20',
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const label = STATUS_LABEL[status] ?? status
+  const styles = STATUS_STYLES[status] ?? 'bg-gray-50 text-gray-600 ring-gray-400/20'
   return (
-    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles[status]}`}>
-      {status}
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ${styles}`}>
+      {label}
     </span>
   )
 }
