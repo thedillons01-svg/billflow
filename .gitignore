@@ -43,8 +43,9 @@ next-env.d.ts
 # supabase cli temp files (contain connection strings)
 supabase/.temp/
 
-# local claude code settings
-.claude/
+# local claude code settings (memory stays local, settings.json is shared)
+.claude/*
+!.claude/settings.json
 
 # accidentally created key files
 *.txt
