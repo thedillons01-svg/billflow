@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { syncAll } from '@/lib/quickbooks/sync'
 
 const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
 
@@ -82,6 +83,13 @@ export async function GET(request: NextRequest) {
   if (dbError) {
     console.error('Failed to store QB tokens:', dbError)
     return settingsRedirect(request, { qb_error: 'storage_failed' })
+  }
+
+  // Kick off initial data sync (non-fatal if it fails)
+  try {
+    await syncAll(companyId)
+  } catch (err) {
+    console.error('Initial QB sync failed:', err)
   }
 
   // Clear the state cookie and redirect to settings

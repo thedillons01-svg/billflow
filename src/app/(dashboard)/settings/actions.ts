@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { syncAll } from '@/lib/quickbooks/sync'
 
 export async function disconnectQuickBooks(companyId: string) {
   const supabase = await createClient()
@@ -17,5 +18,10 @@ export async function disconnectQuickBooks(companyId: string) {
     .eq('company_id', companyId)
 
   if (error) throw new Error(error.message)
+  revalidatePath('/settings')
+}
+
+export async function triggerQBSync(companyId: string) {
+  await syncAll(companyId)
   revalidatePath('/settings')
 }

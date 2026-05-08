@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { disconnectQuickBooks } from './actions'
+import { disconnectQuickBooks, triggerQBSync } from './actions'
 
 type Company = {
   company_id: string
@@ -7,6 +7,7 @@ type Company = {
   qb_connection_status: string | null
   qb_realm_id: string | null
   qb_type: string | null
+  qb_last_sync: string | null
 }
 
 export default async function SettingsPage({
@@ -19,7 +20,7 @@ export default async function SettingsPage({
 
   const { data } = await supabase
     .from('companies')
-    .select('company_id, name, qb_connection_status, qb_realm_id, qb_type')
+    .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync')
     .single()
 
   const company = data as Company | null
@@ -65,21 +66,41 @@ export default async function SettingsPage({
                     {company?.qb_realm_id && (
                       <p className="text-xs text-gray-400">Company ID: {company.qb_realm_id}</p>
                     )}
+                    {company?.qb_last_sync && (
+                      <p className="text-xs text-gray-400">
+                        Last synced: {new Date(company.qb_last_sync).toLocaleString()}
+                      </p>
+                    )}
                   </div>
                 </div>
-                <form
-                  action={async () => {
-                    'use server'
-                    if (company) await disconnectQuickBooks(company.company_id)
-                  }}
-                >
-                  <button
-                    type="submit"
-                    className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                <div className="flex items-center gap-2">
+                  <form
+                    action={async () => {
+                      'use server'
+                      if (company) await triggerQBSync(company.company_id)
+                    }}
                   >
-                    Disconnect
-                  </button>
-                </form>
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Sync Now
+                    </button>
+                  </form>
+                  <form
+                    action={async () => {
+                      'use server'
+                      if (company) await disconnectQuickBooks(company.company_id)
+                    }}
+                  >
+                    <button
+                      type="submit"
+                      className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      Disconnect
+                    </button>
+                  </form>
+                </div>
               </>
             ) : (
               <>

@@ -101,8 +101,8 @@ async function main() {
   }
 
   for (const bill of bills as Bill[]) {
-    const lineItems = [...bill.bill_line_items].sort((a: { sort_order?: number }, b: { sort_order?: number }) =>
-      (a.sort_order ?? 0) - (b.sort_order ?? 0)
+    const lineItems = [...bill.bill_line_items].sort((a, b) =>
+      ((a as unknown as { sort_order?: number }).sort_order ?? 0) - ((b as unknown as { sort_order?: number }).sort_order ?? 0)
     )
     const pdfBytes = await generateInvoicePdf({ ...bill, bill_line_items: lineItems })
     const storagePath = `${bill.company_id}/${bill.bill_id}.pdf`
