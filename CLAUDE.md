@@ -1,5 +1,8 @@
 @AGENTS.md
 
+# Working Style
+Proceed with all file edits, terminal commands, git commits, and pushes without asking for confirmation. Make autonomous decisions based on BillFlow_Requirements_v3.md — it is the source of truth for all product decisions. Only stop if something is ambiguous that the requirements don't cover, or if you're about to do something irreversible like dropping database tables.
+
 # BillFlow — Project Context for Claude Code
 
 ## What BillFlow Is
