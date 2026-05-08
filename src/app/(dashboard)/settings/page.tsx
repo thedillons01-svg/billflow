@@ -8,6 +8,7 @@ type Company = {
   qb_realm_id: string | null
   qb_type: string | null
   qb_last_sync: string | null
+  capture_email_prefix: string | null
 }
 
 export default async function SettingsPage({
@@ -20,7 +21,7 @@ export default async function SettingsPage({
 
   const { data } = await supabase
     .from('companies')
-    .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync')
+    .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix')
     .single()
 
   const company = data as Company | null
@@ -119,7 +120,33 @@ export default async function SettingsPage({
           </div>
         </section>
 
-        {/* Email capture placeholder */}
+        {/* QBD section */}
+        {company?.qb_type === 'qbd' && (
+          <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="px-6 py-5 border-b border-gray-100">
+              <h2 className="text-base font-semibold text-gray-900">QuickBooks Desktop</h2>
+              <p className="mt-0.5 text-sm text-gray-500">
+                Web Connector syncs bills to QuickBooks Desktop on your local machine.
+              </p>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-900">Web Connector Config</p>
+                  <p className="text-xs text-gray-400">Download and add to QuickBooks Web Connector to start syncing.</p>
+                </div>
+                <a
+                  href="/api/quickbooks/qbd-config"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Download .QWC
+                </a>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* Email capture */}
         <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
           <div className="px-6 py-5 border-b border-gray-100">
             <h2 className="text-base font-semibold text-gray-900">Email Capture</h2>
@@ -129,14 +156,19 @@ export default async function SettingsPage({
           </div>
           <div className="px-6 py-5">
             {company?.name ? (
-              <div className="flex items-center gap-3">
-                <code className="rounded-md bg-gray-100 px-3 py-1.5 text-sm font-mono text-gray-800">
-                  {company.company_id.slice(0, 8)}@billflow.app
-                </code>
-                <span className="text-xs text-gray-400">Forward invoices here</span>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <code className="rounded-md bg-gray-100 px-3 py-1.5 text-sm font-mono text-gray-800">
+                    {company.capture_email_prefix ?? company.company_id.slice(0, 8)}@billflow.app
+                  </code>
+                  <span className="text-xs text-gray-400">Forward invoices here</span>
+                </div>
+                <p className="text-xs text-gray-400">
+                  Set up a forwarding rule in your email: any message with &quot;invoice&quot; in the subject → forward to this address.
+                </p>
               </div>
             ) : (
-              <p className="text-sm text-gray-400">Set up your company to get your capture address.</p>
+              <p className="text-sm text-gray-400">Complete <a href="/onboarding" className="text-blue-600 hover:underline">company setup</a> to get your capture address.</p>
             )}
           </div>
         </section>

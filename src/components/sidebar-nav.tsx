@@ -34,6 +34,14 @@ export function SidebarNav({ userEmail }: { userEmail: string | null }) {
           <VendorsIcon />
           Vendors
         </NavLink>
+        <NavLink href="/jobs" active={pathname.startsWith('/jobs')}>
+          <JobsIcon />
+          Job Profitability
+        </NavLink>
+        <NavLink href="/exports" active={pathname.startsWith('/exports')}>
+          <ExportIcon />
+          FSM Export
+        </NavLink>
         <NavLink href="/settings" active={pathname.startsWith('/settings')}>
           <SettingsIcon />
           Settings
@@ -144,6 +152,26 @@ function VendorsIcon() {
       <circle cx="9" cy="7" r="4" />
       <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  )
+}
+
+function JobsIcon() {
+  return (
+    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <line x1="18" y1="20" x2="18" y2="10" />
+      <line x1="12" y1="20" x2="12" y2="4" />
+      <line x1="6" y1="20" x2="6" y2="14" />
+    </svg>
+  )
+}
+
+function ExportIcon() {
+  return (
+    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
     </svg>
   )
 }

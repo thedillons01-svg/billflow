@@ -48,6 +48,8 @@ export function BillReviewForm({
   const [localStatus, setLocalStatus] = useState(bill.status)
   const [isPending, startTransition] = useTransition()
 
+  const [publishError, setPublishError] = useState<string | null>(null)
+
   const handleMarkReady = () => {
     startTransition(async () => {
       await setBillStatus(bill.bill_id, 'ready')
@@ -64,8 +66,27 @@ export function BillReviewForm({
     })
   }
 
+  const handlePublish = () => {
+    setPublishError(null)
+    startTransition(async () => {
+      const res = await fetch('/api/quickbooks/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ billId: bill.bill_id }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        setPublishError(json.error ?? 'Publish failed')
+      } else {
+        setLocalStatus('published')
+        router.refresh()
+      }
+    })
+  }
+
   const canMarkReady = localStatus === 'draft' || localStatus === 'needs_review'
   const canRevert = localStatus === 'ready'
+  const canPublish = localStatus === 'ready' || localStatus === 'sync_error'
 
   return (
     <>
@@ -200,26 +221,42 @@ export function BillReviewForm({
         </section>
 
         {/* Status actions */}
-        {(canMarkReady || canRevert) && (
-          <section className="flex gap-3 border-t border-gray-100 pt-5">
-            {canMarkReady && (
-              <button
-                onClick={handleMarkReady}
-                disabled={isPending}
-                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
-                {isPending ? 'Saving…' : 'Mark as Ready'}
-              </button>
+        {(canMarkReady || canRevert || canPublish) && (
+          <section className="space-y-3 border-t border-gray-100 pt-5">
+            {publishError && (
+              <div className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700 ring-1 ring-red-200">
+                {publishError}
+              </div>
             )}
-            {canRevert && (
-              <button
-                onClick={handleRevertDraft}
-                disabled={isPending}
-                className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
-              >
-                {isPending ? 'Saving…' : 'Revert to Draft'}
-              </button>
-            )}
+            <div className="flex gap-3">
+              {canMarkReady && (
+                <button
+                  onClick={handleMarkReady}
+                  disabled={isPending}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                >
+                  {isPending ? 'Saving…' : 'Mark as Ready'}
+                </button>
+              )}
+              {canRevert && (
+                <button
+                  onClick={handleRevertDraft}
+                  disabled={isPending}
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
+                >
+                  {isPending ? 'Saving…' : 'Revert to Draft'}
+                </button>
+              )}
+              {canPublish && (
+                <button
+                  onClick={handlePublish}
+                  disabled={isPending}
+                  className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors"
+                >
+                  {isPending ? 'Publishing…' : localStatus === 'sync_error' ? 'Retry Push to QB' : 'Publish to QB'}
+                </button>
+              )}
+            </div>
           </section>
         )}
       </div>

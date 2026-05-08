@@ -82,5 +82,31 @@ export async function getQBClient(companyId: string) {
     return results
   }
 
-  return { qbFetchAll, realmId }
+  async function qbPost(path: string, body: unknown) {
+    const url = `${QBO_BASE_URL}/v3/company/${realmId}/${path}?minorversion=65`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) throw new Error(`QBO POST ${path} failed (${res.status}): ${await res.text()}`)
+    return res.json()
+  }
+
+  async function qbReport(reportType: string, params: Record<string, string>) {
+    const url = new URL(`${QBO_BASE_URL}/v3/company/${realmId}/reports/${reportType}`)
+    url.searchParams.set('minorversion', '65')
+    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
+    const res = await fetch(url.toString(), {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    })
+    if (!res.ok) throw new Error(`QBO report ${reportType} failed (${res.status}): ${await res.text()}`)
+    return res.json()
+  }
+
+  return { qbFetchAll, qbPost, qbReport, realmId }
 }

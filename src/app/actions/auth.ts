@@ -28,7 +28,7 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
 
   if (error) return { error: error.message }
 
-  if (data.session) redirect('/bills')
+  if (data.session) redirect('/onboarding')
 
   return { message: 'Check your email for a confirmation link to complete sign-up.' }
 }

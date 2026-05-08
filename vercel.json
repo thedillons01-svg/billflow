@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/autopublish",
+      "schedule": "0 7-19/2 * * *"
+    },
+    {
+      "path": "/api/cron/qbd-heartbeat-check",
+      "schedule": "*/30 * * * *"
+    }
+  ]
+}
