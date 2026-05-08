@@ -43,6 +43,14 @@ export default async function BillDetailPage({
       .order('cached_at', { ascending: false }),
   ])
 
+  let pdfSignedUrl: string | null = null
+  if (bill.pdf_url) {
+    const { data: signed } = await supabase.storage
+      .from('bill-pdfs')
+      .createSignedUrl(bill.pdf_url as string, 3600)
+    pdfSignedUrl = signed?.signedUrl ?? null
+  }
+
   return (
     <div className="flex h-full">
       {/* Left panel: review form */}
@@ -57,9 +65,9 @@ export default async function BillDetailPage({
 
       {/* Right panel: PDF viewer */}
       <div className="flex flex-1 flex-col overflow-hidden bg-gray-100">
-        {bill.pdf_url ? (
+        {pdfSignedUrl ? (
           <iframe
-            src={bill.pdf_url as string}
+            src={pdfSignedUrl}
             className="h-full w-full border-0"
             title="Invoice PDF"
           />
