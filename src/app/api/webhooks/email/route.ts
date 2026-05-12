@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
 import { randomUUID } from 'crypto'
 import { processBill } from '@/lib/ocr/process'
+import { createServiceClient } from '@/lib/supabase/service'
 
 // Increase Vercel function timeout — large PDFs need time to upload
 export const maxDuration = 60
@@ -29,17 +29,6 @@ type PostmarkPayload = {
   HtmlBody?: string
   Date: string
   Attachments?: PostmarkAttachment[]
-}
-
-// ---------------------------------------------------------------------------
-// Supabase service-role client — bypasses RLS for server-side processing
-// ---------------------------------------------------------------------------
-
-function getServiceClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  )
 }
 
 const STORAGE_BUCKET = 'bill-pdfs'
@@ -75,7 +64,7 @@ export async function POST(request: NextRequest) {
     ''
   const prefix = toAddress.split('@')[0].toLowerCase()
 
-  const supabase = getServiceClient()
+  const supabase = createServiceClient()
 
   const { data: company, error: companyErr } = await supabase
     .from('companies')
@@ -140,6 +129,7 @@ export async function POST(request: NextRequest) {
     // Append-only processing log entry
     await supabase.from('processing_log').insert({
       bill_id:     billId,
+      company_id:  company.company_id,
       action:      'captured',
       actor:       'system',
       after_state: {

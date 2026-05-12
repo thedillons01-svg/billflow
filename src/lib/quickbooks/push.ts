@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { getQBClient } from './client'
 
 type LineItem = {
@@ -19,7 +19,7 @@ type Vendor = {
 }
 
 export async function pushBillToQBO(billId: string, companyId: string): Promise<void> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: bill, error } = await supabase
     .from('bills')
@@ -91,6 +91,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
 
     await supabase.from('processing_log').insert({
       bill_id: billId,
+      company_id: companyId,
       action: 'published_to_qbo',
       actor: 'system',
       after_state: { qb_bill_id: qbBillId },

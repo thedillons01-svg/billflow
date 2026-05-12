@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 // Mark QBD heartbeats as overdue/alert if not seen recently
 export async function GET(req: NextRequest) {
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const now = new Date()
   const overdueThreshold = new Date(now.getTime() - 60 * 60 * 1000)  // 1 hour
   const alertThreshold = new Date(now.getTime() - 4 * 60 * 60 * 1000) // 4 hours

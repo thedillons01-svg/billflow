@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { getQBClient } from './client'
 
 type QBAccount = {
@@ -27,7 +27,7 @@ type QBCustomer = {
 }
 
 export async function syncAccounts(companyId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
 
   const accounts = await qbFetchAll<QBAccount>(
@@ -51,7 +51,7 @@ export async function syncAccounts(companyId: string) {
 }
 
 export async function syncVendors(companyId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
 
   const vendors = await qbFetchAll<QBVendor>(
@@ -75,7 +75,7 @@ export async function syncVendors(companyId: string) {
 }
 
 export async function syncJobs(companyId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
 
   const jobs = await qbFetchAll<QBCustomer>(
@@ -114,7 +114,7 @@ export async function syncAll(companyId: string) {
     syncJobs(companyId),
   ])
 
-  const supabase = await createClient()
+  const supabase = createServiceClient()
   await supabase
     .from('companies')
     .update({ qb_last_sync: new Date().toISOString() })

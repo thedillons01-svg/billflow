@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 const QBO_BASE_URL = process.env.QBO_BASE_URL ?? 'https://sandbox-quickbooks.api.intuit.com'
 const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
@@ -30,7 +30,7 @@ async function refreshAccessToken(refreshToken: string) {
 }
 
 export async function getQBClient(companyId: string) {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: company } = await supabase
     .from('companies')

@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
 import { randomBytes } from 'crypto'
 
@@ -14,31 +15,44 @@ export async function saveCompanySetup(formData: FormData) {
   const fsmPlatform = (formData.get('fsm_platform') as string) || 'unknown'
   const jobCostingEnabled = formData.get('job_costing_enabled') === 'true'
 
-  // Check if company already exists for this user
-  const { data: existing } = await supabase
-    .from('companies')
+  // Use service client so we can read/write company + membership regardless of prior state
+  const service = createServiceClient()
+
+  // Check if this user already has a company membership
+  const { data: membership } = await service
+    .from('company_members')
     .select('company_id')
+    .eq('user_id', user.id)
     .single()
 
-  if (existing) {
-    // Update existing
-    await supabase.from('companies')
+  if (membership) {
+    // Update the existing company
+    await service.from('companies')
       .update({
         name: name.trim(),
         qb_type: qbType,
         fsm_platform: fsmPlatform,
         job_costing_enabled: jobCostingEnabled,
       })
-      .eq('company_id', existing.company_id)
+      .eq('company_id', membership.company_id)
   } else {
-    // Create new company (RLS placeholder means we can insert directly)
+    // Create a new company and link the user to it
     const capturePrefix = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) + randomBytes(3).toString('hex')
-    await supabase.from('companies').insert({
+
+    const { data: newCompany, error } = await service.from('companies').insert({
       name: name.trim(),
       qb_type: qbType,
       fsm_platform: fsmPlatform,
       job_costing_enabled: jobCostingEnabled,
       capture_email_prefix: capturePrefix,
+    }).select('company_id').single()
+
+    if (error || !newCompany) throw new Error('Failed to create company')
+
+    await service.from('company_members').insert({
+      user_id: user.id,
+      company_id: newCompany.company_id,
+      role: 'owner',
     })
   }
 

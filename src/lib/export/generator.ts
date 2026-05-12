@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export type ExportLineItem = {
   description: string | null
@@ -40,7 +40,7 @@ export async function getExportData(
     jobIds?: string[]
   }
 ): Promise<ExportData> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   let query = supabase
     .from('bills')

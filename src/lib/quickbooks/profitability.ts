@@ -1,5 +1,5 @@
 import { getQBClient } from './client'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 
 export type JobProfitabilityRow = {
   qb_job_id: string
@@ -13,7 +13,7 @@ export type JobProfitabilityRow = {
 }
 
 export async function getJobProfitability(companyId: string): Promise<JobProfitabilityRow[]> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   // 30-day window
   const end = new Date()

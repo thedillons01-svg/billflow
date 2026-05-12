@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { pushBillToQBO } from '@/lib/quickbooks/push'
 
 type EligibilityResult = { eligible: true } | { eligible: false; reason: string }
 
 export async function checkAutopublishEligibility(billId: string, companyId: string): Promise<EligibilityResult> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: bill } = await supabase
     .from('bills')
@@ -118,7 +118,7 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
 }
 
 export async function runAutopublishForCompany(companyId: string): Promise<{ attempted: number; published: number; failed: number }> {
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const { data: readyBills } = await supabase
     .from('bills')

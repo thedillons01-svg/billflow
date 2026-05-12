@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import {
   createSession, getSession, closeSession,
   buildBillAddXML, parseBillAddResponse,
@@ -9,7 +9,7 @@ import {
 // QBD Web Connector polls this endpoint via SOAP
 export async function POST(req: NextRequest) {
   const body = await req.text()
-  const supabase = await createClient()
+  const supabase = createServiceClient()
 
   const soapAction = req.headers.get('soapaction')?.replace(/"/g, '') ?? ''
 
@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ service: 'BillFlow QBD Web Connector' })
 }
 
-async function handleAuthenticate(body: string, supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never) {
+async function handleAuthenticate(body: string, supabase: ReturnType<typeof createServiceClient>) {
   const username = extractSoapField(body, 'strUserName')
   const password = extractSoapField(body, 'strPassword')
 
@@ -94,7 +94,7 @@ async function handleAuthenticate(body: string, supabase: ReturnType<typeof crea
   }))
 }
 
-async function handleSendRequest(body: string, supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never) {
+async function handleSendRequest(body: string, supabase: ReturnType<typeof createServiceClient>) {
   const ticket = extractSoapField(body, 'ticket')
   const session = getSession(ticket)
   if (!session) return xmlResponse(soapResponse('sendRequestXML', ''))
@@ -169,7 +169,7 @@ async function handleSendRequest(body: string, supabase: ReturnType<typeof creat
   return xmlResponse(soapResponse('sendRequestXML', escapeForSoap(xml)))
 }
 
-async function handleReceiveResponse(body: string, supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never) {
+async function handleReceiveResponse(body: string, supabase: ReturnType<typeof createServiceClient>) {
   const ticket = extractSoapField(body, 'ticket')
   const response = extractSoapField(body, 'response')
   const hresult = extractSoapField(body, 'hresult')
@@ -234,7 +234,7 @@ async function handleReceiveResponse(body: string, supabase: ReturnType<typeof c
 
 async function updateHeartbeat(
   ticket: string,
-  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  supabase: ReturnType<typeof createServiceClient>,
   companyId?: string
 ) {
   const session = getSession(ticket)
