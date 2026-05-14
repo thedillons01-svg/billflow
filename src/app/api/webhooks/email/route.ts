@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { processBill } from '@/lib/ocr/process'
 import { processPO } from '@/lib/ocr/process-po'
+import { splitPdf } from '@/lib/ocr/split-pdf'
 import { createServiceClient } from '@/lib/supabase/service'
 
 export const maxDuration = 60
@@ -90,79 +91,96 @@ export async function POST(request: NextRequest) {
   const errors: string[] = []
 
   for (const attachment of pdfs) {
-    const docId = randomUUID()
-    const storagePath = `${company.company_id}/${docId}.pdf`
-    const pdfBytes = Buffer.from(attachment.Content, 'base64')
+    const rawBytes = Buffer.from(attachment.Content, 'base64')
 
-    const { error: uploadErr } = await supabase.storage
-      .from(STORAGE_BUCKET)
-      .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
-
-    if (uploadErr) {
-      console.error(`[email-webhook] Storage upload failed (${docId}):`, uploadErr.message)
-      errors.push(docId)
-      continue
-    }
-
-    if (captureType === 'po') {
-      // Create PO record
-      const { error: insertErr } = await supabase.from('purchase_orders').insert({
-        po_id:          docId,
-        company_id:     company.company_id,
-        status:         'open',
-        capture_source: 'email',
-        pdf_url:        storagePath,
-      })
-
-      if (insertErr) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
-        errors.push(docId)
-        continue
-      }
-
-      await supabase.from('processing_log').insert({
-        document_id:   docId,
-        document_type: 'po',
-        company_id:    company.company_id,
-        action:        'captured',
-        actor:         'system',
-        after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
-      })
-
-      try { await processPO(docId) } catch (err) {
-        console.error(`[email-webhook] processPO threw (${docId}):`, err)
+    // For bills only: detect and split multi-invoice PDF bundles (e.g. Gensco statement + invoices).
+    // POs are always single documents — skip splitting.
+    let pageBufs: Buffer[]
+    if (captureType === 'bill') {
+      try {
+        pageBufs = await splitPdf(rawBytes)
+      } catch (err) {
+        console.warn(`[email-webhook] splitPdf failed, treating as single PDF:`, err)
+        pageBufs = [rawBytes]
       }
     } else {
-      // Create bill record
-      const { error: insertErr } = await supabase.from('bills').insert({
-        bill_id:        docId,
-        company_id:     company.company_id,
-        status:         'draft',
-        capture_source: 'email',
-        pdf_url:        storagePath,
-      })
+      pageBufs = [rawBytes]
+    }
 
-      if (insertErr) {
-        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+    for (const pdfBytes of pageBufs) {
+      const docId = randomUUID()
+      const storagePath = `${company.company_id}/${docId}.pdf`
+
+      const { error: uploadErr } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
+
+      if (uploadErr) {
+        console.error(`[email-webhook] Storage upload failed (${docId}):`, uploadErr.message)
         errors.push(docId)
         continue
       }
 
-      await supabase.from('processing_log').insert({
-        bill_id:       docId,
-        document_type: 'bill',
-        company_id:    company.company_id,
-        action:        'captured',
-        actor:         'system',
-        after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
-      })
+      if (captureType === 'po') {
+        // Create PO record
+        const { error: insertErr } = await supabase.from('purchase_orders').insert({
+          po_id:          docId,
+          company_id:     company.company_id,
+          status:         'open',
+          capture_source: 'email',
+          pdf_url:        storagePath,
+        })
 
-      try { await processBill(docId) } catch (err) {
-        console.error(`[email-webhook] processBill threw (${docId}):`, err)
+        if (insertErr) {
+          await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+          errors.push(docId)
+          continue
+        }
+
+        await supabase.from('processing_log').insert({
+          document_id:   docId,
+          document_type: 'po',
+          company_id:    company.company_id,
+          action:        'captured',
+          actor:         'system',
+          after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+        })
+
+        try { await processPO(docId) } catch (err) {
+          console.error(`[email-webhook] processPO threw (${docId}):`, err)
+        }
+      } else {
+        // Create bill record
+        const { error: insertErr } = await supabase.from('bills').insert({
+          bill_id:        docId,
+          company_id:     company.company_id,
+          status:         'draft',
+          capture_source: 'email',
+          pdf_url:        storagePath,
+        })
+
+        if (insertErr) {
+          await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+          errors.push(docId)
+          continue
+        }
+
+        await supabase.from('processing_log').insert({
+          bill_id:       docId,
+          document_type: 'bill',
+          company_id:    company.company_id,
+          action:        'captured',
+          actor:         'system',
+          after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+        })
+
+        try { await processBill(docId) } catch (err) {
+          console.error(`[email-webhook] processBill threw (${docId}):`, err)
+        }
       }
-    }
 
-    created.push(docId)
+      created.push(docId)
+    }
   }
 
   return NextResponse.json({ received: pdfs.length, created: created.length, errors: errors.length, ids: created })
