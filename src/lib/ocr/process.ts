@@ -237,6 +237,26 @@ export async function processBill(billId: string): Promise<void> {
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
+  // 6.5 Deduct 2 credits for the processed bill (only if not a duplicate — duplicates are free)
+  if (!isDuplicate) {
+    const { data: co } = await supabase
+      .from('companies')
+      .select('credit_balance')
+      .eq('company_id', bill.company_id)
+      .single()
+
+    const newBalance = Math.max(0, (co?.credit_balance ?? 0) - 2)
+    await Promise.all([
+      supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', bill.company_id),
+      supabase.from('credit_ledger').insert({
+        company_id:  bill.company_id,
+        amount:      -2,
+        description: `Bill processed: ${result.vendor_name_raw ?? 'Unknown'} ${result.invoice_number ?? ''}`.trim(),
+        bill_id:     billId,
+      }),
+    ])
+  }
+
   // 7. Append processing log entry
   await supabase.from('processing_log').insert({
     bill_id:     billId,
