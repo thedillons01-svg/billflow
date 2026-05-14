@@ -63,8 +63,46 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
 
   const set = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }))
 
+  const showAutoPublishPromo = vendor.invoices_processed >= 5 && !form.auto_publish_enabled
+
   return (
     <div style={{ maxWidth: 600 }} className="space-y-6">
+
+      {/* Auto-publish promotion banner */}
+      {showAutoPublishPromo && (
+        <div
+          className="flex items-start gap-3 px-4 py-3"
+          style={{
+            background: '#EBF5EF',
+            border: '1.5px solid #2DB87A',
+            borderRadius: 8,
+          }}
+        >
+          <i className="ti ti-rocket" style={{ fontSize: 20, color: '#2DB87A', marginTop: 1, flexShrink: 0 }} />
+          <div className="flex-1">
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>
+              Ready for auto-publish
+            </p>
+            <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 3, lineHeight: 1.5 }}>
+              {vendor.invoices_processed} invoices from this vendor have been processed without errors.
+              Enable auto-publish and future invoices will flow directly into QuickBooks — no review needed.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              set('auto_publish_enabled', true)
+            }}
+            style={{
+              background: '#2DB87A', color: 'white',
+              border: 'none', borderRadius: 6, padding: '6px 14px',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            Enable
+          </button>
+        </div>
+      )}
+
       {/* Names */}
       <Section title="Vendor Names">
         <Field

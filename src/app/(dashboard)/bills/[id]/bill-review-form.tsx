@@ -74,6 +74,10 @@ export function BillReviewForm({
   const [rememberPrompt, setRememberPrompt] = useState<{
     lineId: string; description: string; glAccountId: string; accountName: string
   } | null>(null)
+  // Apply-to-all prompt for job selection
+  const [jobApplyPrompt, setJobApplyPrompt] = useState<{
+    jobId: string; jobLabel: string
+  } | null>(null)
 
   const expenseAccounts = accounts.filter(a =>
     ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'].includes(a.account_type ?? '')
@@ -177,7 +181,37 @@ export function BillReviewForm({
       <div className="flex-1 overflow-auto">
         <div className="px-5 py-4 space-y-5">
           {/* Banners */}
-          {bill.autopublish_hold_reason && (
+          {localStatus === 'pending_job_match' && (
+            <div
+              className="flex items-center justify-between"
+              style={{ background: '#EDE9FE', border: '0.5px solid #C4B5FD', borderRadius: 6, padding: '10px 12px' }}
+            >
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 500, color: '#5B21B6' }}>Waiting for job match</p>
+                <p style={{ fontSize: 11, color: '#6D28D9', marginTop: 2 }}>
+                  Retry checks every 2 hours during business hours. Use Find Match to retry now.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  startTransition(async () => {
+                    const res = await fetch('/api/quickbooks/sync', { method: 'POST' })
+                    if (res.ok) router.refresh()
+                  })
+                }}
+                disabled={isPending}
+                style={{
+                  background: '#7C3AED', color: 'white',
+                  border: 'none', borderRadius: 6, padding: '5px 12px',
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                Find Match
+              </button>
+            </div>
+          )}
+          {bill.autopublish_hold_reason && localStatus !== 'pending_job_match' && (
             <div style={{ background: '#FEF3C7', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#92400E' }}>
               {bill.autopublish_hold_reason}
             </div>
@@ -250,31 +284,43 @@ export function BillReviewForm({
                     <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={v => updateLineItem(item.line_id, { quantity: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={v => updateLineItem(item.line_id, { unit_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
-                    <InlineSelect
-                      initialValue={item.gl_account_id ?? ''}
-                      options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
-                      onSave={async (v) => {
-                        await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
-                        if (v && item.description && bill.vendor_id) {
-                          const account = expenseAccounts.find(a => a.qb_account_id === v)
-                          setRememberPrompt({
-                            lineId: item.line_id,
-                            description: item.description,
-                            glAccountId: v,
-                            accountName: account?.name ?? v,
-                          })
-                        }
-                      }}
-                      placeholder="GL account…"
-                      emptyLabel="Connect QB"
-                    />
+                    <div>
+                      <InlineSelect
+                        initialValue={item.gl_account_id ?? ''}
+                        options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
+                        onSave={async (v) => {
+                          await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
+                          if (v && item.description && bill.vendor_id) {
+                            const account = expenseAccounts.find(a => a.qb_account_id === v)
+                            setRememberPrompt({
+                              lineId: item.line_id,
+                              description: item.description,
+                              glAccountId: v,
+                              accountName: account?.name ?? v,
+                            })
+                          }
+                        }}
+                        placeholder="GL account…"
+                        emptyLabel="Connect QB"
+                      />
+                      {item.gl_account_source && (
+                        <SourceBadge source={item.gl_account_source} />
+                      )}
+                    </div>
                     <InlineSelect
                       initialValue={item.job_id ?? ''}
                       options={jobs.map(j => ({
                         value: j.qb_job_id,
                         label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
                       }))}
-                      onSave={v => updateLineItem(item.line_id, { job_id: v || null })}
+                      onSave={async (v) => {
+                        await updateLineItem(item.line_id, { job_id: v || null })
+                        if (v && lineItems.length > 1) {
+                          const job = jobs.find(j => j.qb_job_id === v)
+                          const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
+                          setJobApplyPrompt({ jobId: v, jobLabel: label })
+                        }
+                      }}
                       placeholder="Job…"
                       emptyLabel="—"
                     />
@@ -312,6 +358,37 @@ export function BillReviewForm({
                 <button
                   onClick={() => setRememberPrompt(null)}
                   style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                >
+                  No
+                </button>
+              </div>
+            )}
+
+            {/* Apply job to all lines prompt */}
+            {jobApplyPrompt && lineItems.length > 1 && (
+              <div
+                className="flex items-center gap-3 mt-2 px-3 py-2"
+                style={{ background: '#EEF2FF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}
+              >
+                <i className="ti ti-briefcase" style={{ fontSize: 14, color: '#4338CA' }} />
+                <p style={{ fontSize: 12, color: '#3730A3', flex: 1 }}>
+                  Apply <strong>{jobApplyPrompt.jobLabel}</strong> to all {lineItems.length} lines?
+                </p>
+                <button
+                  onClick={async () => {
+                    for (const li of lineItems) {
+                      await updateLineItem(li.line_id, { job_id: jobApplyPrompt.jobId })
+                    }
+                    setJobApplyPrompt(null)
+                    router.refresh()
+                  }}
+                  style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#4338CA', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
+                >
+                  Yes, all {lineItems.length}
+                </button>
+                <button
+                  onClick={() => setJobApplyPrompt(null)}
+                  style={{ fontSize: 12, color: '#4338CA', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
                 >
                   No
                 </button>
@@ -643,4 +720,32 @@ const selectStyle: React.CSSProperties = {
   borderRadius: 6, padding: '0 10px',
   fontSize: 13, color: 'var(--color-text-primary)',
   background: 'white',
+}
+
+// ── Source badge ─────────────────────────────────────────────────────────────
+
+const SOURCE_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+  qb_default:         { label: 'QB',       bg: '#DBEAFE', color: '#1E40AF' },
+  billflow_override:  { label: 'BillFlow', bg: '#EBF5EF', color: '#1A3D2B' },
+  rule:               { label: 'Rule',     bg: '#EDE9FE', color: '#5B21B6' },
+  manual:             { label: 'Manual',   bg: '#FEF3C7', color: '#92400E' },
+  mapping:            { label: 'Learned',  bg: '#D1FAE5', color: '#065F46' },
+}
+
+function SourceBadge({ source }: { source: string }) {
+  const cfg = SOURCE_BADGE[source]
+  if (!cfg) return null
+  return (
+    <span
+      style={{
+        display: 'inline-block', marginTop: 2,
+        background: cfg.bg, color: cfg.color,
+        borderRadius: 3, padding: '1px 5px',
+        fontSize: 9, fontWeight: 600, letterSpacing: '0.03em',
+        textTransform: 'uppercase',
+      }}
+    >
+      {cfg.label}
+    </span>
+  )
 }
