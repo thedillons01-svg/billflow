@@ -1,18 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { BillsList } from './bills-list'
 
 const REVIEW_STATUSES = ['draft', 'ready', 'sync_error']
 const PENDING_STATUSES = ['pending_job_match']
 const ARCHIVE_STATUSES = ['published']
-
-const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  draft:             { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
-  ready:             { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
-  sync_error:        { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
-  pending_job_match: { bg: '#EDE9FE', color: '#5B21B6', label: 'Pending Job Match' },
-  publishing:        { bg: '#DBEAFE', color: '#1E40AF', label: 'Publishing' },
-  published:         { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
-}
 
 export default async function BillsPage({
   searchParams,
@@ -41,18 +33,20 @@ export default async function BillsPage({
     query = query.or(`vendor_name_raw.ilike.%${search}%,invoice_number.ilike.%${search}%`)
   }
 
-  const { data } = await query.limit(activeTab === 'archive' ? 200 : 500)
-  const bills = data ?? []
-
-  // Tab counts
-  const [{ count: reviewCount }, { count: pendingCount }] = await Promise.all([
+  const [billsResult, reviewCountResult, pendingCountResult, accountsResult] = await Promise.all([
+    query.limit(activeTab === 'archive' ? 200 : 500),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', REVIEW_STATUSES).is('deleted_at', null),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
+    supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).order('name'),
   ])
 
+  const bills = billsResult.data ?? []
+  const accounts = accountsResult.data ?? []
+  const isInbox = activeTab !== 'archive'
+
   const tabs = [
-    { id: 'review',  label: 'Needs Review',      count: reviewCount ?? 0 },
-    { id: 'pending', label: 'Pending Job Match',  count: pendingCount ?? 0 },
+    { id: 'review',  label: 'Needs Review',      count: reviewCountResult.count ?? 0 },
+    { id: 'pending', label: 'Pending Job Match',  count: pendingCountResult.count ?? 0 },
     { id: 'archive', label: 'Archive',            count: null },
   ]
 
@@ -141,74 +135,7 @@ export default async function BillsPage({
         {bills.length === 0 ? (
           <EmptyState tab={activeTab} search={search} />
         ) : (
-          <>
-            {/* Column headers */}
-            <div
-              className="grid px-5 py-2"
-              style={{
-                gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
-                borderBottom: '0.5px solid var(--color-border-tertiary)',
-              }}
-            >
-              {['Vendor', 'Invoice #', 'Date', 'Total', 'Status'].map(h => (
-                <span
-                  key={h}
-                  style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-
-            {bills.map((bill, i) => {
-              const badge = STATUS_BADGE[bill.status] ?? STATUS_BADGE.draft
-              return (
-                <Link
-                  key={bill.bill_id}
-                  href={`/bills/${bill.bill_id}`}
-                  className="grid items-center px-5 py-[10px]"
-                  style={{
-                    gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
-                    borderBottom: '0.5px solid var(--color-border-tertiary)',
-                    background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
-                    cursor: 'pointer',
-                    textDecoration: 'none',
-                    display: 'grid',
-                  }}
-                >
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                      {bill.vendor_name_raw ?? 'Unknown Vendor'}
-                    </p>
-                    {bill.autopublish_hold_reason && (
-                      <p style={{ fontSize: 11, color: '#D97706' }}>
-                        {bill.autopublish_hold_reason}
-                      </p>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    {bill.invoice_number ?? '—'}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    {bill.invoice_date ? new Date(bill.invoice_date).toLocaleDateString() : '—'}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                    {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : '—'}
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      background: badge.bg, color: badge.color,
-                      borderRadius: 4, padding: '3px 8px',
-                      fontSize: 10, fontWeight: 500,
-                    }}
-                  >
-                    {badge.label}
-                  </span>
-                </Link>
-              )
-            })}
-          </>
+          <BillsList bills={bills} accounts={accounts} isInbox={isInbox} />
         )}
       </div>
     </div>

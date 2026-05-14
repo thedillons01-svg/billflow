@@ -60,3 +60,19 @@ export async function deleteLineItem(lineId: string, billId: string) {
   await supabase.from('bill_line_items').delete().eq('line_id', lineId)
   revalidatePath(`/bills/${billId}`)
 }
+
+export async function saveLineItemMapping(
+  vendorId: string,
+  descriptionText: string,
+  glAccountId: string
+) {
+  if (!descriptionText.trim()) return
+  const supabase = await createClient()
+  // Upsert by vendor + description — update GL if mapping already exists
+  await supabase
+    .from('vendor_line_item_mappings')
+    .upsert(
+      { vendor_id: vendorId, description_text: descriptionText.trim(), gl_account_id: glAccountId },
+      { onConflict: 'vendor_id,description_text' }
+    )
+}

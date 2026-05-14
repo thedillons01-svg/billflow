@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem } from '../actions'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -24,6 +24,7 @@ type LineItem = {
 type Bill = {
   bill_id: string
   company_id: string
+  vendor_id: string | null
   vendor_name_raw: string | null
   invoice_number: string | null
   invoice_date: string | null
@@ -69,6 +70,10 @@ export function BillReviewForm({
   const [publishError, setPublishError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState(initialLineItems)
   const [markAsPaid, setMarkAsPaid] = useState(bill.mark_as_paid ?? false)
+  // Remember prompt: tracks which line triggered it and the new GL account id
+  const [rememberPrompt, setRememberPrompt] = useState<{
+    lineId: string; description: string; glAccountId: string; accountName: string
+  } | null>(null)
 
   const expenseAccounts = accounts.filter(a =>
     ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'].includes(a.account_type ?? '')
@@ -248,7 +253,18 @@ export function BillReviewForm({
                     <InlineSelect
                       initialValue={item.gl_account_id ?? ''}
                       options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
-                      onSave={v => updateLineItem(item.line_id, { gl_account_id: v || null })}
+                      onSave={async (v) => {
+                        await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
+                        if (v && item.description && bill.vendor_id) {
+                          const account = expenseAccounts.find(a => a.qb_account_id === v)
+                          setRememberPrompt({
+                            lineId: item.line_id,
+                            description: item.description,
+                            glAccountId: v,
+                            accountName: account?.name ?? v,
+                          })
+                        }
+                      }}
                       placeholder="GL account…"
                       emptyLabel="Connect QB"
                     />
@@ -274,6 +290,34 @@ export function BillReviewForm({
                 ))}
               </div>
             )}
+            {/* Remember? prompt */}
+            {rememberPrompt && bill.vendor_id && (
+              <div
+                className="flex items-center gap-3 mt-2 px-3 py-2"
+                style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}
+              >
+                <i className="ti ti-bulb" style={{ fontSize: 14, color: '#D97706' }} />
+                <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                  Remember <strong>{rememberPrompt.accountName}</strong> for &ldquo;{rememberPrompt.description}&rdquo;?
+                </p>
+                <button
+                  onClick={async () => {
+                    await saveLineItemMapping(bill.vendor_id!, rememberPrompt.description, rememberPrompt.glAccountId)
+                    setRememberPrompt(null)
+                  }}
+                  style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setRememberPrompt(null)}
+                  style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                >
+                  No
+                </button>
+              </div>
+            )}
+
             {!isPublished && (
               <button
                 onClick={handleAddLine}
