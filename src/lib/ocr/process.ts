@@ -82,21 +82,42 @@ export async function processBill(billId: string): Promise<void> {
     return
   }
 
-  // 4. Update the bill record
+  // 4. Duplicate detection — check vendor_name_raw + invoice_number (excluding self)
+  let isDuplicate = false
+  if (result.vendor_name_raw && result.invoice_number) {
+    const { data: existing } = await supabase
+      .from('bills')
+      .select('bill_id')
+      .eq('company_id', bill.company_id)
+      .eq('vendor_name_raw', result.vendor_name_raw)
+      .eq('invoice_number', result.invoice_number)
+      .neq('bill_id', billId)
+      .is('deleted_at', null)
+      .limit(1)
+
+    isDuplicate = (existing?.length ?? 0) > 0
+  }
+
+  // 5. Update the bill record
+  const holdReason = isDuplicate
+    ? `Duplicate held — invoice ${result.invoice_number} from ${result.vendor_name_raw} already exists`
+    : null
+
   const { error: updateErr } = await supabase
     .from('bills')
     .update({
-      status:               'ready',
-      vendor_name_raw:      result.vendor_name_raw,
-      invoice_number:       result.invoice_number,
-      invoice_date:         result.invoice_date,
-      due_date:             result.due_date,
-      vendor_po_reference:  result.vendor_po_reference,
-      total:                result.total,
-      subtotal:             result.subtotal,
-      tax_amount:           result.tax_amount,
-      ocr_tier:             result.tier,
-      ocr_confidence:       result.confidence,
+      status:                   isDuplicate ? 'draft' : 'ready',
+      vendor_name_raw:          result.vendor_name_raw,
+      invoice_number:           result.invoice_number,
+      invoice_date:             result.invoice_date,
+      due_date:                 result.due_date,
+      vendor_po_reference:      result.vendor_po_reference,
+      total:                    result.total,
+      subtotal:                 result.subtotal,
+      tax_amount:               result.tax_amount,
+      ocr_tier:                 result.tier,
+      ocr_confidence:           result.confidence,
+      autopublish_hold_reason:  holdReason,
     })
     .eq('bill_id', billId)
 
@@ -105,22 +126,107 @@ export async function processBill(billId: string): Promise<void> {
     return
   }
 
-  // 5. Insert line items (delete any existing first to allow safe re-runs)
+  if (isDuplicate) {
+    console.log(`[ocr] Bill ${billId} flagged as duplicate`)
+    await sendNotification({
+      companyId:  bill.company_id,
+      event:      'wrong_capture_address',
+      subject:    `Duplicate invoice held`,
+      body:       `Invoice ${result.invoice_number} from ${result.vendor_name_raw} already exists. The duplicate has been held for review.`,
+      billId,
+    })
+  }
+
+  // 5a. Vendor matching — find vendor by extracted name, link to bill
+  let vendorId: string | null = null
+  let vendorDefaultGlAccountId: string | null = null
+  if (result.vendor_name_raw) {
+    const { data: vendor } = await supabase
+      .from('vendors')
+      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source')
+      .eq('company_id', bill.company_id)
+      .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
+      .limit(1)
+      .single()
+
+    if (vendor) {
+      vendorId = vendor.vendor_id
+      vendorDefaultGlAccountId =
+        vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
+
+      await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+    }
+  }
+
+  // 5b. Load line item mappings and rules for this vendor
+  let mappings: Array<{ description_text: string; gl_account_id: string }> = []
+  let rules: Array<{
+    match_type: string
+    conditions: Array<{ field: string; operator: string; value: string }>
+    gl_account_id: string
+    priority: number
+  }> = []
+  if (vendorId) {
+    const [mappingsResult, rulesResult] = await Promise.all([
+      supabase
+        .from('vendor_line_item_mappings')
+        .select('description_text, gl_account_id')
+        .eq('vendor_id', vendorId),
+      supabase
+        .from('vendor_line_item_rules')
+        .select('match_type, conditions, gl_account_id, priority')
+        .eq('vendor_id', vendorId)
+        .order('priority'),
+    ])
+    mappings = mappingsResult.data ?? []
+    rules = (rulesResult.data ?? []) as typeof rules
+  }
+
+  // 5c. Insert line items with smart GL account assignment
   if (result.line_items.length > 0) {
     await supabase.from('bill_line_items').delete().eq('bill_id', billId)
 
-    const { error: lineErr } = await supabase.from('bill_line_items').insert(
-      result.line_items.map((li) => ({
-        bill_id:       billId,
-        company_id:    bill.company_id,
-        description:   li.description,
-        quantity:      li.quantity,
-        unit_cost:     li.unit_price,
-        extended_cost: li.total,
-        sort_order:    li.sort_order,
-      }))
-    )
+    const lineItemRows = result.line_items.map((li) => {
+      const desc = li.description ?? ''
+      let glAccountId: string | null = null
+      let glSource: string | null = null
 
+      // 1. Check stored mappings (exact description match)
+      const mapping = mappings.find(m => m.description_text.toLowerCase() === desc.toLowerCase())
+      if (mapping) {
+        glAccountId = mapping.gl_account_id
+        glSource = 'mapping'
+      }
+
+      // 2. Check rules (override mappings)
+      if (!glAccountId || rules.length > 0) {
+        const matchedRule = rules.find(rule => evaluateRule(rule, desc, li.unit_price ?? 0))
+        if (matchedRule) {
+          glAccountId = matchedRule.gl_account_id
+          glSource = 'rule'
+        }
+      }
+
+      // 3. Fall back to vendor default GL
+      if (!glAccountId && vendorDefaultGlAccountId) {
+        glAccountId = vendorDefaultGlAccountId
+        glSource = 'qb_default'
+      }
+
+      return {
+        bill_id:          billId,
+        company_id:       bill.company_id,
+        description:      li.description,
+        quantity:         li.quantity,
+        unit_cost:        li.unit_price,
+        extended_cost:    li.total,
+        sort_order:       li.sort_order,
+        gl_account_id:    glAccountId,
+        gl_account_source: glSource,
+      }
+    })
+
+    const { error: lineErr } = await supabase.from('bill_line_items').insert(lineItemRows)
     if (lineErr) {
       console.error(`[ocr] Line items insert failed (${billId}):`, lineErr.message)
     }
@@ -204,6 +310,35 @@ async function tryMatchPO(
     .eq('bill_id', billId)
 
   console.log(`[ocr] Bill ${billId} matched to PO ${match.po_id} (discrepancy: ${hasDiscrepancy})`)
+}
+
+// ---------------------------------------------------------------------------
+// Rules engine — evaluate a single rule against a line item
+// ---------------------------------------------------------------------------
+
+function evaluateRule(
+  rule: { match_type: string; conditions: Array<{ field: string; operator: string; value: string }> },
+  description: string,
+  unitPrice: number,
+): boolean {
+  const results = rule.conditions.map(cond => {
+    const haystack = cond.field === 'description'
+      ? description.toLowerCase()
+      : String(unitPrice)
+    const needle = cond.value.toLowerCase()
+
+    switch (cond.operator) {
+      case 'equal':      return haystack === needle
+      case 'contains':   return haystack.includes(needle)
+      case 'begins_with': return haystack.startsWith(needle)
+      case 'ends_with':   return haystack.endsWith(needle)
+      default:           return false
+    }
+  })
+
+  return rule.match_type === 'all'
+    ? results.every(Boolean)
+    : results.some(Boolean)
 }
 
 // ---------------------------------------------------------------------------
