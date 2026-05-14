@@ -245,12 +245,12 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       .eq('company_id', bill.company_id)
       .single()
 
-    const newBalance = Math.max(0, (co?.credit_balance ?? 0) - 2)
+    const newBalance = Math.max(0, (co?.credit_balance ?? 0) - 1)
     await Promise.all([
       supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', bill.company_id),
       supabase.from('credit_ledger').insert({
         company_id:  bill.company_id,
-        amount:      -2,
+        amount:      -1,
         description: `Bill processed: ${result.vendor_name_raw ?? 'Unknown'} ${result.invoice_number ?? ''}`.trim(),
         bill_id:     billId,
       }),

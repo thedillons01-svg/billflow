@@ -47,10 +47,10 @@ Job costing is entirely optional. Company-level setting: job_costing_enabled (bo
 - Surfaced prominently during onboarding so the contractor makes a deliberate choice
 
 ### 1.7 Pricing Model
-BillFlow uses per-transaction credit pricing, mirroring AutoEntry at slightly lower rates.
+BillFlow uses per-transaction credit pricing, roughly equivalent to AutoEntry (~$0.40/transaction).
+- 1 credit per transaction (bill or PO) — line item extraction always included, no separate tier
 - Credits purchased in bundles; flat monthly subscription option also available
-- Bills: 2 credits per invoice (line item extraction always included)
-- POs: 1 credit per PO
+- Bundle pricing: 50 credits $20 · 100 credits $40 · 500 credits $190 · 1,000 credits $360
 - Reprocessing: no charge — same document, user asking for better extraction or re-applying defaults
 - Duplicate detected and rejected: no charge
 - Wrong document type rejected: no charge

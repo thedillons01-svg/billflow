@@ -2,10 +2,10 @@ import { createClient } from '@/lib/supabase/server'
 import { CheckoutButton } from './checkout-button'
 
 const CREDIT_PACKAGES = [
-  { credits: 100,  price: 12,  label: '100 credits',     note: '$0.12 / credit',                popular: false },
-  { credits: 500,  price: 49,  label: '500 credits',     note: '$0.098 / credit — save 18%',    popular: true  },
-  { credits: 1000, price: 89,  label: '1,000 credits',   note: '$0.089 / credit — save 26%',    popular: false },
-  { credits: 2500, price: 199, label: '2,500 credits',   note: '$0.080 / credit — save 33%',    popular: false },
+  { credits: 50,   price: 20,  label: '50 credits',    note: '$0.40 / transaction',             popular: false },
+  { credits: 100,  price: 40,  label: '100 credits',   note: '$0.40 / transaction',             popular: false },
+  { credits: 500,  price: 190, label: '500 credits',   note: '$0.38 / transaction — save 5%',  popular: true  },
+  { credits: 1000, price: 360, label: '1,000 credits', note: '$0.36 / transaction — save 10%', popular: false },
 ]
 
 export default async function BillingPage({
@@ -79,7 +79,7 @@ export default async function BillingPage({
                   {creditBalance.toLocaleString()}
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6 }}>
-                  2 credits per bill · 1 credit per PO · No charge for duplicates or wrong document type
+                  1 credit per bill or PO · No charge for duplicates, reprocessing, or wrong document type
                 </p>
               </div>
               <div
