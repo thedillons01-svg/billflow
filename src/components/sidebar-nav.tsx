@@ -3,8 +3,28 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signout } from '@/app/actions/auth'
+import { markNotificationRead } from '@/app/actions/notifications'
+import { NotificationBell } from '@/components/notification-bell'
 
-export function SidebarNav({ userEmail }: { userEmail: string | null }) {
+type Notification = {
+  id: string
+  type: 'error' | 'success' | 'info'
+  title: string
+  body: string | null
+  is_read: boolean
+  created_at: string
+  bill_id: string | null
+}
+
+export function SidebarNav({
+  userEmail,
+  notifications,
+  unreadCount,
+}: {
+  userEmail: string | null
+  notifications: Notification[]
+  unreadCount: number
+}) {
   const pathname = usePathname()
 
   const isActive = (prefix: string) =>
@@ -52,8 +72,15 @@ export function SidebarNav({ userEmail }: { userEmail: string | null }) {
         <NavItem href="/settings" active={isActive('/settings')} icon="ti-settings">Settings</NavItem>
       </nav>
 
-      {/* Footer — user email */}
+      {/* Footer — notifications bell + user email / sign out */}
       <div style={{ borderTop: '0.5px solid #C3DEC9', padding: '10px 12px' }}>
+        <div className="flex items-center justify-between mb-2">
+          <NotificationBell
+            count={unreadCount}
+            notifications={notifications}
+            onMarkRead={markNotificationRead}
+          />
+        </div>
         <form action={signout}>
           <button
             type="submit"

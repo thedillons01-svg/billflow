@@ -1,14 +1,19 @@
 import { createClient } from '@/lib/supabase/server'
-import Link from 'next/link'
+import { CheckoutButton } from './checkout-button'
 
 const CREDIT_PACKAGES = [
-  { credits: 100, price: 12, label: '100 credits', note: '$0.12 / credit', popular: false },
-  { credits: 500, price: 49, label: '500 credits', note: '$0.098 / credit — save 18%', popular: true },
-  { credits: 1000, price: 89, label: '1,000 credits', note: '$0.089 / credit — save 26%', popular: false },
-  { credits: 2500, price: 199, label: '2,500 credits', note: '$0.080 / credit — save 33%', popular: false },
+  { credits: 100,  price: 12,  label: '100 credits',     note: '$0.12 / credit',                popular: false },
+  { credits: 500,  price: 49,  label: '500 credits',     note: '$0.098 / credit — save 18%',    popular: true  },
+  { credits: 1000, price: 89,  label: '1,000 credits',   note: '$0.089 / credit — save 26%',    popular: false },
+  { credits: 2500, price: 199, label: '2,500 credits',   note: '$0.080 / credit — save 33%',    popular: false },
 ]
 
-export default async function BillingPage() {
+export default async function BillingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ purchased?: string }>
+}) {
+  const { purchased } = await searchParams
   const supabase = await createClient()
 
   const { data: company } = await supabase
@@ -18,11 +23,12 @@ export default async function BillingPage() {
 
   const { data: ledger } = await supabase
     .from('credit_ledger')
-    .select('amount, description, created_at, bill_id')
+    .select('amount, description, created_at')
     .order('created_at', { ascending: false })
     .limit(50)
 
   const creditBalance = company?.credit_balance ?? 0
+  const stripeConfigured = !!process.env.STRIPE_SECRET_KEY
 
   return (
     <div className="flex flex-col h-full">
@@ -41,6 +47,19 @@ export default async function BillingPage() {
 
       <div className="flex-1 overflow-auto px-5 py-5">
         <div style={{ maxWidth: 700 }} className="space-y-5">
+
+          {/* Success banner */}
+          {purchased && (
+            <div
+              className="flex items-center gap-3 px-4 py-3"
+              style={{ background: '#D1FAE5', border: '0.5px solid #6EE7B7', borderRadius: 8 }}
+            >
+              <i className="ti ti-circle-check" style={{ fontSize: 16, color: '#065F46' }} />
+              <p style={{ fontSize: 13, fontWeight: 500, color: '#065F46' }}>
+                {Number(purchased).toLocaleString()} credits added to your account.
+              </p>
+            </div>
+          )}
 
           {/* Current balance */}
           <div
@@ -144,28 +163,34 @@ export default async function BillingPage() {
                     <p style={{ fontSize: 18, fontWeight: 700, color: 'var(--color-text-primary)' }}>
                       ${pkg.price}
                     </p>
-                    <button
-                      type="button"
-                      disabled
-                      style={{
-                        background: '#2DB87A', color: 'white',
-                        borderRadius: 6, padding: '7px 18px',
-                        fontSize: 13, fontWeight: 500,
-                        border: 'none', cursor: 'not-allowed',
-                        opacity: 0.7,
-                      }}
-                    >
-                      Buy
-                    </button>
+                    {stripeConfigured ? (
+                      <CheckoutButton credits={pkg.credits} />
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        style={{
+                          background: '#2DB87A', color: 'white',
+                          borderRadius: 6, padding: '7px 18px',
+                          fontSize: 13, fontWeight: 500,
+                          border: 'none', cursor: 'not-allowed',
+                          opacity: 0.5,
+                        }}
+                      >
+                        Buy
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
 
-              <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'center', paddingTop: 4 }}>
-                Stripe billing coming soon. Contact{' '}
-                <a href="mailto:support@billflow.app" style={{ color: '#2DB87A' }}>support@billflow.app</a>
-                {' '}to purchase credits manually.
-              </p>
+              {!stripeConfigured && (
+                <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'center', paddingTop: 4 }}>
+                  Stripe billing coming soon. Contact{' '}
+                  <a href="mailto:support@billflow.app" style={{ color: '#2DB87A' }}>support@billflow.app</a>
+                  {' '}to purchase credits manually.
+                </p>
+              )}
             </div>
           </div>
 
@@ -194,7 +219,6 @@ export default async function BillingPage() {
               </div>
             ) : (
               <>
-                {/* Column headers */}
                 <div
                   className="grid px-5 py-2"
                   style={{
@@ -244,3 +268,4 @@ export default async function BillingPage() {
     </div>
   )
 }
+
