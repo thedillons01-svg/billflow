@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { extractTier1, hasTextLayer } from './tier1'
 import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
+import type { ExtractionResult } from './types'
 
 function getServiceClient() {
   return createClient(
@@ -37,48 +38,13 @@ export async function processPO(poId: string): Promise<void> {
 
   const pdfBuffer = Buffer.from(await fileData.arrayBuffer())
 
-  // Reuse the same tiered OCR, but interpret as PO
-  let rawText = ''
-  let tier = 1
+  let result: ExtractionResult
+  let tier: number
 
   try {
-    const tier1 = await extractTier1(pdfBuffer)
-    if (!hasTextLayer(tier1.rawText)) {
-      const tier3 = await extractTier3(pdfBuffer)
-      rawText = tier3.raw_text ?? ''
-      tier = 3
-    } else if (tier1.invoice_number && tier1.total) {
-      rawText = tier1.rawText
-      tier = 1
-    } else {
-      const tier2 = await extractTier2(tier1.rawText)
-      rawText = tier1.rawText
-      tier = 2
-      // Use tier2 extraction for PO fields
-      await supabase
-        .from('purchase_orders')
-        .update({
-          vendor_name_raw: tier2.vendor_name_raw,
-          po_number:       tier2.invoice_number, // PO number maps to invoice_number field
-          order_date:      tier2.invoice_date,
-        })
-        .eq('po_id', poId)
-      await insertPOLineItems(supabase, poId, po.company_id, tier2.line_items)
-      return
-    }
-
-    // Tier 1 sufficient
-    const tier1Data = await extractTier1(pdfBuffer)
-    await supabase
-      .from('purchase_orders')
-      .update({
-        vendor_name_raw: tier1Data.vendor_name_raw,
-        po_number:       tier1Data.invoice_number,
-        order_date:      tier1Data.invoice_date,
-      })
-      .eq('po_id', poId)
-
-    await insertPOLineItems(supabase, poId, po.company_id, tier1Data.line_items)
+    const extracted = await runTieredExtraction(pdfBuffer)
+    result = extracted.result
+    tier = extracted.tier
   } catch (err) {
     console.error(`[ocr-po] PO extraction failed (${poId}):`, err)
     await supabase
@@ -88,6 +54,51 @@ export async function processPO(poId: string): Promise<void> {
     return
   }
 
+  // Update PO with extracted fields
+  await supabase
+    .from('purchase_orders')
+    .update({
+      vendor_name_raw: result.vendor_name_raw,
+      po_number:       result.invoice_number,   // invoice_number field maps to PO number
+      order_date:      result.invoice_date,
+    })
+    .eq('po_id', poId)
+
+  // Vendor matching — find vendor by extracted name
+  if (result.vendor_name_raw) {
+    const { data: vendor } = await supabase
+      .from('vendors')
+      .select('vendor_id')
+      .eq('company_id', po.company_id)
+      .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
+      .limit(1)
+      .single()
+
+    if (vendor) {
+      await supabase.from('purchase_orders').update({ vendor_id: vendor.vendor_id }).eq('po_id', poId)
+    }
+  }
+
+  // Insert PO line items
+  await insertPOLineItems(supabase, poId, po.company_id, result.line_items)
+
+  // Deduct 1 credit for PO processing
+  const { data: co } = await supabase
+    .from('companies')
+    .select('credit_balance')
+    .eq('company_id', po.company_id)
+    .single()
+
+  const newBalance = Math.max(0, (co?.credit_balance ?? 0) - 1)
+  await Promise.all([
+    supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', po.company_id),
+    supabase.from('credit_ledger').insert({
+      company_id:  po.company_id,
+      amount:      -1,
+      description: `PO processed: ${result.vendor_name_raw ?? 'Unknown'} ${result.invoice_number ?? ''}`.trim(),
+    }),
+  ])
+
   await supabase.from('processing_log').insert({
     document_id:   poId,
     document_type: 'po',
@@ -95,10 +106,29 @@ export async function processPO(poId: string): Promise<void> {
     action:        'ocr_complete',
     actor:         'system',
     credits_used:  1,
-    after_state:   { tier, status: 'open' },
+    after_state:   { tier, status: 'open', po_number: result.invoice_number },
   })
 
-  console.log(`[ocr-po] PO ${poId} processed (tier ${tier})`)
+  console.log(`[ocr-po] PO ${poId} processed — tier ${tier}, ${result.line_items.length} line items`)
+}
+
+async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: ExtractionResult; tier: number }> {
+  const tier1 = await extractTier1(pdfBuffer)
+
+  if (!hasTextLayer(tier1.rawText)) {
+    console.log('[ocr-po] No text layer → Tier 3 (vision)')
+    const tier3 = await extractTier3(pdfBuffer)
+    return { result: { ...tier3, tier: 3 }, tier: 3 }
+  }
+
+  if (tier1.invoice_number !== null && tier1.total !== null) {
+    console.log('[ocr-po] Tier 1 extraction complete')
+    return { result: { ...tier1, tier: 1, raw_text: tier1.rawText }, tier: 1 }
+  }
+
+  console.log('[ocr-po] Tier 1 incomplete → Tier 2 (Claude Haiku)')
+  const tier2 = await extractTier2(tier1.rawText)
+  return { result: { ...tier2, tier: 2, raw_text: tier1.rawText }, tier: 2 }
 }
 
 type LineItem = {

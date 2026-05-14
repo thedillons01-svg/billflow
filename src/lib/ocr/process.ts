@@ -41,7 +41,7 @@ async function markOcrError(supabase: SupabaseClient, billId: string, error: str
 // processBill — entry point called after a bill record is created
 // ---------------------------------------------------------------------------
 
-export async function processBill(billId: string): Promise<void> {
+export async function processBill(billId: string, opts?: { skipCredits?: boolean }): Promise<void> {
   const supabase = getServiceClient()
 
   // 1. Load the bill record
@@ -237,8 +237,8 @@ export async function processBill(billId: string): Promise<void> {
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
-  // 6.5 Deduct 2 credits for the processed bill (only if not a duplicate — duplicates are free)
-  if (!isDuplicate) {
+  // 6.5 Deduct 2 credits for the processed bill (only if not a duplicate or reprocess — duplicates and reprocessing are free)
+  if (!isDuplicate && !opts?.skipCredits) {
     const { data: co } = await supabase
       .from('companies')
       .select('credit_balance')

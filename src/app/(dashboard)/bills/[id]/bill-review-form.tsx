@@ -48,6 +48,7 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
   draft:             { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
   ready:             { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
   sync_error:        { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
+  ocr_error:         { bg: '#FEE2E2', color: '#991B1B', label: 'OCR Error' },
   pending_job_match: { bg: '#EDE9FE', color: '#5B21B6', label: 'Pending Job Match' },
   publishing:        { bg: '#DBEAFE', color: '#1E40AF', label: 'Publishing' },
   published:         { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
@@ -142,9 +143,22 @@ export function BillReviewForm({
     await updateBill(bill.bill_id, { mark_as_paid: v })
   }
 
+  const handleReprocess = () => {
+    startTransition(async () => {
+      const res = await fetch(`/api/bills/${bill.bill_id}/reprocess`, { method: 'POST' })
+      if (res.ok) {
+        router.refresh()
+      } else {
+        const json = await res.json()
+        setPublishError(json.error ?? 'Reprocess failed')
+      }
+    })
+  }
+
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.draft
   const canPublish = ['ready', 'sync_error'].includes(localStatus)
   const canMarkReady = localStatus === 'draft'
+  const canReprocess = localStatus === 'ocr_error'
   const isPublished = localStatus === 'published'
 
   return (
@@ -219,6 +233,31 @@ export function BillReviewForm({
           {localStatus === 'sync_error' && bill.qb_sync_error && (
             <div style={{ background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#991B1B' }}>
               <strong>QuickBooks sync failed: </strong>{bill.qb_sync_error}
+            </div>
+          )}
+          {localStatus === 'ocr_error' && (
+            <div
+              className="flex items-start justify-between gap-3"
+              style={{ background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: 6, padding: '10px 12px' }}
+            >
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 500, color: '#991B1B' }}>OCR extraction failed</p>
+                <p style={{ fontSize: 11, color: '#B91C1C', marginTop: 2 }}>
+                  The PDF could not be read automatically. You can reprocess it (no credit charge) or fill in the fields manually below.
+                </p>
+              </div>
+              <button
+                onClick={handleReprocess}
+                disabled={isPending}
+                style={{
+                  background: '#DC2626', color: 'white',
+                  border: 'none', borderRadius: 6, padding: '5px 12px',
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                {isPending ? 'Reprocessing…' : 'Reprocess'}
+              </button>
             </div>
           )}
 
@@ -528,6 +567,21 @@ export function BillReviewForm({
               }}
             >
               Delete
+            </button>
+          )}
+          {canReprocess && (
+            <button
+              onClick={handleReprocess}
+              disabled={isPending}
+              style={{
+                background: 'white', color: '#991B1B',
+                border: '0.5px solid #FCA5A5',
+                borderRadius: 6, padding: '7px 12px',
+                fontSize: 12, cursor: 'pointer',
+                opacity: isPending ? 0.6 : 1,
+              }}
+            >
+              {isPending ? 'Reprocessing…' : 'Reprocess (free)'}
             </button>
           )}
         </div>

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BillsList } from './bills-list'
 
-const REVIEW_STATUSES = ['draft', 'ready', 'sync_error']
+const REVIEW_STATUSES = ['draft', 'ready', 'sync_error', 'ocr_error']
 const PENDING_STATUSES = ['pending_job_match']
 const ARCHIVE_STATUSES = ['published']
 
