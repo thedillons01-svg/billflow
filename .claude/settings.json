@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(npx tsc --noEmit 2>&1)",
+      "Bash(npx tsc --noEmit)",
+      "Bash(npx tsc *)",
       "Bash(npx vercel logs*)",
+      "Bash(npx vercel --prod *)",
+      "Bash(npx supabase db push*)",
+      "Bash(npx supabase db pull*)",
+      "Bash(npx supabase db diff*)",
+      "Bash(npx supabase status*)",
+      "Bash(mkdir *)",
+      "Bash(npm run dev*)",
+      "Bash(npm run build*)",
+      "Bash(npm install *)",
+      "Bash(npm install)",
       "Bash(claude doctor*)"
     ]
   }

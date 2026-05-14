@@ -12,11 +12,13 @@
     "@anthropic-ai/sdk": "^0.93.0",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
+    "@tabler/icons-webfont": "^3.44.0",
     "next": "16.2.3",
     "pdf-parse": "^1.1.4",
     "pdfkit": "^0.18.0",
     "react": "19.2.4",
     "react-dom": "19.2.4",
+    "resend": "^6.12.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

@@ -14,17 +14,21 @@ export default async function BillDetailPage({
     .from('bills')
     .select(`
       bill_id, company_id, vendor_name_raw, invoice_number, invoice_date, due_date,
-      total, status, autopublish_hold_reason, vendor_po_reference, qb_reference_number,
-      pdf_url, qb_sync_error,
+      total, line_items_total, status, autopublish_hold_reason,
+      vendor_po_reference, qb_reference_number, description,
+      mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
+      pdf_url, qb_sync_error, deleted_at,
+      vendor_id,
+      vendors!bills_vendor_id_fkey(vendor_name_display, qb_vendor_id),
       bill_line_items (
         line_id, description, quantity, unit_cost, extended_cost,
-        gl_account_id, job_id, sort_order
+        gl_account_id, job_id, class_id, sort_order, is_tax_line, gl_account_source
       )
     `)
     .eq('bill_id', id)
     .single()
 
-  if (error || !data) notFound()
+  if (error || !data || (data as Record<string, unknown>).deleted_at) notFound()
 
   const bill = data as Record<string, unknown> & { company_id: string; bill_line_items: { sort_order: number }[] }
   const lineItems = [...(bill.bill_line_items ?? [])].sort(
@@ -34,7 +38,7 @@ export default async function BillDetailPage({
   const [{ data: accounts }, { data: jobs }] = await Promise.all([
     supabase
       .from('qb_accounts_cache')
-      .select('id, qb_account_id, name')
+      .select('id, qb_account_id, name, account_type')
       .eq('company_id', bill.company_id),
     supabase
       .from('qb_jobs_cache')
@@ -52,9 +56,16 @@ export default async function BillDetailPage({
   }
 
   return (
-    <div className="flex h-full">
+    <div className="flex" style={{ height: '100%' }}>
       {/* Left panel: review form */}
-      <div className="flex w-[520px] flex-none flex-col border-r border-gray-200 bg-white">
+      <div
+        style={{
+          width: 520, flexShrink: 0,
+          display: 'flex', flexDirection: 'column',
+          borderRight: '0.5px solid var(--color-border-tertiary)',
+          background: 'white',
+        }}
+      >
         <BillReviewForm
           bill={bill as unknown as Parameters<typeof BillReviewForm>[0]['bill']}
           lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
@@ -64,35 +75,27 @@ export default async function BillDetailPage({
       </div>
 
       {/* Right panel: PDF viewer */}
-      <div className="flex flex-1 flex-col overflow-hidden bg-gray-100">
+      <div className="flex-1 overflow-hidden" style={{ background: 'var(--color-background-secondary)' }}>
         {pdfSignedUrl ? (
           <iframe
             src={pdfSignedUrl}
-            className="h-full w-full border-0"
+            style={{ width: '100%', height: '100%', border: 'none' }}
             title="Invoice PDF"
           />
         ) : (
           <div className="flex h-full items-center justify-center">
             <div className="text-center">
-              <PdfIcon />
-              <p className="mt-3 text-sm font-medium text-gray-500">No PDF attached</p>
-              <p className="mt-1 text-xs text-gray-400">PDFs captured via email will appear here</p>
+              <i className="ti ti-file" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
+              <p style={{ marginTop: 12, fontSize: 14, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+                No PDF attached
+              </p>
+              <p style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+                PDFs captured via email will appear here automatically.
+              </p>
             </div>
           </div>
         )}
       </div>
     </div>
-  )
-}
-
-function PdfIcon() {
-  return (
-    <svg className="mx-auto h-12 w-12 text-gray-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14,2 14,8 20,8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-      <line x1="10" y1="9" x2="8" y2="9" />
-    </svg>
   )
 }

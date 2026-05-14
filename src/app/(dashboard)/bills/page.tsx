@@ -1,10 +1,18 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { BillRow } from './bill-row'
 
-const REVIEW_STATUSES = ['needs_review', 'draft', 'ready', 'sync_error']
+const REVIEW_STATUSES = ['draft', 'ready', 'sync_error']
 const PENDING_STATUSES = ['pending_job_match']
 const ARCHIVE_STATUSES = ['published']
+
+const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  draft:             { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
+  ready:             { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
+  sync_error:        { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
+  pending_job_match: { bg: '#EDE9FE', color: '#5B21B6', label: 'Pending Job Match' },
+  publishing:        { bg: '#DBEAFE', color: '#1E40AF', label: 'Publishing' },
+  published:         { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
+}
 
 export default async function BillsPage({
   searchParams,
@@ -26,128 +34,223 @@ export default async function BillsPage({
     .from('bills')
     .select('bill_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason')
     .in('status', statuses)
+    .is('deleted_at', null)
     .order('created_at', { ascending: activeTab === 'archive' })
 
   if (search && activeTab === 'archive') {
     query = query.or(`vendor_name_raw.ilike.%${search}%,invoice_number.ilike.%${search}%`)
   }
 
-  const { data, error } = await query.limit(activeTab === 'archive' ? 200 : 500)
+  const { data } = await query.limit(activeTab === 'archive' ? 200 : 500)
+  const bills = data ?? []
 
-  if (error) console.error('Error fetching bills:', error)
+  // Tab counts
+  const [{ count: reviewCount }, { count: pendingCount }] = await Promise.all([
+    supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', REVIEW_STATUSES).is('deleted_at', null),
+    supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
+  ])
 
-  const bills = (data as Parameters<typeof BillRow>[0]['bill'][] | null) ?? []
+  const tabs = [
+    { id: 'review',  label: 'Needs Review',      count: reviewCount ?? 0 },
+    { id: 'pending', label: 'Pending Job Match',  count: pendingCount ?? 0 },
+    { id: 'archive', label: 'Archive',            count: null },
+  ]
 
   return (
-    <div>
-      {/* Page header — sticky so it stays visible while table scrolls */}
-      <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-10 py-4">
-        <h1 className="text-xl font-semibold text-gray-900">Bills</h1>
-        <p className="mt-0.5 text-sm text-gray-400">Invoices that need your attention</p>
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div
+        className="flex-none flex items-center justify-between px-5 py-[14px]"
+        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        <div>
+          <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>Bills</h1>
+          <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+            Vendor invoices captured via email
+          </p>
+        </div>
       </div>
 
-      {/* Content */}
-      <div className="px-10 py-6 max-w-6xl">
-        {/* Tab bar */}
-        <div className="border-b border-gray-200 mb-5">
-          <nav className="-mb-px flex gap-6">
+      {/* Tab bar */}
+      <div
+        className="flex-none flex items-end px-5"
+        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        {tabs.map(t => {
+          const href = t.id === 'review' ? '/bills' : `/bills?tab=${t.id}`
+          return (
             <Link
-              href="/bills"
-              className={`pb-3 px-1 text-sm border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === 'review'
-                  ? 'border-blue-600 text-blue-600 font-semibold'
-                  : 'border-transparent text-gray-500 font-medium hover:text-gray-700 hover:border-gray-300'
-              }`}
+              key={t.id}
+              href={href}
+              className="flex items-center gap-1.5"
+              style={{
+                padding: '10px 14px',
+                fontSize: 12,
+                fontWeight: activeTab === t.id ? 500 : 400,
+                color: activeTab === t.id ? '#1A3D2B' : 'var(--color-text-secondary)',
+                borderBottom: activeTab === t.id ? '2px solid #2DB87A' : '2px solid transparent',
+                marginBottom: -1,
+                textDecoration: 'none',
+              }}
             >
-              Needs Review
+              {t.label}
+              {t.count != null && t.count > 0 && (
+                <span
+                  style={{
+                    background: '#2DB87A', color: 'white',
+                    fontSize: 9, fontWeight: 500,
+                    padding: '1px 6px', borderRadius: 10,
+                  }}
+                >
+                  {t.count}
+                </span>
+              )}
             </Link>
-            <Link
-              href="/bills?tab=pending"
-              className={`pb-3 px-1 text-sm border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === 'pending'
-                  ? 'border-blue-600 text-blue-600 font-semibold'
-                  : 'border-transparent text-gray-500 font-medium hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Pending Job Match
-            </Link>
-            <Link
-              href="/bills?tab=archive"
-              className={`pb-3 px-1 text-sm border-b-2 whitespace-nowrap transition-colors ${
-                activeTab === 'archive'
-                  ? 'border-blue-600 text-blue-600 font-semibold'
-                  : 'border-transparent text-gray-500 font-medium hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Archive
-            </Link>
-          </nav>
-        </div>
+          )
+        })}
 
         {/* Archive search */}
         {activeTab === 'archive' && (
-          <form method="GET" className="mb-4 flex items-center gap-3">
+          <form method="GET" className="ml-auto flex items-center gap-2 mb-1">
             <input type="hidden" name="tab" value="archive" />
-            <input
-              type="text"
-              name="q"
-              defaultValue={search}
-              placeholder="Search vendor or invoice number…"
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 w-64"
-            />
-            <button type="submit" className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
-              Search
-            </button>
+            <div className="relative">
+              <i className="ti ti-search absolute left-2.5 top-1/2 -translate-y-1/2" style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }} />
+              <input
+                type="text"
+                name="q"
+                defaultValue={search}
+                placeholder="Search vendor or invoice…"
+                style={{
+                  height: 28, paddingLeft: 28, paddingRight: 10,
+                  border: '0.5px solid var(--color-border-secondary)',
+                  borderRadius: 6, fontSize: 12,
+                  color: 'var(--color-text-primary)',
+                  width: 220,
+                }}
+              />
+            </div>
             {search && (
-              <a href="/bills?tab=archive" className="text-sm text-gray-400 hover:text-gray-600">Clear</a>
+              <Link href="/bills?tab=archive" style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Clear</Link>
             )}
           </form>
         )}
-
-        {/* Bill list */}
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
-          <table className="min-w-full">
-            <thead className="border-b border-gray-200 bg-gray-50">
-              <tr>
-                <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-gray-400 w-[35%]">
-                  Vendor
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-gray-400">
-                  Invoice #
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-gray-400">
-                  Invoice Date
-                </th>
-                <th className="px-5 py-3 text-right text-[11px] font-medium uppercase tracking-wider text-gray-400">
-                  Total
-                </th>
-                <th className="px-5 py-3 text-left text-[11px] font-medium uppercase tracking-wider text-gray-400">
-                  Status
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {bills.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-5 py-14 text-center">
-                    <p className="text-sm text-gray-400">
-                      {activeTab === 'review'
-                        ? "No bills need review — you're all caught up."
-                        : activeTab === 'pending'
-                        ? 'No bills are waiting for a job match.'
-                        : search
-                        ? 'No archived bills match your search.'
-                        : 'No published bills yet.'}
-                    </p>
-                  </td>
-                </tr>
-              ) : (
-                bills.map((bill) => <BillRow key={bill.bill_id} bill={bill} />)
-              )}
-            </tbody>
-          </table>
-        </div>
       </div>
+
+      {/* Bill list */}
+      <div className="flex-1 overflow-auto" style={{ background: 'white' }}>
+        {bills.length === 0 ? (
+          <EmptyState tab={activeTab} search={search} />
+        ) : (
+          <>
+            {/* Column headers */}
+            <div
+              className="grid px-5 py-2"
+              style={{
+                gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
+                borderBottom: '0.5px solid var(--color-border-tertiary)',
+              }}
+            >
+              {['Vendor', 'Invoice #', 'Date', 'Total', 'Status'].map(h => (
+                <span
+                  key={h}
+                  style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}
+                >
+                  {h}
+                </span>
+              ))}
+            </div>
+
+            {bills.map((bill, i) => {
+              const badge = STATUS_BADGE[bill.status] ?? STATUS_BADGE.draft
+              return (
+                <Link
+                  key={bill.bill_id}
+                  href={`/bills/${bill.bill_id}`}
+                  className="grid items-center px-5 py-[10px]"
+                  style={{
+                    gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
+                    borderBottom: '0.5px solid var(--color-border-tertiary)',
+                    background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                    cursor: 'pointer',
+                    textDecoration: 'none',
+                    display: 'grid',
+                  }}
+                >
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                      {bill.vendor_name_raw ?? 'Unknown Vendor'}
+                    </p>
+                    {bill.autopublish_hold_reason && (
+                      <p style={{ fontSize: 11, color: '#D97706' }}>
+                        {bill.autopublish_hold_reason}
+                      </p>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                    {bill.invoice_number ?? '—'}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                    {bill.invoice_date ? new Date(bill.invoice_date).toLocaleDateString() : '—'}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+                    {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : '—'}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      background: badge.bg, color: badge.color,
+                      borderRadius: 4, padding: '3px 8px',
+                      fontSize: 10, fontWeight: 500,
+                    }}
+                  >
+                    {badge.label}
+                  </span>
+                </Link>
+              )
+            })}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function EmptyState({ tab, search }: { tab: string; search: string }) {
+  if (tab === 'review') {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <i className="ti ti-circle-check" style={{ fontSize: 48, color: '#2DB87A' }} />
+        <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 16 }}>
+          {"You're all caught up"}
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6, maxWidth: 380 }}>
+          No invoices need your attention. Auto-publish is running in the background.
+        </p>
+      </div>
+    )
+  }
+  if (tab === 'pending') {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <i className="ti ti-clock" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
+        <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 16 }}>
+          No bills pending job match
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>
+          Bills waiting for a QuickBooks job to appear will show here.
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+      <i className="ti ti-file-invoice" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
+      <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 16 }}>
+        {search ? 'No matching bills' : 'No archived bills yet'}
+      </h2>
+      <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>
+        {search ? 'Try a different search term.' : 'Published bills appear here automatically.'}
+      </p>
     </div>
   )
 }

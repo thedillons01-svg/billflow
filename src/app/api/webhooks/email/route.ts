@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
 import { processBill } from '@/lib/ocr/process'
+import { processPO } from '@/lib/ocr/process-po'
 import { createServiceClient } from '@/lib/supabase/service'
 
-// Increase Vercel function timeout — large PDFs need time to upload
 export const maxDuration = 60
-
-// ---------------------------------------------------------------------------
-// Postmark inbound payload shape (only fields we use)
-// ---------------------------------------------------------------------------
 
 type PostmarkAttachment = {
   Name: string
-  Content: string       // base64-encoded
+  Content: string
   ContentType: string
   ContentLength: number
 }
@@ -33,20 +29,13 @@ type PostmarkPayload = {
 
 const STORAGE_BUCKET = 'bill-pdfs'
 
-// ---------------------------------------------------------------------------
-// POST /api/webhooks/email
-// ---------------------------------------------------------------------------
-
 export async function POST(request: NextRequest) {
-  // 1. Verify shared secret passed as a query param.
-  //    Webhook URL: /api/webhooks/email?secret=<EMAIL_WEBHOOK_SECRET>
   const token = request.nextUrl.searchParams.get('secret')
   const secret = process.env.EMAIL_WEBHOOK_SECRET
   if (!secret || token !== secret) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // 2. Parse body
   let payload: PostmarkPayload
   try {
     payload = await request.json()
@@ -54,117 +43,130 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 })
   }
 
-  // 3. Resolve company from the capture address prefix (e.g. "acme" → acme@billflow.com)
-  //    Filtering responsibility belongs to the client's email forwarding rule, not the webhook.
   const subject = payload.Subject ?? ''
+  const body = payload.TextBody ?? ''
   const toAddress =
     payload.OriginalRecipient ??
     payload.ToFull?.[0]?.Email ??
     payload.To ??
     ''
-  const prefix = toAddress.split('@')[0].toLowerCase()
+
+  // Determine document type from address suffix: {prefix}-bills@ or {prefix}-pos@
+  const localPart = toAddress.split('@')[0].toLowerCase()
+  let captureType: 'bill' | 'po' | null = null
+  let companyPrefix = localPart
+
+  if (localPart.endsWith('-bills')) {
+    captureType = 'bill'
+    companyPrefix = localPart.slice(0, -6) // strip "-bills"
+  } else if (localPart.endsWith('-pos')) {
+    captureType = 'po'
+    companyPrefix = localPart.slice(0, -4) // strip "-pos"
+  } else {
+    // Fallback: guess from subject/body
+    const lc = (subject + ' ' + body).toLowerCase()
+    captureType = lc.includes('purchase order') || lc.includes('order confirmation') ? 'po' : 'bill'
+  }
 
   const supabase = createServiceClient()
 
-  const { data: company, error: companyErr } = await supabase
+  const { data: company } = await supabase
     .from('companies')
     .select('company_id')
-    .eq('capture_email_prefix', prefix)
+    .eq('capture_email_prefix', companyPrefix)
     .single()
 
-  if (companyErr || !company) {
-    // Not our address — return 200 so Postmark doesn't retry
-    console.warn(`[email-webhook] No company for prefix "${prefix}"`)
+  if (!company) {
+    console.warn(`[email-webhook] No company for prefix "${companyPrefix}"`)
     return NextResponse.json({ skipped: true, reason: 'unknown_recipient' })
   }
 
-  // 4. Filter to PDF attachments
   const pdfs = (payload.Attachments ?? []).filter(isPdf)
-
   if (pdfs.length === 0) {
     return NextResponse.json({ skipped: true, reason: 'no_pdf_attachments' })
   }
 
-  // 5. Process each PDF: store → create bill record → log
   const created: string[] = []
   const errors: string[] = []
 
   for (const attachment of pdfs) {
-    const billId = randomUUID()
-    const storagePath = `${company.company_id}/${billId}.pdf`
-
-    // Decode and upload
+    const docId = randomUUID()
+    const storagePath = `${company.company_id}/${docId}.pdf`
     const pdfBytes = Buffer.from(attachment.Content, 'base64')
 
     const { error: uploadErr } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .upload(storagePath, pdfBytes, {
-        contentType: 'application/pdf',
-        upsert: false,
-      })
+      .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
 
     if (uploadErr) {
-      console.error(`[email-webhook] Storage upload failed (${billId}):`, uploadErr.message)
-      errors.push(billId)
+      console.error(`[email-webhook] Storage upload failed (${docId}):`, uploadErr.message)
+      errors.push(docId)
       continue
     }
 
-    // Create bill record
-    const { error: insertErr } = await supabase.from('bills').insert({
-      bill_id:        billId,
-      company_id:     company.company_id,
-      status:         'draft',
-      capture_source: 'email',
-      pdf_url:        storagePath,
-    })
+    if (captureType === 'po') {
+      // Create PO record
+      const { error: insertErr } = await supabase.from('purchase_orders').insert({
+        po_id:          docId,
+        company_id:     company.company_id,
+        status:         'open',
+        capture_source: 'email',
+        pdf_url:        storagePath,
+      })
 
-    if (insertErr) {
-      console.error(`[email-webhook] Bill insert failed (${billId}):`, insertErr.message)
-      // Clean up the orphaned file so storage stays consistent
-      await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
-      errors.push(billId)
-      continue
+      if (insertErr) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+        errors.push(docId)
+        continue
+      }
+
+      await supabase.from('processing_log').insert({
+        document_id:   docId,
+        document_type: 'po',
+        company_id:    company.company_id,
+        action:        'captured',
+        actor:         'system',
+        after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+      })
+
+      try { await processPO(docId) } catch (err) {
+        console.error(`[email-webhook] processPO threw (${docId}):`, err)
+      }
+    } else {
+      // Create bill record
+      const { error: insertErr } = await supabase.from('bills').insert({
+        bill_id:        docId,
+        company_id:     company.company_id,
+        status:         'draft',
+        capture_source: 'email',
+        pdf_url:        storagePath,
+      })
+
+      if (insertErr) {
+        await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+        errors.push(docId)
+        continue
+      }
+
+      await supabase.from('processing_log').insert({
+        bill_id:       docId,
+        document_type: 'bill',
+        company_id:    company.company_id,
+        action:        'captured',
+        actor:         'system',
+        after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+      })
+
+      try { await processBill(docId) } catch (err) {
+        console.error(`[email-webhook] processBill threw (${docId}):`, err)
+      }
     }
 
-    // Append-only processing log entry
-    await supabase.from('processing_log').insert({
-      bill_id:     billId,
-      company_id:  company.company_id,
-      action:      'captured',
-      actor:       'system',
-      after_state: {
-        status:          'draft',
-        capture_source:  'email',
-        from_email:      payload.From,
-        from_name:       payload.FromName,
-        subject,
-        postmark_msg_id: payload.MessageID,
-        attachment_name: attachment.Name,
-        pdf_url:         storagePath,
-      },
-    })
-
-    // Await OCR inline — must complete before response returns or Vercel may terminate the function
-    try {
-      await processBill(billId)
-    } catch (err) {
-      console.error(`[email-webhook] processBill threw (${billId}):`, err)
-    }
-
-    created.push(billId)
+    created.push(docId)
   }
 
-  return NextResponse.json({
-    received: pdfs.length,
-    created:  created.length,
-    errors:   errors.length,
-    bill_ids: created,
-  })
+  return NextResponse.json({ received: pdfs.length, created: created.length, errors: errors.length, ids: created })
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function isPdf(att: PostmarkAttachment): boolean {
   const name = att.Name?.toLowerCase() ?? ''

@@ -1,0 +1,215 @@
+import { createClient } from '@/lib/supabase/server'
+import { notFound } from 'next/navigation'
+import Link from 'next/link'
+import { VendorGeneralTab } from './vendor-general-tab'
+import { VendorLineItemsTab } from './vendor-line-items-tab'
+import { VendorRulesTab } from './vendor-rules-tab'
+
+export default async function VendorDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ tab?: string }>
+}) {
+  const { id } = await params
+  const { tab = 'general' } = await searchParams
+
+  const supabase = await createClient()
+
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('*')
+    .eq('vendor_id', id)
+    .single()
+
+  if (!vendor) notFound()
+
+  // QB accounts for GL account dropdowns
+  const { data: accounts } = await supabase
+    .from('qb_accounts_cache')
+    .select('qb_account_id, name, account_type')
+    .in('account_type', ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'])
+    .order('name')
+
+  // Line item mappings
+  const { data: mappings } = await supabase
+    .from('vendor_line_item_mappings')
+    .select('id, description_text, gl_account_id, created_at')
+    .eq('vendor_id', id)
+    .order('created_at', { ascending: false })
+
+  // Rules
+  const { data: rules } = await supabase
+    .from('vendor_line_item_rules')
+    .select('id, rule_name, match_type, conditions, gl_account_id, priority')
+    .eq('vendor_id', id)
+    .order('priority')
+
+  // Inbox bills
+  const { data: inboxBills } = await supabase
+    .from('bills')
+    .select('bill_id, invoice_number, invoice_date, total, status, autopublish_hold_reason')
+    .eq('vendor_id', id)
+    .not('status', 'eq', 'published')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(20)
+
+  // Archived bills
+  const { data: archivedBills } = await supabase
+    .from('bills')
+    .select('bill_id, invoice_number, invoice_date, total, status')
+    .eq('vendor_id', id)
+    .eq('status', 'published')
+    .is('deleted_at', null)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
+  const tabs = [
+    { id: 'general',    label: 'General' },
+    { id: 'line-items', label: 'Line Items' },
+    { id: 'rules',      label: 'Rules' },
+    { id: 'inbox',      label: 'Inbox', count: inboxBills?.length ?? 0 },
+    { id: 'archived',   label: 'Archived' },
+  ]
+
+  return (
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div
+        className="flex-none px-5 py-[14px]"
+        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        <Link
+          href="/vendors"
+          className="flex items-center gap-1 mb-2"
+          style={{ fontSize: 12, color: 'var(--color-text-secondary)', textDecoration: 'none' }}
+        >
+          <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
+          Back to Vendors
+        </Link>
+        <div>
+          <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+            {vendor.vendor_name_display ?? vendor.vendor_name_extracted}
+          </h1>
+          {vendor.vendor_name_display && vendor.vendor_name_display !== vendor.vendor_name_extracted && (
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+              OCR name: {vendor.vendor_name_extracted}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Tab bar */}
+      <div
+        className="flex-none flex items-end px-5"
+        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        {tabs.map(t => (
+          <Link
+            key={t.id}
+            href={`/vendors/${id}?tab=${t.id}`}
+            className="flex items-center gap-1.5"
+            style={{
+              padding: '10px 14px',
+              fontSize: 12,
+              fontWeight: tab === t.id ? 500 : 400,
+              color: tab === t.id ? '#1A3D2B' : 'var(--color-text-secondary)',
+              borderBottom: tab === t.id ? '2px solid #2DB87A' : '2px solid transparent',
+              marginBottom: -1,
+              textDecoration: 'none',
+            }}
+          >
+            {t.label}
+            {'count' in t && (t.count as number) > 0 && (
+              <span style={{ background: '#2DB87A', color: 'white', fontSize: 9, fontWeight: 500, padding: '1px 6px', borderRadius: 10 }}>
+                {t.count as number}
+              </span>
+            )}
+          </Link>
+        ))}
+      </div>
+
+      {/* Tab content */}
+      <div className="flex-1 overflow-auto px-5 py-5">
+        {tab === 'general' && (
+          <VendorGeneralTab vendor={vendor} accounts={accounts ?? []} />
+        )}
+        {tab === 'line-items' && (
+          <VendorLineItemsTab vendorId={id} mappings={mappings ?? []} accounts={accounts ?? []} />
+        )}
+        {tab === 'rules' && (
+          <VendorRulesTab vendorId={id} rules={rules ?? []} accounts={accounts ?? []} />
+        )}
+        {tab === 'inbox' && (
+          <BillListTab bills={inboxBills ?? []} empty="No bills in inbox for this vendor." />
+        )}
+        {tab === 'archived' && (
+          <BillListTab bills={archivedBills ?? []} empty="No archived bills for this vendor." />
+        )}
+      </div>
+    </div>
+  )
+}
+
+const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
+  draft:             { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
+  ready:             { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
+  sync_error:        { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
+  pending_job_match: { bg: '#EDE9FE', color: '#5B21B6', label: 'Pending' },
+  published:         { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
+}
+
+function BillListTab({ bills, empty }: { bills: { bill_id: string; invoice_number: string | null; invoice_date: string | null; total: number | null; status: string; autopublish_hold_reason?: string | null }[]; empty: string }) {
+  if (bills.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <i className="ti ti-file-invoice" style={{ fontSize: 36, color: 'var(--color-text-tertiary)' }} />
+        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 12 }}>{empty}</p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 700 }}>
+      {bills.map((bill, i) => {
+        const badge = STATUS_BADGE[bill.status] ?? STATUS_BADGE.draft
+        return (
+          <Link
+            key={bill.bill_id}
+            href={`/bills/${bill.bill_id}`}
+            className="flex items-center justify-between py-3 px-4"
+            style={{
+              background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+              border: '0.5px solid var(--color-border-tertiary)',
+              borderTop: i === 0 ? '0.5px solid var(--color-border-tertiary)' : 'none',
+              textDecoration: 'none',
+              display: 'flex',
+            }}
+          >
+            <div>
+              <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                {bill.invoice_number ?? '—'}
+              </p>
+              {bill.autopublish_hold_reason && (
+                <p style={{ fontSize: 11, color: '#D97706' }}>{bill.autopublish_hold_reason}</p>
+              )}
+              <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                {bill.invoice_date ? new Date(bill.invoice_date).toLocaleDateString() : '—'}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
+                {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : '—'}
+              </span>
+              <span style={{ background: badge.bg, color: badge.color, borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 500 }}>
+                {badge.label}
+              </span>
+            </div>
+          </Link>
+        )
+      })}
+    </div>
+  )
+}

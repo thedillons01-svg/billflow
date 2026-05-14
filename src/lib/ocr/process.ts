@@ -3,6 +3,7 @@ import { extractTier1, hasTextLayer } from './tier1'
 import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
 import type { ExtractionResult } from './types'
+import { sendNotification } from '@/lib/notifications/send-email'
 
 // ---------------------------------------------------------------------------
 // Service-role Supabase client (bypasses RLS)
@@ -125,7 +126,12 @@ export async function processBill(billId: string): Promise<void> {
     }
   }
 
-  // 6. Append processing log entry
+  // 6. PO matching — if OCR found a vendor_po_reference, try to link to an open PO
+  if (result.vendor_po_reference) {
+    await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
+  }
+
+  // 7. Append processing log entry
   await supabase.from('processing_log').insert({
     bill_id:     billId,
     action:      'ocr_complete',
@@ -141,9 +147,63 @@ export async function processBill(billId: string): Promise<void> {
     },
   })
 
+  // 8. Send success notification
+  await sendNotification({
+    companyId:  bill.company_id,
+    event:      'bill_processed',
+    subject:    `Bill processed: ${result.vendor_name_raw ?? 'Unknown vendor'}`,
+    body:       `Invoice ${result.invoice_number ?? '(no number)'} from ${result.vendor_name_raw ?? 'Unknown vendor'} was captured and is ready for review.`,
+    billId,
+  })
+
   console.log(
     `[ocr] Bill ${billId} processed — tier ${result.tier}, confidence ${result.confidence}, ${result.line_items.length} line items`
   )
+}
+
+// ---------------------------------------------------------------------------
+// PO matching — link bill to matching open PO by PO number
+// ---------------------------------------------------------------------------
+
+async function tryMatchPO(
+  supabase: SupabaseClient,
+  billId: string,
+  companyId: string,
+  poReference: string,
+  billTotal: number,
+): Promise<void> {
+  const normalised = poReference.trim().toLowerCase()
+
+  const { data: openPOs } = await supabase
+    .from('purchase_orders')
+    .select('po_id, po_number, total, vendor_name_raw, vendor_id')
+    .eq('company_id', companyId)
+    .in('status', ['open', 'partially_received'])
+    .is('deleted_at', null)
+
+  if (!openPOs || openPOs.length === 0) return
+
+  const match = openPOs.find(
+    po => po.po_number?.trim().toLowerCase() === normalised
+  )
+
+  if (!match) return
+
+  // Check for dollar discrepancy
+  const discrepancy = Math.abs((match.total ?? 0) - billTotal)
+  const hasDiscrepancy = discrepancy > 0.01
+
+  await supabase
+    .from('bills')
+    .update({
+      matched_po_id: match.po_id,
+      autopublish_hold_reason: hasDiscrepancy
+        ? `PO total $${Number(match.total).toFixed(2)} differs from invoice total $${billTotal.toFixed(2)} by $${discrepancy.toFixed(2)}`
+        : null,
+    })
+    .eq('bill_id', billId)
+
+  console.log(`[ocr] Bill ${billId} matched to PO ${match.po_id} (discrepancy: ${hasDiscrepancy})`)
 }
 
 // ---------------------------------------------------------------------------

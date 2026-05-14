@@ -2,195 +2,100 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useEffect, useRef, useState } from 'react'
 import { signout } from '@/app/actions/auth'
 
 export function SidebarNav({ userEmail }: { userEmail: string | null }) {
   const pathname = usePathname()
 
+  const isActive = (prefix: string) =>
+    prefix === '/' ? pathname === '/' : pathname.startsWith(prefix)
+
   return (
-    <aside className="w-56 flex-none flex flex-col bg-slate-900">
-      {/* Logo */}
-      <div className="flex h-14 flex-none items-center gap-2.5 px-4 border-b border-white/[0.06]">
-        <div className="flex h-7 w-7 flex-none items-center justify-center rounded-lg bg-blue-500">
-          <svg className="h-3.5 w-3.5 text-white" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0 1 12 2v5h4a1 1 0 0 1 .82 1.573l-7 10A1 1 0 0 1 8 18v-5H4a1 1 0 0 1-.82-1.573l7-10a1 1 0 0 1 1.12-.38Z" clipRule="evenodd" />
-          </svg>
+    <aside
+      className="flex-none flex flex-col"
+      style={{ width: 160, background: '#EBF5EF', borderRight: '0.5px solid #C3DEC9' }}
+    >
+      {/* Zone 1 — Logo header */}
+      <div
+        className="flex-none flex items-center gap-2 px-3 py-[14px]"
+        style={{ background: '#1A3D2B' }}
+      >
+        <div
+          className="flex-none flex items-center justify-center rounded-[6px] text-white"
+          style={{
+            width: 26, height: 26,
+            background: '#2DB87A',
+            fontSize: 11, fontWeight: 700,
+          }}
+        >
+          B
         </div>
-        <span className="text-[15px] font-semibold tracking-tight text-white">BillFlow</span>
+        <span className="text-white font-medium" style={{ fontSize: 13 }}>BillFlow</span>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-0.5">
-        <NavLink href="/" active={pathname === '/'}>
-          <HomeIcon />
-          Home
-        </NavLink>
-        <NavLink href="/bills" active={pathname.startsWith('/bills')}>
-          <BillsIcon />
-          Bills
-        </NavLink>
-        <NavLink href="/vendors" active={pathname.startsWith('/vendors')}>
-          <VendorsIcon />
-          Vendors
-        </NavLink>
-        <NavLink href="/jobs" active={pathname.startsWith('/jobs')}>
-          <JobsIcon />
-          Job Profitability
-        </NavLink>
-        <NavLink href="/exports" active={pathname.startsWith('/exports')}>
-          <ExportIcon />
-          FSM Export
-        </NavLink>
-        <NavLink href="/settings" active={pathname.startsWith('/settings')}>
-          <SettingsIcon />
-          Settings
-        </NavLink>
+      {/* Zone 2 — Navigation */}
+      <nav className="flex-1 py-2 overflow-y-auto">
+        <NavItem href="/" active={isActive('/')} icon="ti-home">Home</NavItem>
+        <NavItem href="/bills" active={isActive('/bills')} icon="ti-file-invoice">Bills</NavItem>
+        <NavItem href="/purchase-orders" active={isActive('/purchase-orders')} icon="ti-clipboard-list">Purchase Orders</NavItem>
+        <NavItem href="/receiving" active={isActive('/receiving')} icon="ti-package">Receiving</NavItem>
+        <NavItem href="/vendors" active={isActive('/vendors')} icon="ti-users">Vendors</NavItem>
+        <NavItem href="/jobs" active={isActive('/jobs')} icon="ti-chart-bar">Job Profitability</NavItem>
+        <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">FSM Export</NavItem>
+        <div
+          className="my-2"
+          style={{ height: '0.5px', background: '#C3DEC9', marginLeft: 12, marginRight: 12 }}
+        />
+        <NavItem href="/activity" active={isActive('/activity')} icon="ti-clock">Activity Log</NavItem>
+        <NavItem href="/trash" active={isActive('/trash')} icon="ti-trash">Trash</NavItem>
+        <NavItem href="/billing" active={isActive('/billing')} icon="ti-credit-card">Billing</NavItem>
+        <NavItem href="/settings" active={isActive('/settings')} icon="ti-settings">Settings</NavItem>
       </nav>
 
-      {/* User menu */}
-      <UserMenu email={userEmail} />
+      {/* Footer — user email */}
+      <div style={{ borderTop: '0.5px solid #C3DEC9', padding: '10px 12px' }}>
+        <form action={signout}>
+          <button
+            type="submit"
+            className="w-full text-left truncate hover:underline"
+            style={{ fontSize: 10, color: '#5A8C6A' }}
+            title="Sign out"
+          >
+            {userEmail ?? 'Account'}
+          </button>
+        </form>
+      </div>
     </aside>
   )
 }
 
-function NavLink({
+function NavItem({
   href,
   active,
+  icon,
   children,
 }: {
   href: string
   active: boolean
+  icon: string
   children: React.ReactNode
 }) {
   return (
     <Link
       href={href}
-      className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-        active
-          ? 'bg-slate-700 text-white'
-          : 'text-slate-300 hover:bg-white/[0.06] hover:text-white'
-      }`}
+      className="flex items-center gap-2 mx-1 rounded-[4px]"
+      style={{
+        padding: '7px 11px',
+        fontSize: 12,
+        fontWeight: active ? 500 : 400,
+        color: active ? '#1A3D2B' : '#5A8C6A',
+        background: active ? '#C3DEC9' : 'transparent',
+        borderLeft: active ? '2px solid #2DB87A' : '2px solid transparent',
+        textDecoration: 'none',
+      }}
     >
+      <i className={`ti ${icon}`} style={{ fontSize: 14, lineHeight: 1 }} />
       {children}
     </Link>
-  )
-}
-
-function UserMenu({ email }: { email: string | null }) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const initial = email?.[0]?.toUpperCase() ?? 'U'
-
-  useEffect(() => {
-    if (!open) return
-    function handleClick(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [open])
-
-  return (
-    <div ref={ref} className="relative flex-none border-t border-white/[0.06] p-3">
-      {open && (
-        <div className="absolute bottom-full left-2 right-2 z-50 mb-1 overflow-hidden rounded-lg bg-slate-800 shadow-xl ring-1 ring-white/[0.08]">
-          <div className="px-3 py-2 border-b border-white/[0.06]">
-            <p className="truncate text-xs text-slate-400">{email ?? 'Account'}</p>
-          </div>
-          <form action={signout}>
-            <button
-              type="submit"
-              className="flex w-full items-center gap-2 px-3 py-2.5 text-sm text-slate-300 transition-colors hover:bg-white/[0.06] hover:text-white"
-            >
-              <SignOutIcon />
-              Sign out
-            </button>
-          </form>
-        </div>
-      )}
-
-      <button
-        onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-white/[0.06]"
-      >
-        <div className="flex h-7 w-7 flex-none items-center justify-center rounded-full bg-slate-600 text-xs font-semibold text-white">
-          {initial}
-        </div>
-        <span className="flex-1 truncate text-xs text-slate-300">{email ?? 'Account'}</span>
-      </button>
-    </div>
-  )
-}
-
-function HomeIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9,22 9,12 15,12 15,22" />
-    </svg>
-  )
-}
-
-function BillsIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <polyline points="14,2 14,8 20,8" />
-      <line x1="16" y1="13" x2="8" y2="13" />
-      <line x1="16" y1="17" x2="8" y2="17" />
-    </svg>
-  )
-}
-
-function VendorsIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
-      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-  )
-}
-
-function JobsIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="20" x2="18" y2="10" />
-      <line x1="12" y1="20" x2="12" y2="4" />
-      <line x1="6" y1="20" x2="6" y2="14" />
-    </svg>
-  )
-}
-
-function ExportIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="7 10 12 15 17 10" />
-      <line x1="12" y1="15" x2="12" y2="3" />
-    </svg>
-  )
-}
-
-function SettingsIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="12" cy="12" r="3" />
-      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-    </svg>
-  )
-}
-
-function SignOutIcon() {
-  return (
-    <svg className="h-4 w-4 flex-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16,17 21,12 16,7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
   )
 }
