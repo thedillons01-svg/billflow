@@ -54,6 +54,17 @@ export async function saveCompanySetup(formData: FormData) {
       company_id: newCompany.company_id,
       role: 'owner',
     })
+
+    // Grant 25 free trial credits and record in ledger
+    await service.from('companies')
+      .update({ credit_balance: 25, subscription_status: 'trial' })
+      .eq('company_id', newCompany.company_id)
+
+    await service.from('credit_ledger').insert({
+      company_id:  newCompany.company_id,
+      amount:      25,
+      description: 'Free trial — 25 credits',
+    })
   }
 
   redirect('/bills')

@@ -428,10 +428,10 @@ function Features() {
 /* ─── Pricing ─────────────────────────────────────────────────────── */
 
 const PACKAGES = [
-  { credits: 50,   price: 20,  label: '50 credits',    rate: '$0.40 / transaction',             popular: false },
-  { credits: 100,  price: 40,  label: '100 credits',   rate: '$0.40 / transaction',             popular: false },
-  { credits: 500,  price: 190, label: '500 credits',   rate: '$0.38 / transaction — save 5%',  popular: true  },
-  { credits: 1000, price: 360, label: '1,000 credits', rate: '$0.36 / transaction — save 10%', popular: false },
+  { credits: 50,   price: 20,  name: 'Starter',      label: '50 credits / month',    rate: '$0.40 / transaction',             popular: false },
+  { credits: 100,  price: 40,  name: 'Basic',        label: '100 credits / month',   rate: '$0.40 / transaction',             popular: false },
+  { credits: 500,  price: 190, name: 'Professional', label: '500 credits / month',   rate: '$0.38 / transaction — save 5%',  popular: true  },
+  { credits: 1000, price: 360, name: 'Business',     label: '1,000 credits / month', rate: '$0.36 / transaction — save 10%', popular: false },
 ]
 
 function Pricing() {
@@ -443,10 +443,10 @@ function Pricing() {
             Pricing
           </p>
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, color: '#111827', letterSpacing: '-0.025em', lineHeight: 1.15, marginBottom: 14 }}>
-            Pay only for what you process
+            Simple monthly plans
           </h2>
-          <p style={{ fontSize: 16, color: '#6B7280', maxWidth: 480, margin: '0 auto' }}>
-            1 credit per invoice or PO. Credits never expire. No charge for duplicates, reprocessing, or wrong document type.
+          <p style={{ fontSize: 16, color: '#6B7280', maxWidth: 520, margin: '0 auto' }}>
+            Start with 25 free trial credits — no credit card required. Subscribe when you&apos;re ready. Credits roll over month to month.
           </p>
         </div>
 
@@ -485,10 +485,16 @@ function Pricing() {
                 </div>
               )}
 
-              <div style={{ fontSize: 32, fontWeight: 700, color: '#111827', letterSpacing: '-0.02em', marginBottom: 2 }}>
-                ${pkg.price}
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#6B7280', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>
+                {pkg.name}
               </div>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: 2, marginBottom: 4 }}>
+                <span style={{ fontSize: 32, fontWeight: 700, color: '#111827', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                  ${pkg.price}
+                </span>
+                <span style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>/mo</span>
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                 {pkg.label}
               </div>
               <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 24 }}>
@@ -508,15 +514,20 @@ function Pricing() {
                   textAlign: 'center',
                 }}
               >
-                Get started
+                Start free trial
               </Link>
             </div>
           ))}
         </div>
 
-        <p style={{ textAlign: 'center', fontSize: 13, color: '#9CA3AF', marginTop: 24 }}>
-          Comparable to AutoEntry at roughly the same per-transaction rate — with job costing, PO tracking, and QuickBooks Desktop support included.
-        </p>
+        <div style={{ textAlign: 'center', marginTop: 28 }}>
+          <p style={{ fontSize: 13, color: '#9CA3AF' }}>
+            1 credit per invoice or PO · Credits roll over · No charge for duplicates or reprocessing
+          </p>
+          <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 4 }}>
+            Need more mid-month? Top up at $0.40 / credit. Cancel any time.
+          </p>
+        </div>
       </div>
     </section>
   )
