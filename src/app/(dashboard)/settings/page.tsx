@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings } from './actions'
 
 type Company = {
@@ -35,8 +35,8 @@ export default async function SettingsPage({
 
   const company = data as Company | null
   const isQBConnected = company?.qb_connection_status === 'connected'
-  const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@purchasomatic.app`
-  const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@purchasomatic.app`
+  const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@purchasomatic.com`
+  const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@purchasomatic.com`
 
   return (
     <div className="flex flex-col h-full">

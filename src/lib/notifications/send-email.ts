@@ -90,11 +90,11 @@ export async function sendNotification({
       </div>
       <div style="background: white; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 8px 8px; padding: 24px;">
         <p style="color: #111827; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">${body.replace(/\n/g, '<br>')}</p>
-        ${billId ? `<a href="https://app.purchasomatic.app/bills/${billId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View Bill</a>` : ''}
-        ${poId ? `<a href="https://app.purchasomatic.app/purchase-orders/${poId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View PO</a>` : ''}
+        ${billId ? `<a href="https://www.purchasomatic.com/bills/${billId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View Bill</a>` : ''}
+        ${poId ? `<a href="https://www.purchasomatic.com/purchase-orders/${poId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View PO</a>` : ''}
         <p style="color: #9CA3AF; font-size: 11px; margin-top: 24px; margin-bottom: 0;">
           You are receiving this because you are configured as a Purchasomatic notification recipient.
-          Manage notification settings in <a href="https://app.purchasomatic.app/settings" style="color: #2DB87A;">Settings</a>.
+          Manage notification settings in <a href="https://www.purchasomatic.com/settings" style="color: #2DB87A;">Settings</a>.
         </p>
       </div>
     </div>

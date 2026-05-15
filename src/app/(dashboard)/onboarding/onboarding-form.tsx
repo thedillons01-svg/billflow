@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { saveCompanySetup } from './actions'
@@ -220,7 +220,7 @@ export function OnboardingForm({
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
               <p className="text-xs font-medium text-blue-700 mb-1">Your Purchasomatic capture address</p>
               <p className="font-mono text-sm text-blue-900 break-all">
-                <span className="font-semibold">{name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'yourcompany'}</span>@purchasomatic.app
+                <span className="font-semibold">{name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'yourcompany'}</span>@purchasomatic.com
               </p>
             </div>
 
