@@ -14,7 +14,7 @@ function getResend(): Resend | null {
   return new Resend(key)
 }
 
-const FROM_ADDRESS = 'Purchasomatic <notifications@purchasomatic.app>'
+const FROM_ADDRESS = 'Purchasomatic <notifications@purchasomatic.com>'
 
 export type NotificationEvent =
   | 'bill_processed'
