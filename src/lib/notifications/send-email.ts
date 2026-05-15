@@ -14,7 +14,7 @@ function getResend(): Resend | null {
   return new Resend(key)
 }
 
-const FROM_ADDRESS = 'BillFlow <notifications@billflow.app>'
+const FROM_ADDRESS = 'Purchasomatic <notifications@purchasomatic.app>'
 
 export type NotificationEvent =
   | 'bill_processed'
@@ -86,15 +86,15 @@ export async function sendNotification({
   const htmlBody = `
     <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
       <div style="background: #1A3D2B; padding: 16px 20px; border-radius: 8px 8px 0 0;">
-        <span style="color: white; font-size: 15px; font-weight: 600;">BillFlow</span>
+        <span style="color: white; font-size: 15px; font-weight: 600;">Purchasomatic</span>
       </div>
       <div style="background: white; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 8px 8px; padding: 24px;">
         <p style="color: #111827; font-size: 14px; line-height: 1.6; margin: 0 0 16px;">${body.replace(/\n/g, '<br>')}</p>
-        ${billId ? `<a href="https://app.billflow.app/bills/${billId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View Bill</a>` : ''}
-        ${poId ? `<a href="https://app.billflow.app/purchase-orders/${poId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View PO</a>` : ''}
+        ${billId ? `<a href="https://app.purchasomatic.app/bills/${billId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View Bill</a>` : ''}
+        ${poId ? `<a href="https://app.purchasomatic.app/purchase-orders/${poId}" style="display: inline-block; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View PO</a>` : ''}
         <p style="color: #9CA3AF; font-size: 11px; margin-top: 24px; margin-bottom: 0;">
-          You are receiving this because you are configured as a BillFlow notification recipient.
-          Manage notification settings in <a href="https://app.billflow.app/settings" style="color: #2DB87A;">Settings</a>.
+          You are receiving this because you are configured as a Purchasomatic notification recipient.
+          Manage notification settings in <a href="https://app.purchasomatic.app/settings" style="color: #2DB87A;">Settings</a>.
         </p>
       </div>
     </div>
@@ -104,7 +104,7 @@ export async function sendNotification({
     await resend.emails.send({
       from: FROM_ADDRESS,
       to: emails,
-      subject: `[BillFlow] ${subject}`,
+      subject: `[Purchasomatic] ${subject}`,
       html: htmlBody,
     })
   } catch (err) {

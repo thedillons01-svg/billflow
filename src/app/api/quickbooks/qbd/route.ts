@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
       headers: { 'Content-Type': 'text/xml; charset=utf-8' },
     })
   }
-  return NextResponse.json({ service: 'BillFlow QBD Web Connector' })
+  return NextResponse.json({ service: 'Purchasomatic QBD Web Connector' })
 }
 
 async function handleAuthenticate(body: string, supabase: ReturnType<typeof createServiceClient>) {

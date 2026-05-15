@@ -119,7 +119,7 @@ export function OnboardingForm({
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-              <p className="mt-1 text-xs text-gray-400">Helps BillFlow match job names from your work orders.</p>
+              <p className="mt-1 text-xs text-gray-400">Helps Purchasomatic match job names from your work orders.</p>
             </div>
 
             <label className="flex cursor-pointer items-start gap-3">
@@ -160,7 +160,7 @@ export function OnboardingForm({
               <div className="space-y-4">
                 <div className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-4">
                   <p className="text-sm text-gray-700 font-medium">QuickBooks Online</p>
-                  <p className="mt-1 text-xs text-gray-500">You&apos;ll be redirected to Intuit to authorize BillFlow. This takes about 30 seconds.</p>
+                  <p className="mt-1 text-xs text-gray-500">You&apos;ll be redirected to Intuit to authorize Purchasomatic. This takes about 30 seconds.</p>
                 </div>
                 <a
                   href="/api/quickbooks/connect"
@@ -182,9 +182,9 @@ export function OnboardingForm({
                   <p className="text-sm font-medium text-gray-700">Setup Instructions</p>
                   <ol className="space-y-1.5 text-xs text-gray-600 list-decimal list-inside">
                     <li>Download and install the QuickBooks Web Connector on your QB Desktop computer</li>
-                    <li>Download your BillFlow .QWC config file (button below)</li>
+                    <li>Download your Purchasomatic .QWC config file (button below)</li>
                     <li>In QuickBooks Desktop, go to File → App Center → Update Web Services</li>
-                    <li>Add the .QWC file and enter your BillFlow password</li>
+                    <li>Add the .QWC file and enter your Purchasomatic password</li>
                   </ol>
                 </div>
                 <a
@@ -214,13 +214,13 @@ export function OnboardingForm({
 
             <div>
               <h2 className="text-base font-semibold text-gray-900">Email Forwarding</h2>
-              <p className="mt-0.5 text-sm text-gray-500">Forward vendor invoices to BillFlow for automatic capture.</p>
+              <p className="mt-0.5 text-sm text-gray-500">Forward vendor invoices to Purchasomatic for automatic capture.</p>
             </div>
 
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-5 py-4">
-              <p className="text-xs font-medium text-blue-700 mb-1">Your BillFlow capture address</p>
+              <p className="text-xs font-medium text-blue-700 mb-1">Your Purchasomatic capture address</p>
               <p className="font-mono text-sm text-blue-900 break-all">
-                <span className="font-semibold">{name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'yourcompany'}</span>@billflow.app
+                <span className="font-semibold">{name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'yourcompany'}</span>@purchasomatic.app
               </p>
             </div>
 
@@ -228,7 +228,7 @@ export function OnboardingForm({
               <p className="font-medium text-gray-700">To set up forwarding:</p>
               <p>1. Log in to your email provider (Gmail, Outlook, etc.)</p>
               <p>2. Set up a forwarding rule: emails with &quot;invoice&quot; in the subject → forward to the address above</p>
-              <p>3. Ask your vendors to email invoices to you as usual — BillFlow handles the rest</p>
+              <p>3. Ask your vendors to email invoices to you as usual — Purchasomatic handles the rest</p>
             </div>
 
             <button

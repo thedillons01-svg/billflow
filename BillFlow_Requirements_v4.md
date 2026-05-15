@@ -1,4 +1,4 @@
-# BillFlow — Product Requirements Document v4.0
+﻿# Purchasomatic — Product Requirements Document v4.0
 **Automated Vendor Invoice Capture, PO Management & Job Costing for QuickBooks**
 May 2026 — Confidential
 
@@ -14,14 +14,14 @@ Small businesses that buy materials for jobs receive vendor invoices by email as
 The same double-entry problem exists for purchase orders — vendors email PO confirmations that never make it into QuickBooks because entering them requires QB access that the people doing the ordering don't have.
 
 ### 1.2 The Existing Partial Solution — AutoEntry by Sage
-AutoEntry solves invoice capture and QuickBooks push. Gaps BillFlow fills:
+AutoEntry solves invoice capture and QuickBooks push. Gaps Purchasomatic fills:
 - AutoEntry is not well marketed. Most contractors don't know it exists.
-- AutoEntry uses per-document credit pricing. BillFlow uses per-transaction pricing at lower rates, with no charge for reprocessing.
+- AutoEntry uses per-document credit pricing. Purchasomatic uses per-transaction pricing at lower rates, with no charge for reprocessing.
 - AutoEntry does not match invoices to QuickBooks jobs. The job field is always blank.
 - Auto-publish is buried in vendor settings. Most users never find it and do manual review forever.
 - You cannot copy text from the PDF side of the AutoEntry review screen.
 - AutoEntry was designed for accountants managing multiple clients, not direct contractor use.
-- AutoEntry processes invoices in a shared queue — can take many minutes. BillFlow processes on arrival, typically under 30 seconds for clean digital PDFs.
+- AutoEntry processes invoices in a shared queue — can take many minutes. Purchasomatic processes on arrival, typically under 30 seconds for clean digital PDFs.
 - AutoEntry has no purchase order capture or PO-to-bill matching.
 - AutoEntry has no receiving workflow.
 
@@ -47,7 +47,7 @@ Job costing is entirely optional. Company-level setting: job_costing_enabled (bo
 - Surfaced prominently during onboarding so the contractor makes a deliberate choice
 
 ### 1.7 Pricing Model
-BillFlow uses per-transaction credit pricing, roughly equivalent to AutoEntry (~$0.40/transaction).
+Purchasomatic uses per-transaction credit pricing, roughly equivalent to AutoEntry (~$0.40/transaction).
 - 1 credit per transaction (bill or PO) — line item extraction always included, no separate tier
 - Credits purchased in bundles; flat monthly subscription option also available
 - Bundle pricing: 50 credits $20 · 100 credits $40 · 500 credits $190 · 1,000 credits $360
@@ -57,19 +57,19 @@ BillFlow uses per-transaction credit pricing, roughly equivalent to AutoEntry (~
 - Credit balance visible on dashboard and in settings at all times
 
 ### 1.8 UX Design Principle — Inline Explanations Everywhere
-Every field, toggle, and setting in BillFlow must have inline helper text explaining what it does, what happens when it's on vs off, and any consequences worth knowing. Users should never need to open a help article to understand a setting. This is a standing design requirement, not optional polish. It directly reduces support volume and builds user confidence.
+Every field, toggle, and setting in Purchasomatic must have inline helper text explaining what it does, what happens when it's on vs off, and any consequences worth knowing. Users should never need to open a help article to understand a setting. This is a standing design requirement, not optional polish. It directly reduces support volume and builds user confidence.
 
 ---
 
-## 2. How BillFlow Works — Complete User Journey
+## 2. How Purchasomatic Works — Complete User Journey
 
 ### 2.1 Setup (One Time)
 Onboarding is a guided sequence that does not end until the user has successfully processed their first invoice end to end.
 
 | Step | Description |
 |------|-------------|
-| Step 1: Connect QuickBooks | QBO: OAuth flow. QBD: Web Connector setup guide with step-by-step screenshots. BillFlow immediately pulls: vendor list with QB default GL accounts and payment terms, chart of accounts, job/project list with customer names, customer list, class list if enabled. |
-| Step 2: Set up email forwarding | BillFlow generates two capture addresses: [prefix]-bills@billflow.com and [prefix]-pos@billflow.com. Prefix is customizable. Instructions for Gmail and Outlook with screenshots. User sets up forwarding rules and sends test emails to confirm both work. |
+| Step 1: Connect QuickBooks | QBO: OAuth flow. QBD: Web Connector setup guide with step-by-step screenshots. Purchasomatic immediately pulls: vendor list with QB default GL accounts and payment terms, chart of accounts, job/project list with customer names, customer list, class list if enabled. |
+| Step 2: Set up email forwarding | Purchasomatic generates two capture addresses: [prefix]-bills@purchasomatic.com and [prefix]-pos@purchasomatic.com. Prefix is customizable. Instructions for Gmail and Outlook with screenshots. User sets up forwarding rules and sends test emails to confirm both work. |
 | Step 3: Process first invoice | User forwards a real vendor invoice. Onboarding not complete until a bill has successfully landed in QuickBooks. |
 | Step 4: Set vendor defaults | After first invoice confirmed accurate, prompt to confirm default GL account. "Remember this for future invoices" prompt. |
 | Step 5: Enable auto-publish | After 5 invoices from a vendor with no errors, prominent inline prompt: "Enable auto-publish?" One tap to enable. Not buried in settings. |
@@ -77,7 +77,7 @@ Onboarding is a guided sequence that does not end until the user has successfull
 
 ### 2.2 The Ongoing Workflow
 - Vendor emails invoice → bills forwarding rule catches it → user never sees the email
-- BillFlow captures PDF, extracts data, matches to QB job (if enabled), validates all fields
+- Purchasomatic captures PDF, extracts data, matches to QB job (if enabled), validates all fields
 - If auto-publish eligible: bill pushed to QB automatically, PDF attached, user not notified unless daily digest enabled
 - If any condition fails: bill appears in inbox with specific plain-language reason
 - User checks inbox periodically — most days empty or near-empty
@@ -91,14 +91,14 @@ Per-vendor flag. When ON: bills without confident job match go to Pending Job Ma
 ## 3. Invoice Capture & OCR Processing
 
 ### 3.1 Capture Addresses
-BillFlow generates two capture email addresses per company:
+Purchasomatic generates two capture email addresses per company:
 
 | Address | Purpose | Filter |
 |---------|---------|--------|
-| [prefix]-bills@billflow.com | Vendor invoices | Subject or body contains "invoice" |
-| [prefix]-pos@billflow.com | PO confirmations | Subject or body contains "purchase order" or "order confirmation" |
+| [prefix]-bills@purchasomatic.com | Vendor invoices | Subject or body contains "invoice" |
+| [prefix]-pos@purchasomatic.com | PO confirmations | Subject or body contains "purchase order" or "order confirmation" |
 
-Wrong document type handling: If a document is detected as the wrong type for its address, it is rejected with a specific plain-language notification: "A purchase order was sent to your bills address. Forward it to [prefix]-pos@billflow.com instead." No credit charged.
+Wrong document type handling: If a document is detected as the wrong type for its address, it is rejected with a specific plain-language notification: "A purchase order was sent to your bills address. Forward it to [prefix]-pos@purchasomatic.com instead." No credit charged.
 
 Size limit: 30MB per email.
 
@@ -108,7 +108,7 @@ Size limit: 30MB per email.
 |---------|---------------|
 | Email forwarding (primary) | Automatic forwarding rule catches emails. One-time setup, runs forever. |
 | Manual email forward | User manually forwards any invoice or PO email to the appropriate capture address. |
-| Manual PDF upload | Drag-and-drop in BillFlow interface. Document type selected on upload. |
+| Manual PDF upload | Drag-and-drop in Purchasomatic interface. Document type selected on upload. |
 
 ### 3.3 OCR Processing Architecture
 Accuracy is the Launch Gate. Extraction accuracy on clean digital PDFs from major distributors must match or exceed AutoEntry before any paying customer.
@@ -121,7 +121,7 @@ Accuracy is the Launch Gate. Extraction accuracy on clean digital PDFs from majo
 
 Blended cost target: under $0.01 per invoice (70% T1, 20% T2, 10% T3).
 
-Processing speed: BillFlow processes each document immediately on receipt via webhook. No shared queue. Clean digital PDFs typically processed in under 30 seconds.
+Processing speed: Purchasomatic processes each document immediately on receipt via webhook. No shared queue. Clean digital PDFs typically processed in under 30 seconds.
 
 Processing status shown in inbox while in flight: Received → Extracting → Matching → Ready for Review / Auto-publishing → Published
 
@@ -133,7 +133,7 @@ QB Items table support: Company-level setting, OFF by default. When on: line ite
 |---------|---------------|
 | Detection | Count distinct invoice numbers. If more than one: split. |
 | Summary page detection | First page lists invoice numbers/totals but has no line items: discard it. Gensco is a known example. |
-| Platform-wide vendor learning | Vendor formats shared across ALL BillFlow clients. Gensco learned from one client applies to all. |
+| Platform-wide vendor learning | Vendor formats shared across ALL Purchasomatic clients. Gensco learned from one client applies to all. |
 
 ### 3.5 Fields Extracted Per Invoice
 - Vendor name
@@ -156,7 +156,7 @@ Two independent duplicate checks:
 2. Invoice number + vendor duplicate — same vendor + same invoice number within configurable date window (default 5 days). Warning on bill in inbox. User can override.
 
 ### 3.8 Reprocess
-Available on any unpublished bill. BillFlow silently checks whether vendor defaults have changed since last processing.
+Available on any unpublished bill. Purchasomatic silently checks whether vendor defaults have changed since last processing.
 - If defaults changed: re-applies vendor defaults to existing extracted data without re-running OCR. No charge.
 - If defaults have not changed: re-runs OCR pipeline at next tier for better extraction. No charge.
 
@@ -167,14 +167,14 @@ Available on any unpublished bill. BillFlow silently checks whether vendor defau
 ### 4.1 The PO Problem
 Contractors don't enter purchase orders in QuickBooks because the people doing the ordering (techs, project managers) don't have QB access. So PO functionality in QB goes unused even though it enables proper accrual accounting and bill-to-PO matching.
 
-BillFlow solves this by capturing PO confirmations through the same email pipeline used for invoices. When a vendor emails a PO confirmation, it is forwarded to the PO capture address. BillFlow creates the PO in QuickBooks automatically. When the invoice arrives later, BillFlow matches it to the open PO and creates a linked bill.
+Purchasomatic solves this by capturing PO confirmations through the same email pipeline used for invoices. When a vendor emails a PO confirmation, it is forwarded to the PO capture address. Purchasomatic creates the PO in QuickBooks automatically. When the invoice arrives later, Purchasomatic matches it to the open PO and creates a linked bill.
 
 ### 4.2 PO Capture Flow
 1. Tech or PM places order with vendor
-2. Vendor emails PO confirmation → forwarded to [prefix]-pos@billflow.com automatically
-3. BillFlow extracts PO data, creates PO record in QB via API
-4. PO appears in BillFlow PO inbox with status: Open
-5. When vendor invoice arrives → BillFlow matches invoice to open PO by vendor + PO number
+2. Vendor emails PO confirmation → forwarded to [prefix]-pos@purchasomatic.com automatically
+3. Purchasomatic extracts PO data, creates PO record in QB via API
+4. PO appears in Purchasomatic PO inbox with status: Open
+5. When vendor invoice arrives → Purchasomatic matches invoice to open PO by vendor + PO number
 6. Bill created in QB linked to the PO — closes or partially closes the PO
 7. Discrepancies between PO and invoice flagged for review
 
@@ -216,7 +216,7 @@ Auto-publish blocked if unresolved PO discrepancies exist: "Auto-publish held: i
 ## 5. Receiving
 
 ### 5.1 The Receiving Problem
-When materials arrive, the person at the office doesn't know what was ordered, who ordered it, or which job it was for — because the people who placed the orders are out on job sites. BillFlow answers "who ordered this and why" instantly by linking the delivery to the open PO.
+When materials arrive, the person at the office doesn't know what was ordered, who ordered it, or which job it was for — because the people who placed the orders are out on job sites. Purchasomatic answers "who ordered this and why" instantly by linking the delivery to the open PO.
 
 ### 5.2 V1 — Manual Receiving
 Manual receiving is available on any Open or Partially Received PO.
@@ -239,7 +239,7 @@ Manual receiving is available on any Open or Partially Received PO.
 ## 6. QuickBooks Job Matching
 
 ### 6.1 Critical Design Decision
-BillFlow NEVER creates job or project records in QuickBooks. FSM platforms create QB job records through their own sync. BillFlow only matches invoices to existing QB jobs.
+Purchasomatic NEVER creates job or project records in QuickBooks. FSM platforms create QB job records through their own sync. Purchasomatic only matches invoices to existing QB jobs.
 
 ### 6.2 Matching Logic
 
@@ -253,7 +253,7 @@ BillFlow NEVER creates job or project records in QuickBooks. FSM platforms creat
 | Job not yet in QuickBooks | Pending Job Match. Retry every 2 hours during business hours (7am–7pm local), not overnight or weekends. Manual "Find Match" button. |
 | QB reference number | Per-vendor flag (default ON): copy PO text to QB Ref No field |
 
-QB job status fields are unreliable — FSMs never update them. BillFlow uses activity-based filtering instead.
+QB job status fields are unreliable — FSMs never update them. Purchasomatic uses activity-based filtering instead.
 
 ### 6.3 Line Item Job Assignment
 
@@ -320,7 +320,7 @@ Tax lines are treated as regular line items — extracted with description and a
 ### 7.4 Field Source Badges
 Every field that has a source shows a badge:
 - QB — value came from QuickBooks vendor record
-- BillFlow — value set as BillFlow override on vendor record
+- Purchasomatic — value set as Purchasomatic override on vendor record
 - Rule — value applied by a line item routing rule or stored mapping
 - Manual — value set manually by user on this bill (hover shows "Manually selected")
 
@@ -403,17 +403,17 @@ When a user changes a header-level field (GL Account, Class):
 
 | Feature | Specification |
 |---------|---------------|
-| Connection | Intuit Web Connector. Polls BillFlow every 5–30 minutes (contractor-configured). |
+| Connection | Intuit Web Connector. Polls Purchasomatic every 5–30 minutes (contractor-configured). |
 | Status | Queued for Sync → Syncing → Published / Sync Error |
 | Heartbeat monitoring | Every successful poll records timestamp. If no heartbeat for 2x expected interval: notify user. Auto-clears when connection resumes. |
-| Status indicator | Persistent in BillFlow UI: green / yellow / red |
-| PDF attachment | Cannot attach PDF to QBD bill record (known QBD limitation). PDF stored in BillFlow. |
+| Status indicator | Persistent in Purchasomatic UI: green / yellow / red |
+| PDF attachment | Cannot attach PDF to QBD bill record (known QBD limitation). PDF stored in Purchasomatic. |
 
 ### 9.3 QB Account & Class Visibility Management
-When QB accounts sync, all accounts are pulled. The company admin controls which are visible in BillFlow dropdowns:
+When QB accounts sync, all accounts are pulled. The company admin controls which are visible in Purchasomatic dropdowns:
 - Automatically pre-filtered to expense and COGS type accounts only (income, equity, liability accounts never shown for bill coding)
 - Within that filtered set, individual accounts can be hidden from dropdowns
-- Hidden accounts still exist in QB — hidden from BillFlow UI only
+- Hidden accounts still exist in QB — hidden from Purchasomatic UI only
 - Re-Sync QuickBooks Data button pulls any new accounts added in QB
 - Same visibility management available for QB Classes
 
@@ -422,7 +422,7 @@ When QB accounts sync, all accounts are pulled. The company admin controls which
 ## 10. Inbox & Bill Status Management
 
 ### 10.1 Dashboard Home
-The BillFlow home screen shows document type cards:
+The Purchasomatic home screen shows document type cards:
 
 | Card | Shows |
 |------|-------|
@@ -486,10 +486,10 @@ Notification recipients: Multi-email chip input (multiple addresses). Notify Upl
 | vendor_name_display | Mapped QB vendor name. Both name fields shown so user sees the mapping. |
 | is_visible | Boolean. When OFF: vendor hidden from all dropdowns without being deleted. |
 | qb_default_gl_account_id | From QB vendor record |
-| billflow_gl_account_id | BillFlow override |
-| gl_account_source | enum: qb_default / billflow_override / not_set. Source label shown in UI. |
-| qb_default_class_id, billflow_class_id, class_source | Same pattern as GL account |
-| qb_payment_terms, billflow_payment_terms, payment_terms_source | Same pattern |
+| Purchasomatic_gl_account_id | Purchasomatic override |
+| gl_account_source | enum: qb_default / Purchasomatic_override / not_set. Source label shown in UI. |
+| qb_default_class_id, Purchasomatic_class_id, class_source | Same pattern as GL account |
+| qb_payment_terms, Purchasomatic_payment_terms, payment_terms_source | Same pattern |
 | default_description | Free text. Pre-populates the QB bill memo field for all invoices from this vendor. |
 | default_payment_account_id | QB bank or credit card account for Mark as Paid. |
 | default_payment_method | enum: check / ach / credit_card / other |
@@ -547,9 +547,9 @@ Shows all published bills for this vendor. Searchable and filterable by date and
 - Last QB sync timestamp, Re-Sync QuickBooks Data button
 
 ### 12.2 Capture Email
-- Bills capture address ([prefix]-bills@billflow.com) with Copy button
-- POs capture address ([prefix]-pos@billflow.com) with Copy button
-- Prefix editable (must be unique across BillFlow)
+- Bills capture address ([prefix]-bills@purchasomatic.com) with Copy button
+- POs capture address ([prefix]-pos@purchasomatic.com) with Copy button
+- Prefix editable (must be unique across Purchasomatic)
 - Forwarding setup instructions for Gmail and Outlook
 - Notify Uploader toggle
 
@@ -563,7 +563,7 @@ Shows all published bills for this vendor. Searchable and filterable by date and
 ### 12.4 Account & Class Visibility
 - Expense/COGS accounts list from QB — toggle visibility per account
 - Class list from QB (if enabled) — toggle visibility per class
-- Hidden accounts/classes still exist in QB; hidden from BillFlow dropdowns only
+- Hidden accounts/classes still exist in QB; hidden from Purchasomatic dropdowns only
 - Re-Sync QuickBooks Data button
 
 ### 12.5 Notifications
@@ -620,11 +620,11 @@ Job 1052 Total Materials: $67.22
 
 | Feature | Specification |
 |---------|---------------|
-| Data source | QB Cost by Job report via API. BillFlow does not maintain parallel calculation. |
+| Data source | QB Cost by Job report via API. Purchasomatic does not maintain parallel calculation. |
 | Display | Job number, name, customer name, revenue, material costs, gross profit, margin % |
 | Default filter | Jobs with any transaction in last 30 days (activity-based — QB job status fields are unreliable) |
 | Date range | Current month, last month, last 90 days, custom, all time |
-| V2 | Labor costs from GPS clock-in data added when BillFlow is part of full FSM platform |
+| V2 | Labor costs from GPS clock-in data added when Purchasomatic is part of full FSM platform |
 
 ---
 
@@ -671,14 +671,14 @@ qb_vendor_id                  text
 qb_vendor_name                text
 is_visible                    boolean, default true
 qb_default_gl_account_id      text
-billflow_gl_account_id        text
-gl_account_source             enum: qb_default / billflow_override / not_set
+Purchasomatic_gl_account_id        text
+gl_account_source             enum: qb_default / Purchasomatic_override / not_set
 qb_default_class_id           text
-billflow_class_id             text
-class_source                  enum: qb_default / billflow_override / not_set
+Purchasomatic_class_id             text
+class_source                  enum: qb_default / Purchasomatic_override / not_set
 qb_payment_terms              text
-billflow_payment_terms        text
-payment_terms_source          enum: qb_default / billflow_override / not_set
+Purchasomatic_payment_terms        text
+payment_terms_source          enum: qb_default / Purchasomatic_override / not_set
 default_description           text
 default_payment_account_id    text
 default_payment_method        enum: check / ach / credit_card / other
@@ -761,7 +761,7 @@ quantity                decimal(10,4)
 unit_cost               decimal(10,2)
 extended_cost           decimal(10,2)
 gl_account_id           text
-gl_account_source       enum: qb_default / billflow_override / rule / stored_mapping / manual
+gl_account_source       enum: qb_default / Purchasomatic_override / rule / stored_mapping / manual
 qb_item_id              text (nullable)
 job_id                  text (nullable)
 class_id                text (nullable)
@@ -910,7 +910,7 @@ connector_status        enum: running / overdue / alert
 ```
 
 ### 15.3 Dropdown Search Standard (ALL Dropdowns)
-Every dropdown in BillFlow follows this pattern:
+Every dropdown in Purchasomatic follows this pattern:
 - Type anything → real-time filter against all relevant fields
 - Most recently created/used items shown first before typing
 - Arrow keys navigate, Enter selects, Escape cancels
@@ -945,12 +945,12 @@ Every dropdown in BillFlow follows this pattern:
 ---
 
 ## 16. Accuracy Standard
-Validate against 20-30 real vendor invoices from pilot contractor covering multiple vendors (Johnstone Supply, Wesco, Ferguson, Gensco). Process each through BillFlow and through QBO native capture. BillFlow must win on accuracy before launch.
+Validate against 20-30 real vendor invoices from pilot contractor covering multiple vendors (Johnstone Supply, Wesco, Ferguson, Gensco). Process each through Purchasomatic and through QBO native capture. Purchasomatic must win on accuracy before launch.
 
 ---
 
 ## 17. Relationship to FSM Platform
-BillFlow is built first as standalone product. ~90% of BillFlow code is reused in the full Field Service Intelligence Platform built later. BillFlow is not a prototype — it is a real product.
+Purchasomatic is built first as standalone product. ~90% of Purchasomatic code is reused in the full Field Service Intelligence Platform built later. Purchasomatic is not a prototype — it is a real product.
 
 ---
 

@@ -32,7 +32,7 @@ export default async function JobsPage() {
           <div>
             <h1 className="text-xl font-semibold text-gray-900">Job Profitability</h1>
             <p className="mt-0.5 text-sm text-gray-400">
-              Jobs with activity in the last 30 days — revenue from QuickBooks, material costs from BillFlow
+              Jobs with activity in the last 30 days — revenue from QuickBooks, material costs from Purchasomatic
             </p>
           </div>
           {lastSync && (

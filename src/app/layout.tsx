@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'BillFlow',
+  title: 'Purchasomatic',
   description: 'Automated vendor invoice capture and QuickBooks sync for contractors',
 };
 

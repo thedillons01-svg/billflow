@@ -86,7 +86,7 @@ export function JobsTable({ rows }: { rows: JobProfitabilityRow[] }) {
       </div>
 
       <p className="text-xs text-gray-400">
-        Showing {filtered.length} of {rows.length} jobs · Revenue from QuickBooks P&amp;L · Material costs from BillFlow published bills
+        Showing {filtered.length} of {rows.length} jobs · Revenue from QuickBooks P&amp;L · Material costs from Purchasomatic published bills
       </p>
     </div>
   )

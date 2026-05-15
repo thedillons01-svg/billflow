@@ -780,7 +780,7 @@ const selectStyle: React.CSSProperties = {
 
 const SOURCE_BADGE: Record<string, { label: string; bg: string; color: string }> = {
   qb_default:         { label: 'QB',       bg: '#DBEAFE', color: '#1E40AF' },
-  billflow_override:  { label: 'BillFlow', bg: '#EBF5EF', color: '#1A3D2B' },
+  billflow_override:  { label: 'Purchasomatic', bg: '#EBF5EF', color: '#1A3D2B' },
   rule:               { label: 'Rule',     bg: '#EDE9FE', color: '#5B21B6' },
   manual:             { label: 'Manual',   bg: '#FEF3C7', color: '#92400E' },
   mapping:            { label: 'Learned',  bg: '#D1FAE5', color: '#065F46' },

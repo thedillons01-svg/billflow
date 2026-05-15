@@ -22,7 +22,7 @@ export async function getJobProfitability(companyId: string): Promise<JobProfita
   const startStr = start.toISOString().slice(0, 10)
   const endStr = end.toISOString().slice(0, 10)
 
-  // Pull material costs from BillFlow bills (published bills with line items)
+  // Pull material costs from Purchasomatic bills (published bills with line items)
   const { data: lineItems } = await supabase
     .from('bill_line_items')
     .select('job_id, extended_cost, bills!inner(status, invoice_date, company_id)')
@@ -82,7 +82,7 @@ export async function getJobProfitability(companyId: string): Promise<JobProfita
     // QB not connected or report failed — show costs only
   }
 
-  // Merge into rows — show jobs with any BillFlow cost or QB activity
+  // Merge into rows — show jobs with any Purchasomatic cost or QB activity
   const activeJobIds = new Set([...costByJob.keys(), ...revenueByJob.keys()])
   const result: JobProfitabilityRow[] = []
 
@@ -110,7 +110,7 @@ export async function getJobProfitability(companyId: string): Promise<JobProfita
     })
   }
 
-  // Also include jobs with BillFlow cost even if not in QB P&L
+  // Also include jobs with Purchasomatic cost even if not in QB P&L
   for (const [jobId, cost] of costByJob) {
     if (!activeJobIds.has(jobId)) continue
     if (result.find(r => r.qb_job_id === jobId)) continue

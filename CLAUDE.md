@@ -1,13 +1,13 @@
-@AGENTS.md
+﻿@AGENTS.md
 
 # Working Style
 Proceed with all file edits, terminal commands, git commits, and pushes without asking for confirmation. Make autonomous decisions based on BillFlow_Requirements_v4.md — it is the source of truth for all product decisions. Only stop if something is ambiguous that the requirements don't cover, or if you're about to do something irreversible like dropping database tables.
 Read DESIGN.md before writing any UI code. All colors, spacing, components, and interaction patterns are defined there.
 
-# BillFlow — Project Context for Claude Code
+# Purchasomatic — Project Context for Claude Code
 
-## What BillFlow Is
-BillFlow is a SaaS web application that automatically captures vendor invoices and purchase orders via email, extracts line-item data using OCR, matches bills to QuickBooks jobs, and pushes approved bills to QuickBooks Online and QuickBooks Desktop — without manual data entry.
+## What Purchasomatic Is
+Purchasomatic is a SaaS web application that automatically captures vendor invoices and purchase orders via email, extracts line-item data using OCR, matches bills to QuickBooks jobs, and pushes approved bills to QuickBooks Online and QuickBooks Desktop — without manual data entry.
 
 **The product in one sentence:** Set up email forwarding once, connect QuickBooks once, and vendor invoices flow into QuickBooks automatically — correctly coded to the right job — without anyone touching them.
 
@@ -55,8 +55,8 @@ src/
 - NEXT_PUBLIC_SUPABASE_URL
 - NEXT_PUBLIC_SUPABASE_ANON_KEY (Supabase calls this "publishable key")
 - SUPABASE_SERVICE_ROLE_KEY (Supabase calls this "secret key")
-- QBO_CLIENT_ID (set up — see Intuit Developer portal, BillFlow app, Development keys)
-- QBO_CLIENT_SECRET (set up — see Intuit Developer portal, BillFlow app, Development keys)
+- QBO_CLIENT_ID (set up — see Intuit Developer portal, Purchasomatic app, Development keys)
+- QBO_CLIENT_SECRET (set up — see Intuit Developer portal, Purchasomatic app, Development keys)
 - QBO_REDIRECT_URI=http://localhost:3000/api/quickbooks/callback
 - EMAIL_WEBHOOK_SECRET (not yet set up)
 - STRIPE_SECRET_KEY (not yet set up)
@@ -74,7 +74,7 @@ src/
 - Credit balance always visible on dashboard and in settings
 
 ### Invoice & PO Capture
-- Two capture addresses per company: [prefix]-bills@billflow.com and [prefix]-pos@billflow.com
+- Two capture addresses per company: [prefix]-bills@purchasomatic.com and [prefix]-pos@purchasomatic.com
 - Bills address: filters on "invoice" in subject or body
 - POs address: filters on "purchase order" or "order confirmation" in subject or body
 - Wrong document type sent to wrong address → rejected with specific redirect message, no charge
@@ -85,8 +85,8 @@ src/
 - Line item total (including tax lines) must exactly equal invoice header total for auto-publish
 
 ### Purchase Orders
-- PO confirmations captured via [prefix]-pos@billflow.com
-- BillFlow creates QB Purchase Order records via API
+- PO confirmations captured via [prefix]-pos@purchasomatic.com
+- Purchasomatic creates QB Purchase Order records via API
 - When invoice arrives: matched to open PO by vendor + PO number
 - Bill created in QB linked to PO, discrepancies flagged
 - PO statuses: Open / Partially Received / Received / Closed
@@ -132,16 +132,16 @@ src/
 - Status states: Draft → Ready → Publishing → Published / Sync Error
 - Unpublish: ONLY available for Sync Error status. Once Published (QB bill ID stored), no unpublish — correct in QB directly.
 - Pre-push validation against cached QB data (no live API calls for validation)
-- PDF attached to QB bill record on publish (QBD cannot receive PDF attachments — PDF stored in BillFlow only)
-- Account visibility: admin can hide individual QB accounts from BillFlow dropdowns. Pre-filtered to expense/COGS types only.
+- PDF attached to QB bill record on publish (QBD cannot receive PDF attachments — PDF stored in Purchasomatic only)
+- Account visibility: admin can hide individual QB accounts from Purchasomatic dropdowns. Pre-filtered to expense/COGS types only.
 
 ### Vendor Record Key Fields
 - vendor_name_extracted (what OCR pulls off PDF)
 - vendor_name_display (mapped QB vendor name) — both visible and editable
 - is_visible (boolean — hide vendor from dropdowns without deleting)
-- qb_default_gl_account_id / billflow_gl_account_id / gl_account_source (qb_default / billflow_override / not_set)
-- qb_default_class_id / billflow_class_id / class_source (same pattern)
-- qb_payment_terms / billflow_payment_terms / payment_terms_source (same pattern)
+- qb_default_gl_account_id / Purchasomatic_gl_account_id / gl_account_source (qb_default / Purchasomatic_override / not_set)
+- qb_default_class_id / Purchasomatic_class_id / class_source (same pattern)
+- qb_payment_terms / Purchasomatic_payment_terms / payment_terms_source (same pattern)
 - default_description (free text, pre-populates QB bill memo)
 - default_payment_account_id, default_payment_method, mark_as_paid_default
 - auto_publish_enabled, hold_for_job_match, copy_po_to_qb_reference
@@ -152,7 +152,7 @@ src/
 - Stored mappings: description text → GL account, created when user clicks "Remember? Yes" on a line item
 - Rules engine: per-vendor conditional rules — [Description / Unit Price] [equal / contains / begins with / ends with] [value] → GL account or QB Product/Service
 - Rules evaluated after stored mappings; rule takes priority if both match
-- Source badge on every GL account field: QB / BillFlow / Rule / Manual
+- Source badge on every GL account field: QB / Purchasomatic / Rule / Manual
 
 ### Remember Prompt
 - Appears inline after user changes: GL Account (header and line level), Class, Payment Account, Payment Method
@@ -185,7 +185,7 @@ src/
 - Daily digest optional (off by default)
 
 ## Dropdown Search Standard (ALL dropdowns)
-Every dropdown in BillFlow follows this pattern:
+Every dropdown in Purchasomatic follows this pattern:
 - Type anything → filters real-time against all relevant fields
 - Most recently used/created shown first before typing
 - Arrow keys navigate, Enter selects, Escape cancels
@@ -204,8 +204,8 @@ Extraction accuracy on clean digital PDFs from major HVAC distributors must matc
 
 ## Competitive Context
 - AutoEntry by Sage: closest competitor. No job matching, shared processing queue (slow), no PO capture, no receiving, can't copy from PDF side
-- QBO native capture: free but less accurate. BillFlow must beat both.
-- BillFlow differentiators: job matching, PO capture, receiving workflow, per-vendor auto-publish promotion, processing speed
+- QBO native capture: free but less accurate. Purchasomatic must beat both.
+- Purchasomatic differentiators: job matching, PO capture, receiving workflow, per-vendor auto-publish promotion, processing speed
 
 ## Target Market
 Primary: HVAC and mechanical contractors using QuickBooks (Online or Desktop)
@@ -213,7 +213,7 @@ Secondary: Any trade/service business buying materials for jobs (plumbing, elect
 Job costing is optional — invoice capture alone has broad market value
 
 ## Relationship to FSM Platform
-BillFlow is built first as standalone product. ~90% of BillFlow code is reused in the full Field Service Intelligence Platform built later. BillFlow is not a prototype — it is a real product.
+Purchasomatic is built first as standalone product. ~90% of Purchasomatic code is reused in the full Field Service Intelligence Platform built later. Purchasomatic is not a prototype — it is a real product.
 
 ## Build Order
 1. Database schema (Supabase tables)
@@ -244,6 +244,6 @@ BillFlow is built first as standalone product. ~90% of BillFlow code is reused i
 - App runs at: http://localhost:3000
 - Start: npm run dev
 - Supabase project URL: https://uijbqzwckgdahiuqokyb.supabase.co
-- GitHub: https://github.com/thedillons01-svg/billflow
-- Dev/test email: billflowdev@gmail.com (used for QBO sandbox and other BillFlow service accounts)
+- GitHub: https://github.com/thedillons01-svg/Purchasomatic
+- Dev/test email: Purchasomaticdev@gmail.com (used for QBO sandbox and other Purchasomatic service accounts)
 - QBO sandbox company: Sandbox Company US 3402 (ID: 9341457021204980)

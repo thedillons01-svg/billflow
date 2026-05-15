@@ -131,8 +131,8 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
       {/* GL Account */}
       <Section title="Default GL Account">
         <Field
-          label="GL account (BillFlow override)"
-          helper="The expense account all line items from this vendor default to. Overrides the QuickBooks vendor default. Source badge on bill review screen shows 'BillFlow' when this is set."
+          label="GL account (Purchasomatic override)"
+          helper="The expense account all line items from this vendor default to. Overrides the QuickBooks vendor default. Source badge on bill review screen shows 'Purchasomatic' when this is set."
         >
           <select value={form.billflow_gl_account_id} onChange={e => set('billflow_gl_account_id', e.target.value)} style={inputStyle}>
             <option value="">— Use QB vendor default —</option>
@@ -158,7 +158,7 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
       <Section title="Publish Settings">
         <ToggleField
           label="Auto-publish enabled"
-          helper="When on, invoices from this vendor are automatically pushed to QuickBooks without review — as long as all eligibility checks pass. BillFlow will suggest enabling this after 5 accurate invoices."
+          helper="When on, invoices from this vendor are automatically pushed to QuickBooks without review — as long as all eligibility checks pass. Purchasomatic will suggest enabling this after 5 accurate invoices."
           checked={form.auto_publish_enabled}
           onChange={v => set('auto_publish_enabled', v)}
         />
@@ -214,7 +214,7 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
       <Section title="Visibility">
         <ToggleField
           label="Visible in dropdowns"
-          helper="When off, this vendor is hidden from all vendor dropdowns throughout BillFlow without being deleted. Bills already assigned to this vendor are unaffected."
+          helper="When off, this vendor is hidden from all vendor dropdowns throughout Purchasomatic without being deleted. Bills already assigned to this vendor are unaffected."
           checked={form.is_visible}
           onChange={v => set('is_visible', v)}
         />

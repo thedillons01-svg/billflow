@@ -12,7 +12,7 @@ const service = createClient(url, svcRole)
 const anonClient = createClient(url, anon)
 
 async function main() {
-  console.log('=== BillFlow RLS smoke test ===\n')
+  console.log('=== Purchasomatic RLS smoke test ===\n')
 
   // 1. Check company_members table was backfilled
   const { data: members, error: membersErr } = await service

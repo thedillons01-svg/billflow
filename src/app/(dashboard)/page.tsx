@@ -39,8 +39,8 @@ export default async function DashboardPage() {
 
   const isQBConnected = company?.qb_connection_status === 'connected'
   const prefix = company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'
-  const billsAddress = `${prefix}-bills@billflow.app`
-  const posAddress = `${prefix}-pos@billflow.app`
+  const billsAddress = `${prefix}-bills@purchasomatic.app`
+  const posAddress = `${prefix}-pos@purchasomatic.app`
   const creditBalance = company?.credit_balance ?? 0
   const inboxTotal = (needsReviewCount ?? 0) + (pendingJobCount ?? 0)
 
@@ -56,7 +56,7 @@ export default async function DashboardPage() {
             {company?.name ?? 'Dashboard'}
           </h1>
           <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-            Overview of your BillFlow account
+            Overview of your Purchasomatic account
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -355,7 +355,7 @@ export default async function DashboardPage() {
                 {creditBalance.toLocaleString()}
               </p>
               <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                credits remaining · 2 per bill · 1 per PO
+                credits remaining · 1 per bill or PO
               </p>
               {creditBalance < 20 && (
                 <p style={{ fontSize: 11, color: '#DC2626', marginTop: 6 }}>

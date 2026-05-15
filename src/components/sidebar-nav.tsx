@@ -48,9 +48,9 @@ export function SidebarNav({
             fontSize: 11, fontWeight: 700,
           }}
         >
-          B
+          P
         </div>
-        <span className="text-white font-medium" style={{ fontSize: 13 }}>BillFlow</span>
+        <span className="text-white font-medium" style={{ fontSize: 13 }}>Purchasomatic</span>
       </div>
 
       {/* Zone 2 — Navigation */}

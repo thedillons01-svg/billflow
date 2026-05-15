@@ -187,7 +187,7 @@ export default async function BillingPage({
               {!stripeConfigured && (
                 <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'center', paddingTop: 4 }}>
                   Stripe billing coming soon. Contact{' '}
-                  <a href="mailto:support@billflow.app" style={{ color: '#2DB87A' }}>support@billflow.app</a>
+                  <a href="mailto:support@purchasomatic.app" style={{ color: '#2DB87A' }}>support@purchasomatic.app</a>
                   {' '}to purchase credits manually.
                 </p>
               )}

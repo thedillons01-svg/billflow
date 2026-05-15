@@ -33,7 +33,7 @@ export function VendorLineItemsTab({
   return (
     <div style={{ maxWidth: 700 }}>
       <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-        When you click "Remember? Yes" on a line item GL account change in the bill review screen, BillFlow saves the description → GL account mapping here. On future invoices from this vendor, matching line items are automatically pre-populated with the saved account. Source badge shows "Rule."
+        When you click "Remember? Yes" on a line item GL account change in the bill review screen, Purchasomatic saves the description → GL account mapping here. On future invoices from this vendor, matching line items are automatically pre-populated with the saved account. Source badge shows "Rule."
       </p>
 
       {list.length === 0 ? (

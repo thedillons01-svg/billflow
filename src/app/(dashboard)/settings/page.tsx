@@ -35,8 +35,8 @@ export default async function SettingsPage({
 
   const company = data as Company | null
   const isQBConnected = company?.qb_connection_status === 'connected'
-  const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@billflow.app`
-  const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@billflow.app`
+  const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@purchasomatic.app`
+  const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@purchasomatic.app`
 
   return (
     <div className="flex flex-col h-full">
@@ -115,7 +115,7 @@ export default async function SettingsPage({
 
           {/* QBD */}
           {company?.qb_type === 'qbd' && (
-            <Card title="QuickBooks Desktop" subtitle="Web Connector polls BillFlow every 5–30 minutes to sync bills.">
+            <Card title="QuickBooks Desktop" subtitle="Web Connector polls Purchasomatic every 5–30 minutes to sync bills.">
               <div className="flex items-center justify-between">
                 <div>
                   <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>Web Connector Config</p>
@@ -139,7 +139,7 @@ export default async function SettingsPage({
           )}
 
           {/* ── Email Capture ──────────────────────────────────────────── */}
-          <Card title="Email Capture" subtitle="Forward vendor emails to these addresses — BillFlow handles the rest.">
+          <Card title="Email Capture" subtitle="Forward vendor emails to these addresses — Purchasomatic handles the rest.">
             <div className="space-y-4">
               <CaptureLine
                 label="Bills address"
@@ -149,7 +149,7 @@ export default async function SettingsPage({
               <CaptureLine
                 label="PO address"
                 address={posAddress}
-                helper="Forward PO confirmations here. BillFlow creates the PO in QuickBooks automatically."
+                helper="Forward PO confirmations here. Purchasomatic creates the PO in QuickBooks automatically."
               />
               <div style={{ borderTop: '0.5px solid var(--color-border-tertiary)', paddingTop: 12 }}>
                 <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Setup instructions</p>
@@ -184,7 +184,7 @@ export default async function SettingsPage({
                   name="job_costing_enabled"
                   defaultChecked={company?.job_costing_enabled ?? false}
                   label="Job costing enabled"
-                  helper="When on, job fields appear throughout BillFlow and invoices are matched to QuickBooks jobs. When off, job fields are hidden and BillFlow is invoice-capture only."
+                  helper="When on, job fields appear throughout Purchasomatic and invoices are matched to QuickBooks jobs. When off, job fields are hidden and Purchasomatic is invoice-capture only."
                 />
                 <div className="flex justify-end">
                   <BtnPrimary type="submit">Save</BtnPrimary>
@@ -194,7 +194,7 @@ export default async function SettingsPage({
           </Card>
 
           {/* ── Notifications ─────────────────────────────────────────── */}
-          <Card title="Notifications" subtitle="Control when and where BillFlow sends alerts.">
+          <Card title="Notifications" subtitle="Control when and where Purchasomatic sends alerts.">
             <form action={async (fd: FormData) => {
               'use server'
               if (!company) return
@@ -268,7 +268,7 @@ export default async function SettingsPage({
                     Current plan: <span style={{ textTransform: 'capitalize' }}>{company?.plan_name ?? 'Free'}</span>
                   </p>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                    Bills cost 2 credits. POs cost 1 credit. Reprocessing is free.
+                    Bills and POs cost 1 credit each. Reprocessing is free.
                   </p>
                 </div>
               </div>

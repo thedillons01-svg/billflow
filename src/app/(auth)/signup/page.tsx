@@ -10,7 +10,7 @@ export default function SignupPage() {
   return (
     <div className="w-full max-w-sm">
       <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">BillFlow</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Purchasomatic</h1>
         <p className="mt-2 text-sm text-gray-500">Create your account</p>
       </div>
 

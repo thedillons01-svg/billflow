@@ -3,10 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { getStripe } from '@/lib/stripe/client'
 
 const CREDIT_PACKAGES: Record<number, { amount: number; credits: number }> = {
-  100:  { amount: 1200, credits: 100 },
-  500:  { amount: 4900, credits: 500 },
-  1000: { amount: 8900, credits: 1000 },
-  2500: { amount: 19900, credits: 2500 },
+  50:   { amount: 2000,  credits: 50   },
+  100:  { amount: 4000,  credits: 100  },
+  500:  { amount: 19000, credits: 500  },
+  1000: { amount: 36000, credits: 1000 },
 }
 
 export async function POST(request: NextRequest) {
@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
         currency: 'usd',
         unit_amount: pkg.amount,
         product_data: {
-          name: `BillFlow ${pkg.credits.toLocaleString()} Credits`,
-          description: `${pkg.credits.toLocaleString()} processing credits for BillFlow. Credits never expire.`,
+          name: `Purchasomatic ${pkg.credits.toLocaleString()} Credits`,
+          description: `${pkg.credits.toLocaleString()} processing credits for Purchasomatic. Credits never expire.`,
         },
       },
     }],

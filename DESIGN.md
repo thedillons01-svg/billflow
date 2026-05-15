@@ -1,4 +1,4 @@
-# BillFlow — Design System & UI Specification
+﻿# Purchasomatic — Design System & UI Specification
 
 Read this file before writing any UI code. All visual decisions are made here. Do not invent colors, spacing, or component patterns — use what is defined in this document.
 
@@ -88,7 +88,7 @@ The sidebar has two distinct zones — never merge them:
 ```
 Background:  #1A3D2B (bf-green-dark)
 Padding:     14px 12px
-Content:     Logo mark + "BillFlow" wordmark
+Content:     Logo mark + "Purchasomatic" wordmark
 Logo mark:   26x26px, background #2DB87A, border-radius 6px, white "B" at 11px/700
 ```
 
@@ -296,7 +296,7 @@ Padding:      1px 6px
 Border-radius: 3px
 
 QB:       bg #DBEAFE, text #1E40AF      (value from QuickBooks vendor record)
-BillFlow: bg #D1FAE5, text #065F46      (value set as BillFlow override)
+Purchasomatic: bg #D1FAE5, text #065F46      (value set as Purchasomatic override)
 Rule:     bg #EDE9FE, text #5B21B6      (applied by line item rule or stored mapping)
 Manual:   bg #F3F4F6, text #374151      (set manually by user on this bill — hover: "Manually selected")
 ```
@@ -338,7 +338,7 @@ Label:       12px, text-secondary, margin-left 6px
 
 ## 5. Bill Review Screen Layout
 
-The bill review screen is the most important UI in BillFlow. Get this right.
+The bill review screen is the most important UI in Purchasomatic. Get this right.
 
 ```
 Layout:       two-column split, flex row, full viewport height minus sidebar/header
@@ -410,11 +410,11 @@ Every field, toggle, and setting must have helper text. This reduces support vol
 **Format:** A single sentence or two in plain English, 11px, text-secondary, directly below the field.
 
 **Examples:**
-- GL Account: "The expense account this vendor's invoices will post to in QuickBooks. BillFlow will use this as the default for all line items."
+- GL Account: "The expense account this vendor's invoices will post to in QuickBooks. Purchasomatic will use this as the default for all line items."
 - Auto-publish: "When enabled, invoices from this vendor are automatically pushed to QuickBooks without review — as long as all eligibility checks pass."
 - Hold for Job Match: "When on, bills from this vendor will wait in the Pending Job Match queue until a matching job is found in QuickBooks before publishing."
 - Mark as Paid: "Bills will be published to QuickBooks already marked as paid, using the payment account and method set below. Use this for vendors you always pay by credit card on order."
-- Capture Line Items: "Line item extraction is always on in BillFlow and included in the base credit cost. All invoice line items are captured automatically."
+- Capture Line Items: "Line item extraction is always on in Purchasomatic and included in the base credit cost. All invoice line items are captured automatically."
 - Error notifications: "Error notifications cannot be turned off. If something goes wrong with an invoice, you need to know about it."
 
 ---
@@ -434,7 +434,7 @@ Body:    "No invoices need your attention. Auto-publish is running in the backgr
 ```
 Icon:    ti-mail-forward, 48px, text-tertiary
 Title:   "No invoices yet" — 16px, weight 500, text-primary
-Body:    "Forward a vendor invoice to [prefix]-bills@billflow.com to get started." — 13px, text-secondary
+Body:    "Forward a vendor invoice to [prefix]-bills@purchasomatic.com to get started." — 13px, text-secondary
 Action:  "View setup instructions" — link, #2DB87A
 ```
 
@@ -480,7 +480,7 @@ Right side:
 
 ## 11. Tabler Icons Reference
 
-Use Tabler outline icons throughout. Never use filled variants. Common icons for BillFlow:
+Use Tabler outline icons throughout. Never use filled variants. Common icons for Purchasomatic:
 
 ```
 ti-home              — Home nav

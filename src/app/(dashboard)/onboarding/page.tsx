@@ -23,7 +23,7 @@ export default async function OnboardingPage() {
               <path fillRule="evenodd" d="M11.3 1.046A1 1 0 0 1 12 2v5h4a1 1 0 0 1 .82 1.573l-7 10A1 1 0 0 1 8 18v-5H4a1 1 0 0 1-.82-1.573l7-10a1 1 0 0 1 1.12-.38Z" clipRule="evenodd" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome to BillFlow</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome to Purchasomatic</h1>
           <p className="mt-1.5 text-sm text-gray-500">
             Set up your company to start capturing vendor invoices automatically.
           </p>

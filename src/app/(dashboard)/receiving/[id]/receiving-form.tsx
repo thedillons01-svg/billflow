@@ -57,7 +57,7 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
   return (
     <div>
       <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
-        Mark each line as received, partially received, or not received. This updates the PO status in BillFlow.
+        Mark each line as received, partially received, or not received. This updates the PO status in Purchasomatic.
       </p>
 
       <div

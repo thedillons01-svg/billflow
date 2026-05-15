@@ -24,14 +24,14 @@ export async function GET() {
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://billflow-omega.vercel.app'
-  const appId = `BillFlow-${company.company_id.slice(0, 8)}`
+  const appId = `Purchasomatic-${company.company_id.slice(0, 8)}`
 
   const qwc = `<?xml version="1.0"?>
 <QBWCXML>
-  <AppName>BillFlow</AppName>
+  <AppName>Purchasomatic</AppName>
   <AppID>${appId}</AppID>
   <AppURL>${appUrl}/api/quickbooks/qbd</AppURL>
-  <AppDescription>BillFlow — Automated vendor invoice capture for ${company.name}</AppDescription>
+  <AppDescription>Purchasomatic — Automated vendor invoice capture for ${company.name}</AppDescription>
   <AppSupport>${appUrl}/settings</AppSupport>
   <UserName>${serviceKey}</UserName>
   <OwnerID>{${company.company_id.toUpperCase()}}</OwnerID>
@@ -45,7 +45,7 @@ export async function GET() {
   return new NextResponse(qwc, {
     headers: {
       'Content-Type': 'application/xml',
-      'Content-Disposition': `attachment; filename="BillFlow-${company.name.replace(/[^a-z0-9]/gi, '_')}.QWC"`,
+      'Content-Disposition': `attachment; filename="Purchasomatic-${company.name.replace(/[^a-z0-9]/gi, '_')}.QWC"`,
     },
   })
 }
