@@ -34,16 +34,19 @@ export default async function BillsPage({
     query = query.or(`vendor_name_raw.ilike.%${search}%,invoice_number.ilike.%${search}%`)
   }
 
-  const [billsResult, reviewCountResult, pendingCountResult, accountsResult] = await Promise.all([
+  const [billsResult, reviewCountResult, pendingCountResult, accountsResult, companyResult] = await Promise.all([
     query.limit(activeTab === 'archive' ? 200 : 500),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', REVIEW_STATUSES).is('deleted_at', null),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
     supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).order('name'),
+    supabase.from('companies').select('credit_balance, subscription_status').single(),
   ])
 
   const bills = billsResult.data ?? []
   const accounts = accountsResult.data ?? []
   const isInbox = activeTab !== 'archive'
+  const creditBalance      = companyResult.data?.credit_balance      ?? 0
+  const subscriptionStatus = companyResult.data?.subscription_status ?? 'trial'
 
   const tabs = [
     { id: 'review',  label: 'Needs Review',      count: reviewCountResult.count ?? 0 },
@@ -132,6 +135,9 @@ export default async function BillsPage({
         )}
       </div>
 
+      {/* Credit warning banner */}
+      <CreditBanner creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
+
       {/* Bill list */}
       <div className="flex-1 overflow-auto" style={{ background: 'white' }}>
         {bills.length === 0 ? (
@@ -142,6 +148,101 @@ export default async function BillsPage({
       </div>
     </div>
   )
+}
+
+function CreditBanner({ creditBalance, subscriptionStatus }: { creditBalance: number; subscriptionStatus: string }) {
+  if (subscriptionStatus === 'trial') {
+    if (creditBalance === 0) {
+      return (
+        <div
+          className="flex-none flex items-center justify-between px-5 py-3 gap-4"
+          style={{ background: '#FEF2F2', borderBottom: '0.5px solid #FECACA' }}
+        >
+          <div className="flex items-center gap-2">
+            <i className="ti ti-alert-circle" style={{ fontSize: 15, color: '#DC2626', flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: '#991B1B' }}>
+              <span style={{ fontWeight: 500 }}>Your free trial credits are used up.</span>
+              {' '}Subscribe to keep processing invoices — your existing bills are safe.
+            </p>
+          </div>
+          <Link
+            href="/billing"
+            style={{
+              flexShrink: 0,
+              background: '#DC2626', color: 'white',
+              fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6,
+              textDecoration: 'none',
+            }}
+          >
+            Choose a plan
+          </Link>
+        </div>
+      )
+    }
+
+    if (creditBalance <= 5) {
+      return (
+        <div
+          className="flex-none flex items-center justify-between px-5 py-3 gap-4"
+          style={{ background: '#FFFBEB', borderBottom: '0.5px solid #FDE68A' }}
+        >
+          <div className="flex items-center gap-2">
+            <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: '#D97706', flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: '#92400E' }}>
+              <span style={{ fontWeight: 500 }}>
+                {creditBalance === 1 ? '1 trial credit' : `${creditBalance} trial credits`} remaining.
+              </span>
+              {' '}Subscribe now to keep processing without interruption.
+            </p>
+          </div>
+          <Link
+            href="/billing"
+            style={{
+              flexShrink: 0,
+              background: '#D97706', color: 'white',
+              fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 6,
+              textDecoration: 'none',
+            }}
+          >
+            Subscribe
+          </Link>
+        </div>
+      )
+    }
+  }
+
+  if (subscriptionStatus === 'past_due') {
+    return (
+      <div
+        className="flex-none flex items-center justify-between px-5 py-3 gap-4"
+        style={{ background: '#FEF2F2', borderBottom: '0.5px solid #FECACA' }}
+      >
+        <div className="flex items-center gap-2">
+          <i className="ti ti-alert-circle" style={{ fontSize: 15, color: '#DC2626', flexShrink: 0 }} />
+          <p style={{ fontSize: 13, color: '#991B1B' }}>
+            <span style={{ fontWeight: 500 }}>Payment failed.</span>
+            {' '}Update your payment method to keep your subscription active.
+          </p>
+        </div>
+        <Link
+          href="/billing"
+          style={{
+            flexShrink: 0,
+            background: '#DC2626', color: 'white',
+            fontSize: 12, fontWeight: 600,
+            padding: '6px 14px', borderRadius: 6,
+            textDecoration: 'none',
+          }}
+        >
+          Fix payment
+        </Link>
+      </div>
+    )
+  }
+
+  return null
 }
 
 function EmptyState({ tab, search }: { tab: string; search: string }) {
