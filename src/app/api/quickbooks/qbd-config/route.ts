@@ -23,7 +23,7 @@ export async function GET() {
       .eq('company_id', company.company_id)
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://billflow-omega.vercel.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.purchasomatic.com'
   const appId = `Purchasomatic-${company.company_id.slice(0, 8)}`
 
   const qwc = `<?xml version="1.0"?>

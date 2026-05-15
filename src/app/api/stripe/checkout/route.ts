@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       .eq('company_id', company.company_id)
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://billflow-omega.vercel.app'
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.purchasomatic.com'
 
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
