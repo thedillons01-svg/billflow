@@ -1,5 +1,5 @@
 ﻿import { createClient } from '@/lib/supabase/server'
-import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings } from './actions'
+import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix } from './actions'
 
 type Company = {
   company_id: string
@@ -141,6 +141,40 @@ export default async function SettingsPage({
           {/* ── Email Capture ──────────────────────────────────────────── */}
           <Card title="Email Capture" subtitle="Forward vendor emails to these addresses — Purchasomatic handles the rest.">
             <div className="space-y-4">
+              {/* Prefix editor */}
+              <form action={async (fd: FormData) => {
+                'use server'
+                if (!company) return
+                await updateCapturePrefix(company.company_id, fd.get('prefix') as string)
+              }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Your capture address prefix
+                  </label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      name="prefix"
+                      defaultValue={company?.capture_email_prefix ?? ''}
+                      placeholder="e.g. smithhvac"
+                      style={{
+                        width: 180, height: 36,
+                        border: '0.5px solid var(--color-border-secondary)',
+                        borderRadius: 6, padding: '0 10px',
+                        fontSize: 13,
+                      }}
+                    />
+                    <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>-bills@purchasomatic.com</span>
+                    <BtnSecondary>Save</BtnSecondary>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Lowercase letters, numbers, and hyphens only. Changing this will break any existing forwarding rules — update them in your email client too.
+                  </p>
+                </div>
+              </form>
+
+              <div style={{ borderTop: '0.5px solid var(--color-border-tertiary)', paddingTop: 16 }} />
+
               <CaptureLine
                 label="Bills address"
                 address={billsAddress}

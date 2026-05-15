@@ -40,6 +40,21 @@ export async function updateNotificationSettings(
   revalidatePath('/settings')
 }
 
+export async function updateCapturePrefix(companyId: string, prefix: string) {
+  const clean = prefix.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30)
+  if (!clean) return { error: 'Prefix cannot be empty.' }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('companies')
+    .update({ capture_email_prefix: clean })
+    .eq('company_id', companyId)
+
+  if (error) return { error: 'That prefix may already be taken. Try another.' }
+  revalidatePath('/settings')
+  return { ok: true, prefix: clean }
+}
+
 export async function updateCompanySettings(
   companyId: string,
   settings: {
