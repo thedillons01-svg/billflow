@@ -180,7 +180,7 @@ function Hero() {
             margin: '0 auto 40px',
           }}
         >
-          Forward vendor invoices and purchase order confirmations to Purchasomatic. We extract every line item, match it to the right QuickBooks job, and publish automatically — while you run the business.
+          Forward vendor invoices and purchase orders to Purchasomatic. We extract every line item, match it to the right QuickBooks job, and publish automatically — while you run the business.
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -311,7 +311,7 @@ function HowItWorks() {
       icon: 'ti-clipboard-check',
       number: '04',
       title: 'POs tracked through receiving',
-      body: 'Send purchase order confirmations to your PO address. Purchasomatic tracks what was ordered, matches the invoice when it arrives, flags any discrepancies, and lets your team check off what was actually delivered.',
+      body: 'Forward purchase orders to your PO address. Purchasomatic tracks what was ordered, matches the invoice when it arrives, flags any discrepancies, and lets your team check off what was actually delivered.',
     },
   ]
 
@@ -381,7 +381,7 @@ function Features() {
     {
       icon: 'ti-truck-delivery',
       title: 'Purchase order tracking',
-      body: 'Forward PO confirmations from your suppliers to Purchasomatic. When the invoice arrives, we match it to the open PO, flag any price or quantity discrepancies, and create the linked bill in QuickBooks — all coded to the right job.',
+      body: 'Forward purchase orders from your suppliers to Purchasomatic. When the invoice arrives, we match it to the open PO, flag any price or quantity discrepancies, and create the linked bill in QuickBooks — all coded to the right job.',
     },
     {
       icon: 'ti-clipboard-check',
