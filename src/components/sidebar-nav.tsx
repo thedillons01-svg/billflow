@@ -20,10 +20,12 @@ export function SidebarNav({
   userEmail,
   notifications,
   unreadCount,
+  jobCostingEnabled = false,
 }: {
   userEmail: string | null
   notifications: Notification[]
   unreadCount: number
+  jobCostingEnabled?: boolean
 }) {
   const pathname = usePathname()
 
@@ -60,8 +62,12 @@ export function SidebarNav({
         <NavItem href="/purchase-orders" active={isActive('/purchase-orders')} icon="ti-clipboard-list">Purchase Orders</NavItem>
         <NavItem href="/receiving" active={isActive('/receiving')} icon="ti-package">Receiving</NavItem>
         <NavItem href="/vendors" active={isActive('/vendors')} icon="ti-users">Vendors</NavItem>
-        <NavItem href="/jobs" active={isActive('/jobs')} icon="ti-chart-bar">Job Profitability</NavItem>
-        <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">FSM Export</NavItem>
+        {jobCostingEnabled && (
+          <NavItem href="/jobs" active={isActive('/jobs')} icon="ti-chart-bar">Job Profitability</NavItem>
+        )}
+        {jobCostingEnabled && (
+          <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">FSM Export</NavItem>
+        )}
         <div
           className="my-2"
           style={{ height: '0.5px', background: '#C3DEC9', marginLeft: 12, marginRight: 12 }}

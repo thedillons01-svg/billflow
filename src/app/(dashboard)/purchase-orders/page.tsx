@@ -35,11 +35,17 @@ export default async function PurchaseOrdersPage({
 
   const { data: pos } = await query
 
-  // Counts for tab badges
-  const [{ count: openCount }, { count: partialCount }] = await Promise.all([
+  // Counts for tab badges + jobs lookup
+  const [{ count: openCount }, { count: partialCount }, { data: jobs }] = await Promise.all([
     supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('status', 'open').is('deleted_at', null),
     supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('status', 'partially_received').is('deleted_at', null),
+    supabase.from('qb_jobs_cache').select('qb_job_id, job_number, job_name, customer_name'),
   ])
+
+  const jobMap = new Map((jobs ?? []).map(j => [
+    j.qb_job_id,
+    [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+  ]))
 
   const tabs = [
     { id: 'open',    label: 'Open',              count: openCount ?? 0 },
@@ -155,7 +161,7 @@ export default async function PurchaseOrdersPage({
                     {po.order_date ? new Date(po.order_date).toLocaleDateString() : '—'}
                   </span>
                   <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    {po.job_id ?? '—'}
+                    {po.job_id ? (jobMap.get(po.job_id) ?? po.job_id) : '—'}
                   </span>
                   <span
                     style={{

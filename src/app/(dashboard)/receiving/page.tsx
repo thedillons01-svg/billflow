@@ -4,16 +4,25 @@ import Link from 'next/link'
 export default async function ReceivingPage() {
   const supabase = await createClient()
 
-  const { data: openPOs } = await supabase
-    .from('purchase_orders')
-    .select(`
-      po_id, vendor_name_raw, po_number, order_date, job_id, status, created_at,
-      vendors(vendor_name_display),
-      po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost)
-    `)
-    .in('status', ['open', 'partially_received'])
-    .is('deleted_at', null)
-    .order('created_at', { ascending: false })
+  const [{ data: openPOs }, { data: jobs }, { data: { user } }] = await Promise.all([
+    supabase
+      .from('purchase_orders')
+      .select(`
+        po_id, vendor_name_raw, po_number, order_date, job_id, status, created_at, created_by,
+        vendors(vendor_name_display),
+        po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost)
+      `)
+      .in('status', ['open', 'partially_received'])
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }),
+    supabase.from('qb_jobs_cache').select('qb_job_id, job_number, job_name, customer_name'),
+    supabase.auth.getUser(),
+  ])
+
+  const jobMap = new Map((jobs ?? []).map(j => [
+    j.qb_job_id,
+    [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+  ]))
 
   return (
     <div className="flex flex-col h-full">
@@ -82,7 +91,8 @@ export default async function ReceivingPage() {
                       </p>
                       <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                         {po.order_date ? `Ordered ${new Date(po.order_date).toLocaleDateString()}` : ''}
-                        {po.job_id ? ` · Job ${po.job_id}` : ''}
+                        {po.job_id ? ` · ${jobMap.get(po.job_id) ?? po.job_id}` : ''}
+                        {po.created_by ? ` · ${po.created_by === user?.id ? 'You' : 'Team member'}` : ''}
                       </p>
                     </div>
                     <span

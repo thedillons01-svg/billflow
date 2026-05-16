@@ -38,7 +38,7 @@ export default async function BillsPage({
     query.limit(activeTab === 'archive' ? 200 : 500),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', REVIEW_STATUSES).is('deleted_at', null),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
-    supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).order('name'),
+    supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).eq('is_hidden', false).order('name'),
     supabase.from('companies').select('credit_balance, subscription_status').single(),
   ])
 

@@ -36,8 +36,7 @@ export async function syncAccounts(companyId: string) {
   )
   if (accounts.length === 0) return
 
-  await supabase.from('qb_accounts_cache').delete().eq('company_id', companyId)
-  const { error } = await supabase.from('qb_accounts_cache').insert(
+  const { error } = await supabase.from('qb_accounts_cache').upsert(
     accounts.map(a => ({
       company_id: companyId,
       qb_account_id: a.Id,
@@ -45,9 +44,10 @@ export async function syncAccounts(companyId: string) {
       account_type: a.AccountType,
       account_sub_type: a.AccountSubType,
       cached_at: new Date().toISOString(),
-    }))
+    })),
+    { onConflict: 'company_id,qb_account_id', ignoreDuplicates: false }
   )
-  if (error) throw new Error(`Accounts cache insert failed: ${error.message}`)
+  if (error) throw new Error(`Accounts cache upsert failed: ${error.message}`)
 }
 
 export async function syncVendors(companyId: string) {

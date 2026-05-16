@@ -8,6 +8,7 @@ export default async function DashboardPage() {
     { count: needsReviewCount },
     { count: pendingJobCount },
     { count: openPOCount },
+    { count: partialPOCount },
     { count: syncErrorCount },
     { data: company },
   ] = await Promise.all([
@@ -24,7 +25,12 @@ export default async function DashboardPage() {
     supabase
       .from('purchase_orders')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['open', 'partially_received'])
+      .eq('status', 'open')
+      .is('deleted_at', null),
+    supabase
+      .from('purchase_orders')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'partially_received')
       .is('deleted_at', null),
     supabase
       .from('bills')
@@ -252,9 +258,10 @@ export default async function DashboardPage() {
                     highlight={!!openPOCount && openPOCount > 0}
                   />
                   <StatCell
-                    value={0}
+                    value={partialPOCount ?? 0}
                     label="Awaiting Receiving"
                     divider
+                    highlight={!!partialPOCount && partialPOCount > 0}
                   />
                 </div>
 

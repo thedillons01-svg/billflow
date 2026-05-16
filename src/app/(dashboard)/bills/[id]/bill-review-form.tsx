@@ -60,12 +60,14 @@ export function BillReviewForm({
   accounts,
   jobs,
   vendorPromo,
+  jobCostingEnabled = false,
 }: {
   bill: Bill
   lineItems: LineItem[]
   accounts: Account[]
   jobs: Job[]
   vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
+  jobCostingEnabled?: boolean
 }) {
   const router = useRouter()
   const [localStatus, setLocalStatus] = useState(bill.status)
@@ -82,6 +84,10 @@ export function BillReviewForm({
   // Apply-to-all prompt for job selection
   const [jobApplyPrompt, setJobApplyPrompt] = useState<{
     jobId: string; jobLabel: string
+  } | null>(null)
+  // Apply-to-all prompt for header GL account
+  const [headerGlApplyPrompt, setHeaderGlApplyPrompt] = useState<{
+    glAccountId: string; accountName: string
   } | null>(null)
 
   const expenseAccounts = accounts.filter(a =>
@@ -181,9 +187,22 @@ export function BillReviewForm({
           Back to Bills
         </Link>
         <div className="flex items-center justify-between gap-3">
-          <h1 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-            {bill.vendor_name_raw ?? 'Unknown Vendor'}
-          </h1>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <h1 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {bill.vendor_name_raw ?? 'Unknown Vendor'}
+            </h1>
+            {bill.vendor_id && (
+              <a
+                href={`/vendors/${bill.vendor_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open vendor record"
+                style={{ flexShrink: 0, color: 'var(--color-text-tertiary)', lineHeight: 1 }}
+              >
+                <i className="ti ti-external-link" style={{ fontSize: 13 }} />
+              </a>
+            )}
+          </div>
           <span style={{
             display: 'inline-block',
             background: badge.bg, color: badge.color,
@@ -368,6 +387,37 @@ export function BillReviewForm({
                   <AutoSaveInput type="number" initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
                 </Field>
               </div>
+              {lineItems.length > 0 && (
+                <div className="col-span-2">
+                  <Field label="GL Account (all lines)" helper="Sets the GL account for all line items at once. Useful when all items go to the same account. Individual line items can still be changed after.">
+                    <InlineSelect
+                      initialValue={
+                        lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id)
+                          ? (lineItems[0].gl_account_id ?? '')
+                          : ''
+                      }
+                      options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
+                      onSave={async (v) => {
+                        if (!v) return
+                        const account = expenseAccounts.find(a => a.qb_account_id === v)
+                        const name = account?.name ?? v
+                        if (lineItems.length > 1) {
+                          setHeaderGlApplyPrompt({ glAccountId: v, accountName: name })
+                        } else if (lineItems.length === 1) {
+                          await updateLineItem(lineItems[0].line_id, { gl_account_id: v, gl_account_source: 'manual' })
+                          if (bill.vendor_id) {
+                            const desc = lineItems[0].description
+                            if (desc) setRememberPrompt({ lineId: lineItems[0].line_id, description: desc, glAccountId: v, accountName: name })
+                          }
+                          router.refresh()
+                        }
+                      }}
+                      placeholder={lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id) ? 'GL account…' : 'Mixed — select to apply all'}
+                      emptyLabel="Connect QB"
+                    />
+                  </Field>
+                </div>
+              )}
             </div>
           </Section>
 
@@ -377,8 +427,8 @@ export function BillReviewForm({
               <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>No line items extracted yet.</p>
             ) : (
               <div style={{ border: '0.5px solid var(--color-border-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
-                <div className="grid" style={{ gridTemplateColumns: '3fr 0.6fr 0.8fr 0.9fr 1.4fr 1.2fr 24px', background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
-                  {['Description', 'Qty', 'Unit', 'Amount', 'GL Account', 'Job', ''].map(h => (
+                <div className="grid" style={{ gridTemplateColumns: jobCostingEnabled ? '3fr 0.6fr 0.8fr 0.9fr 1.4fr 1.2fr 24px' : '3fr 0.6fr 0.8fr 0.9fr 1.4fr 24px', background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
+                  {['Description', 'Qty', 'Unit', 'Amount', 'GL Account', ...(jobCostingEnabled ? ['Job'] : []), ''].map(h => (
                     <span key={h} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>{h}</span>
                   ))}
                 </div>
@@ -387,7 +437,7 @@ export function BillReviewForm({
                     key={item.line_id}
                     className="grid items-center"
                     style={{
-                      gridTemplateColumns: '3fr 0.6fr 0.8fr 0.9fr 1.4fr 1.2fr 24px',
+                      gridTemplateColumns: jobCostingEnabled ? '3fr 0.6fr 0.8fr 0.9fr 1.4fr 1.2fr 24px' : '3fr 0.6fr 0.8fr 0.9fr 1.4fr 24px',
                       borderBottom: i < lineItems.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
                       padding: '4px 8px',
                       background: item.is_tax_line ? '#FFFBEB' : 'white',
@@ -420,23 +470,25 @@ export function BillReviewForm({
                         <SourceBadge source={item.gl_account_source} />
                       )}
                     </div>
-                    <InlineSelect
-                      initialValue={item.job_id ?? ''}
-                      options={jobs.map(j => ({
-                        value: j.qb_job_id,
-                        label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
-                      }))}
-                      onSave={async (v) => {
-                        await updateLineItem(item.line_id, { job_id: v || null })
-                        if (v && lineItems.length > 1) {
-                          const job = jobs.find(j => j.qb_job_id === v)
-                          const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
-                          setJobApplyPrompt({ jobId: v, jobLabel: label })
-                        }
-                      }}
-                      placeholder="Job…"
-                      emptyLabel="—"
-                    />
+                    {jobCostingEnabled && (
+                      <InlineSelect
+                        initialValue={item.job_id ?? ''}
+                        options={jobs.map(j => ({
+                          value: j.qb_job_id,
+                          label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+                        }))}
+                        onSave={async (v) => {
+                          await updateLineItem(item.line_id, { job_id: v || null })
+                          if (v && lineItems.length > 1) {
+                            const job = jobs.find(j => j.qb_job_id === v)
+                            const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
+                            setJobApplyPrompt({ jobId: v, jobLabel: label })
+                          }
+                        }}
+                        placeholder="Job…"
+                        emptyLabel="—"
+                      />
+                    )}
                     <button
                       onClick={() => handleDeleteLine(item.line_id)}
                       disabled={isPending}
@@ -502,6 +554,40 @@ export function BillReviewForm({
                 <button
                   onClick={() => setJobApplyPrompt(null)}
                   style={{ fontSize: 12, color: '#4338CA', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                >
+                  No
+                </button>
+              </div>
+            )}
+
+            {/* Apply GL account to all lines prompt */}
+            {headerGlApplyPrompt && lineItems.length > 1 && (
+              <div
+                className="flex items-center gap-3 mt-2 px-3 py-2"
+                style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}
+              >
+                <i className="ti ti-tag" style={{ fontSize: 14, color: '#D97706' }} />
+                <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                  Apply <strong>{headerGlApplyPrompt.accountName}</strong> to all {lineItems.length} lines?
+                </p>
+                <button
+                  onClick={async () => {
+                    for (const li of lineItems) {
+                      await updateLineItem(li.line_id, { gl_account_id: headerGlApplyPrompt.glAccountId, gl_account_source: 'manual' })
+                    }
+                    setHeaderGlApplyPrompt(null)
+                    if (bill.vendor_id) {
+                      setRememberPrompt({ lineId: lineItems[0].line_id, description: 'all lines', glAccountId: headerGlApplyPrompt.glAccountId, accountName: headerGlApplyPrompt.accountName })
+                    }
+                    router.refresh()
+                  }}
+                  style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: '#FEF3C7', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
+                >
+                  Yes, all {lineItems.length}
+                </button>
+                <button
+                  onClick={() => setHeaderGlApplyPrompt(null)}
+                  style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
                 >
                   No
                 </button>

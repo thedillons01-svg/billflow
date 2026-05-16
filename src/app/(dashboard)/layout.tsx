@@ -26,12 +26,20 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   const unreadErrors = notifications.filter(n => !n.is_read && n.type === 'error').length
 
+  const { data: company } = await supabase
+    .from('companies')
+    .select('job_costing_enabled')
+    .single()
+
+  const jobCostingEnabled = company?.job_costing_enabled ?? false
+
   return (
     <div className="flex h-screen overflow-hidden" style={{ background: '#F7F9F8' }}>
       <SidebarNav
         userEmail={user?.email ?? null}
         notifications={notifications}
         unreadCount={unreadErrors}
+        jobCostingEnabled={jobCostingEnabled}
       />
       <main className="flex-1 overflow-auto" style={{ background: '#F7F9F8' }}>
         {children}

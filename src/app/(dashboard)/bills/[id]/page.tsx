@@ -41,17 +41,24 @@ export default async function BillDetailPage({
     (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
   )
 
-  const [{ data: accounts }, { data: jobs }] = await Promise.all([
+  const [{ data: accounts }, { data: jobs }, { data: companySettings }] = await Promise.all([
     supabase
       .from('qb_accounts_cache')
       .select('id, qb_account_id, name, account_type')
-      .eq('company_id', bill.company_id),
+      .eq('company_id', bill.company_id)
+      .eq('is_hidden', false),
     supabase
       .from('qb_jobs_cache')
       .select('id, qb_job_id, job_number, job_name, customer_name')
       .eq('company_id', bill.company_id)
       .order('cached_at', { ascending: false }),
+    supabase
+      .from('companies')
+      .select('job_costing_enabled')
+      .single(),
   ])
+
+  const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
 
   let pdfSignedUrl: string | null = null
   if (bill.pdf_url) {
@@ -85,6 +92,7 @@ export default async function BillDetailPage({
               ? { vendorId: bill.vendor_id, invoicesProcessed: bill.vendors.invoices_processed }
               : null
           }
+          jobCostingEnabled={jobCostingEnabled}
         />
       </div>
 

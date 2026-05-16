@@ -30,6 +30,7 @@ export default async function VendorDetailPage({
     .from('qb_accounts_cache')
     .select('qb_account_id, name, account_type')
     .in('account_type', ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'])
+    .eq('is_hidden', false)
     .order('name')
 
   // Line item mappings

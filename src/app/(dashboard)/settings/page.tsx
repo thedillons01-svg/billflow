@@ -1,5 +1,6 @@
 ﻿import { createClient } from '@/lib/supabase/server'
-import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix } from './actions'
+import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, toggleAccountVisibility } from './actions'
+import { CopyAddress } from './copy-address'
 
 type Company = {
   company_id: string
@@ -28,12 +29,20 @@ export default async function SettingsPage({
   const { qb_connected, qb_error, section } = await searchParams
   const supabase = await createClient()
 
-  const { data } = await supabase
-    .from('companies')
-    .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, plan_name, credit_balance, stripe_customer_id')
-    .single()
+  const [{ data }, { data: qbAccounts }] = await Promise.all([
+    supabase
+      .from('companies')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, plan_name, credit_balance, stripe_customer_id')
+      .single(),
+    supabase
+      .from('qb_accounts_cache')
+      .select('id, name, account_type, is_hidden')
+      .in('account_type', ['Expense', 'Cost of Goods Sold'])
+      .order('name'),
+  ])
 
   const company = data as Company | null
+  const expenseAccounts = (qbAccounts ?? []) as { id: string; name: string | null; account_type: string | null; is_hidden: boolean }[]
   const isQBConnected = company?.qb_connection_status === 'connected'
   const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@purchasomatic.com`
   const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@purchasomatic.com`
@@ -175,12 +184,12 @@ export default async function SettingsPage({
 
               <div style={{ borderTop: '0.5px solid var(--color-border-tertiary)', paddingTop: 16 }} />
 
-              <CaptureLine
+              <CopyAddress
                 label="Bills address"
                 address={billsAddress}
                 helper="Forward any email with 'invoice' in the subject here. Invoices are captured and extracted automatically."
               />
-              <CaptureLine
+              <CopyAddress
                 label="PO address"
                 address={posAddress}
                 helper="Forward PO confirmations here. Purchasomatic creates the PO in QuickBooks automatically."
@@ -205,6 +214,7 @@ export default async function SettingsPage({
               await updateCompanySettings(company.company_id, {
                 use_items_table: fd.get('use_items_table') === 'on',
                 job_costing_enabled: fd.get('job_costing_enabled') === 'on',
+                fsm_platform: fd.get('fsm_platform') as string || null,
               })
             }}>
               <div className="space-y-4">
@@ -220,6 +230,32 @@ export default async function SettingsPage({
                   label="Job costing enabled"
                   helper="When on, job fields appear throughout Purchasomatic and invoices are matched to QuickBooks jobs. When off, job fields are hidden and Purchasomatic is invoice-capture only."
                 />
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Field service platform
+                  </label>
+                  <select
+                    name="fsm_platform"
+                    defaultValue={company?.fsm_platform ?? 'unknown'}
+                    style={{
+                      width: '100%', height: 36,
+                      border: '0.5px solid var(--color-border-secondary)',
+                      borderRadius: 6, padding: '0 10px',
+                      fontSize: 13, color: 'var(--color-text-primary)',
+                      background: 'white',
+                    }}
+                  >
+                    <option value="hcp">Housecall Pro</option>
+                    <option value="workiz">Workiz</option>
+                    <option value="servicetrade">ServiceTrade</option>
+                    <option value="jobber">Jobber</option>
+                    <option value="other">Other FSM</option>
+                    <option value="unknown">Not using an FSM</option>
+                  </select>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Helps Purchasomatic match job names from your work orders when job costing is enabled.
+                  </p>
+                </div>
                 <div className="flex justify-end">
                   <BtnPrimary type="submit">Save</BtnPrimary>
                 </div>
@@ -293,6 +329,46 @@ export default async function SettingsPage({
             </form>
           </Card>
 
+          {/* ── Account Visibility ───────────────────────────────────── */}
+          {expenseAccounts.length > 0 && (
+            <Card title="GL Account Visibility" subtitle="Hide individual QuickBooks accounts from Purchasomatic dropdowns. Hidden accounts still exist in QB — they just won't appear in dropdowns here.">
+              <div className="space-y-1">
+                {expenseAccounts.map(account => (
+                  <form
+                    key={account.id}
+                    action={toggleAccountVisibility.bind(null, account.id, !account.is_hidden)}
+                  >
+                    <div className="flex items-center justify-between py-2" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+                      <div>
+                        <p style={{ fontSize: 13, color: account.is_hidden ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)', textDecoration: account.is_hidden ? 'line-through' : 'none' }}>
+                          {account.name ?? account.id}
+                        </p>
+                        <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>{account.account_type}</p>
+                      </div>
+                      <button
+                        type="submit"
+                        style={{
+                          fontSize: 11, fontWeight: 500,
+                          background: account.is_hidden ? 'var(--color-background-secondary)' : '#EBF5EF',
+                          color: account.is_hidden ? 'var(--color-text-secondary)' : '#1A3D2B',
+                          border: '0.5px solid var(--color-border-secondary)',
+                          borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+                        }}
+                      >
+                        {account.is_hidden ? 'Show' : 'Hide'}
+                      </button>
+                    </div>
+                  </form>
+                ))}
+                {expenseAccounts.every(a => !a.is_hidden) && (
+                  <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 8 }}>
+                    All accounts visible. Click Hide to remove an account from dropdowns.
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
+
           {/* ── Billing & Credits ─────────────────────────────────────── */}
           <Card title="Billing & Credits" subtitle="Your current plan and credit balance.">
             <div className="space-y-4">
@@ -365,32 +441,6 @@ function Banner({ type, children }: { type: 'success' | 'error'; children: React
   )
 }
 
-function CaptureLine({ label, address, helper }: { label: string; address: string; helper: string }) {
-  return (
-    <div>
-      <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 4 }}>{label}</p>
-      <div className="flex items-center gap-2">
-        <code style={{
-          background: 'var(--color-background-secondary)',
-          border: '0.5px solid var(--color-border-tertiary)',
-          borderRadius: 4, padding: '4px 10px',
-          fontSize: 12, color: 'var(--color-text-primary)',
-        }}>
-          {address}
-        </code>
-        <button
-          type="button"
-          onClick={() => navigator?.clipboard?.writeText(address)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-          title="Copy"
-        >
-          <i className="ti ti-copy" style={{ fontSize: 14, color: 'var(--color-text-secondary)' }} />
-        </button>
-      </div>
-      <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>{helper}</p>
-    </div>
-  )
-}
 
 function Toggle({ name, defaultChecked, label, helper }: { name: string; defaultChecked: boolean; label: string; helper: string }) {
   return (

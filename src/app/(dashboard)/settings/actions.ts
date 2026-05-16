@@ -55,12 +55,22 @@ export async function updateCapturePrefix(companyId: string, prefix: string) {
   return { ok: true, prefix: clean }
 }
 
+export async function toggleAccountVisibility(accountId: string, isHidden: boolean) {
+  const supabase = await createClient()
+  await supabase
+    .from('qb_accounts_cache')
+    .update({ is_hidden: isHidden })
+    .eq('id', accountId)
+  revalidatePath('/settings')
+  revalidatePath('/bills')
+}
+
 export async function updateCompanySettings(
   companyId: string,
   settings: {
     use_items_table?: boolean
     job_costing_enabled?: boolean
-    fsm_platform?: string
+    fsm_platform?: string | null
   }
 ) {
   const supabase = await createClient()
