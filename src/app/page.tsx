@@ -1,4 +1,3 @@
-import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Metadata } from 'next'
@@ -14,11 +13,10 @@ export default async function LandingPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (user) redirect('/home')
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
-      <Nav />
+      <Nav isLoggedIn={!!user} />
       <Hero />
       <LogoStrip />
       <HowItWorks />
@@ -33,7 +31,7 @@ export default async function LandingPage() {
 
 /* ─── Nav ─────────────────────────────────────────────────────────── */
 
-function Nav() {
+function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
   return (
     <header
       style={{
@@ -78,33 +76,56 @@ function Nav() {
 
         {/* Nav links */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link
-            href="/login"
-            style={{
-              fontSize: 14,
-              fontWeight: 500,
-              color: '#4B5563',
-              textDecoration: 'none',
-              padding: '6px 14px',
-              borderRadius: 6,
-            }}
-          >
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'white',
-              textDecoration: 'none',
-              background: '#2DB87A',
-              padding: '7px 18px',
-              borderRadius: 7,
-            }}
-          >
-            Get started free
-          </Link>
+          {isLoggedIn ? (
+            <Link
+              href="/home"
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: 'white',
+                textDecoration: 'none',
+                background: '#2DB87A',
+                padding: '7px 18px',
+                borderRadius: 7,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              Go to app
+              <i className="ti ti-arrow-right" style={{ fontSize: 13 }} />
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                style={{
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: '#4B5563',
+                  textDecoration: 'none',
+                  padding: '6px 14px',
+                  borderRadius: 6,
+                }}
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                style={{
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: 'white',
+                  textDecoration: 'none',
+                  background: '#2DB87A',
+                  padding: '7px 18px',
+                  borderRadius: 7,
+                }}
+              >
+                Get started free
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -350,7 +371,7 @@ function Features() {
     {
       icon: 'ti-briefcase',
       title: 'Job costing built in',
-      body: 'Purchasomatic matches each invoice to the right QuickBooks job based on job numbers and names from your work orders. Every line item lands on the correct job automatically — no manual re-coding.',
+      body: 'Purchasomatic matches each invoice to an existing QuickBooks job and codes every line item to the right GL account. Bills land in QuickBooks already tagged to the correct job — no manual re-coding after the fact.',
     },
     {
       icon: 'ti-rocket',
@@ -360,7 +381,7 @@ function Features() {
     {
       icon: 'ti-truck-delivery',
       title: 'Purchase order tracking',
-      body: 'Capture PO confirmations from suppliers. When the invoice arrives, Purchasomatic matches it to the open PO, flags discrepancies, and creates the linked bill in QuickBooks.',
+      body: 'Forward PO confirmations from your suppliers to Purchasomatic. When the invoice arrives, we match it to the open PO, flag any price or quantity discrepancies, and create the linked bill in QuickBooks — all coded to the right job.',
     },
     {
       icon: 'ti-clipboard-check',
