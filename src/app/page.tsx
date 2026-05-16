@@ -290,28 +290,32 @@ function LogoStrip() {
 function HowItWorks() {
   const steps = [
     {
-      icon: 'ti-mail-forward',
-      number: '01',
-      title: 'Forward vendor emails',
-      body: 'Set up a one-time email forwarding rule. Invoices from Ferguson, Gensco, Winsupply — any distributor — arrive in Purchasomatic automatically when your vendor sends them to you.',
-    },
-    {
-      icon: 'ti-cpu',
-      number: '02',
-      title: 'AI extracts every line item',
-      body: 'Purchasomatic reads the PDF — vendor name, invoice number, due date, every line item and amount. Even scanned documents. No templates to set up. Shared format knowledge means the system gets smarter for every customer.',
-    },
-    {
-      icon: 'ti-brand-quickbooks',
-      number: '03',
-      title: 'Published to QuickBooks',
-      body: 'After a quick review — or automatically if auto-publish is on — the bill lands in QuickBooks coded to the correct job and GL account. QuickBooks Online and Desktop both supported.',
+      icon: 'ti-truck-delivery',
+      number: '1',
+      optional: true,
+      title: 'Forward purchase orders',
+      body: 'Most invoice tools can\'t do this — but Purchasomatic can. Forward a purchase order and we create the PO record in QuickBooks, track what was ordered, and match the invoice to it when it arrives.',
     },
     {
       icon: 'ti-clipboard-check',
-      number: '04',
-      title: 'POs tracked through receiving',
-      body: 'Forward purchase orders to your PO address. Purchasomatic tracks what was ordered, matches the invoice when it arrives, flags any discrepancies, and lets your team check off what was actually delivered.',
+      number: '2',
+      optional: true,
+      title: 'Record receiving',
+      body: 'Another feature most invoice software skips. When materials arrive on the job site, your team checks off what was actually delivered — on any device. Discrepancies are flagged before the invoice ever hits your desk.',
+    },
+    {
+      icon: 'ti-mail-forward',
+      number: '3',
+      optional: false,
+      title: 'Invoice arrives from the vendor',
+      body: 'Set up a one-time email forwarding rule. Invoices from Ferguson, Gensco, Winsupply — any distributor — arrive in Purchasomatic automatically. Our AI reads the PDF and extracts every line item, even from scanned documents.',
+    },
+    {
+      icon: 'ti-brand-quickbooks',
+      number: '4',
+      optional: false,
+      title: 'Everything lands in QuickBooks',
+      body: 'Invoices publish as bills, purchase orders create QB PO records, and receiving updates them as materials arrive — all coded to the correct job and GL account. QuickBooks Online and Desktop both supported.',
     },
   ]
 
@@ -325,8 +329,8 @@ function HowItWorks() {
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, color: '#111827', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
             Set it up once. Let it run.
           </h2>
-          <p style={{ fontSize: 16, color: '#6B7280', marginTop: 14, maxWidth: 480, margin: '14px auto 0' }}>
-            No templates. No per-vendor setup. Works with any PDF invoice or PO from any distributor.
+          <p style={{ fontSize: 16, color: '#6B7280', marginTop: 14, maxWidth: 520, margin: '14px auto 0' }}>
+            Invoice capture is the core. Purchase orders and receiving are optional — but they&apos;re capabilities most invoice software doesn&apos;t offer at all.
           </p>
         </div>
 
@@ -338,17 +342,28 @@ function HowItWorks() {
                   width: 48,
                   height: 48,
                   borderRadius: 12,
-                  background: '#EBF5EF',
+                  background: step.optional ? '#F3F4F6' : '#EBF5EF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   marginBottom: 20,
                 }}
               >
-                <i className={`ti ${step.icon}`} style={{ fontSize: 22, color: '#2DB87A' }} />
+                <i className={`ti ${step.icon}`} style={{ fontSize: 22, color: step.optional ? '#9CA3AF' : '#2DB87A' }} />
               </div>
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#2DB87A', letterSpacing: '0.08em', marginBottom: 8 }}>
-                STEP {step.number}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: step.optional ? '#9CA3AF' : '#2DB87A', letterSpacing: '0.08em' }}>
+                  STEP {step.number}
+                </span>
+                {step.optional && (
+                  <span style={{
+                    fontSize: 10, fontWeight: 500, color: '#9CA3AF',
+                    background: '#F3F4F6', borderRadius: 4,
+                    padding: '1px 6px', letterSpacing: '0.04em',
+                  }}>
+                    OPTIONAL
+                  </span>
+                )}
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 10, letterSpacing: '-0.01em' }}>
                 {step.title}
