@@ -19,7 +19,7 @@ export default async function BillDetailPage({
       mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
       pdf_url, qb_sync_error, deleted_at,
       vendor_id,
-      vendors!bills_vendor_id_fkey(vendor_name_display, qb_vendor_id),
+      vendors!bills_vendor_id_fkey(vendor_name_display, qb_vendor_id, auto_publish_enabled, invoices_processed),
       bill_line_items (
         line_id, description, quantity, unit_cost, extended_cost,
         gl_account_id, job_id, class_id, sort_order, is_tax_line, gl_account_source
@@ -30,7 +30,13 @@ export default async function BillDetailPage({
 
   if (error || !data || (data as Record<string, unknown>).deleted_at) notFound()
 
-  const bill = data as Record<string, unknown> & { company_id: string; bill_line_items: { sort_order: number }[] }
+  const bill = data as unknown as {
+    company_id: string
+    vendor_id: string | null
+    bill_line_items: { sort_order: number }[]
+    vendors: { auto_publish_enabled: boolean; invoices_processed: number } | null
+    [key: string]: unknown
+  }
   const lineItems = [...(bill.bill_line_items ?? [])].sort(
     (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
   )
@@ -71,6 +77,14 @@ export default async function BillDetailPage({
           lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
           accounts={(accounts ?? []) as Parameters<typeof BillReviewForm>[0]['accounts']}
           jobs={(jobs ?? []) as Parameters<typeof BillReviewForm>[0]['jobs']}
+          vendorPromo={
+            bill.vendor_id &&
+            bill.vendors &&
+            !bill.vendors.auto_publish_enabled &&
+            bill.vendors.invoices_processed >= 5
+              ? { vendorId: bill.vendor_id, invoicesProcessed: bill.vendors.invoices_processed }
+              : null
+          }
         />
       </div>
 

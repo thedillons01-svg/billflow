@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping } from '../actions'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -59,11 +59,13 @@ export function BillReviewForm({
   lineItems: initialLineItems,
   accounts,
   jobs,
+  vendorPromo,
 }: {
   bill: Bill
   lineItems: LineItem[]
   accounts: Account[]
   jobs: Job[]
+  vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
 }) {
   const router = useRouter()
   const [localStatus, setLocalStatus] = useState(bill.status)
@@ -72,6 +74,8 @@ export function BillReviewForm({
   const [lineItems, setLineItems] = useState(initialLineItems)
   const [markAsPaid, setMarkAsPaid] = useState(bill.mark_as_paid ?? false)
   // Remember prompt: tracks which line triggered it and the new GL account id
+  const [promoDismissed, setPromoDismissed] = useState(false)
+  const [promoEnabled, setPromoEnabled] = useState(false)
   const [rememberPrompt, setRememberPrompt] = useState<{
     lineId: string; description: string; glAccountId: string; accountName: string
   } | null>(null)
@@ -194,6 +198,76 @@ export function BillReviewForm({
       {/* Scrollable form */}
       <div className="flex-1 overflow-auto">
         <div className="px-5 py-4 space-y-5">
+          {/* Auto-publish promotion banner */}
+          {vendorPromo && !promoDismissed && !promoEnabled && (
+            <div
+              className="flex items-start gap-3"
+              style={{
+                background: '#EBF5EF',
+                border: '1.5px solid #2DB87A',
+                borderRadius: 8,
+                padding: '12px 14px',
+              }}
+            >
+              <i className="ti ti-rocket" style={{ fontSize: 18, color: '#2DB87A', marginTop: 1, flexShrink: 0 }} />
+              <div className="flex-1">
+                <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>
+                  Ready for auto-publish
+                </p>
+                <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 2, lineHeight: 1.5 }}>
+                  {vendorPromo.invoicesProcessed} invoices from this vendor have processed accurately.
+                  Enable auto-publish and future invoices will go straight to QuickBooks — no review needed.
+                </p>
+                <div className="flex items-center gap-2 mt-3">
+                  <button
+                    onClick={() => {
+                      startTransition(async () => {
+                        await enableVendorAutoPublish(vendorPromo.vendorId)
+                        setPromoEnabled(true)
+                      })
+                    }}
+                    disabled={isPending}
+                    style={{
+                      background: '#2DB87A', color: 'white',
+                      border: 'none', borderRadius: 6, padding: '5px 14px',
+                      fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                      opacity: isPending ? 0.6 : 1,
+                    }}
+                  >
+                    Enable auto-publish
+                  </button>
+                  <button
+                    onClick={() => setPromoDismissed(true)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      fontSize: 12, color: '#5A8C6A',
+                    }}
+                  >
+                    Not yet
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Auto-publish enabled confirmation */}
+          {promoEnabled && (
+            <div
+              className="flex items-center gap-2"
+              style={{
+                background: '#D1FAE5',
+                border: '0.5px solid #6EE7B7',
+                borderRadius: 6,
+                padding: '10px 14px',
+              }}
+            >
+              <i className="ti ti-circle-check" style={{ fontSize: 15, color: '#059669' }} />
+              <p style={{ fontSize: 12, color: '#065F46' }}>
+                Auto-publish enabled for this vendor. Future invoices will publish automatically.
+              </p>
+            </div>
+          )}
+
           {/* Banners */}
           {localStatus === 'pending_job_match' && (
             <div

@@ -61,6 +61,17 @@ export async function deleteLineItem(lineId: string, billId: string) {
   revalidatePath(`/bills/${billId}`)
 }
 
+export async function enableVendorAutoPublish(vendorId: string) {
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('vendors')
+    .update({ auto_publish_enabled: true })
+    .eq('vendor_id', vendorId)
+  if (error) throw new Error(error.message)
+  revalidatePath('/bills')
+  revalidatePath(`/vendors/${vendorId}`)
+}
+
 export async function saveLineItemMapping(
   vendorId: string,
   descriptionText: string,
