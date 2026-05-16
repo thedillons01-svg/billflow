@@ -301,7 +301,7 @@ function HowItWorks() {
       number: '2',
       optional: true,
       title: 'Record receiving',
-      body: 'Another feature most invoice software skips. When materials arrive, your team checks off what was delivered. Staff knows what came in, for what job, and can let the tech know right away.',
+      body: 'Another feature most invoice software skips. Materials are often received by someone who didn\'t place the order — they don\'t know what it is, what job it\'s for, or who to call. Purchasomatic gives them that answer instantly, so the right person gets notified right away.',
     },
     {
       icon: 'ti-mail-forward',
