@@ -140,10 +140,11 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   // 5a. Vendor matching — find vendor by extracted name, link to bill
   let vendorId: string | null = null
   let vendorDefaultGlAccountId: string | null = null
+  let vendorDefaultClassId: string | null = null
   if (result.vendor_name_raw) {
     const { data: vendor } = await supabase
       .from('vendors')
-      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source')
+      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id')
       .eq('company_id', bill.company_id)
       .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
       .limit(1)
@@ -153,6 +154,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       vendorId = vendor.vendor_id
       vendorDefaultGlAccountId =
         vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
+      vendorDefaultClassId = vendor.billflow_class_id ?? null
 
       await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
     }
@@ -223,6 +225,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         sort_order:       li.sort_order,
         gl_account_id:    glAccountId,
         gl_account_source: glSource,
+        class_id:         vendorDefaultClassId,
       }
     })
 
