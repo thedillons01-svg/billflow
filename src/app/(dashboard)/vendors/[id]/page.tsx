@@ -25,13 +25,24 @@ export default async function VendorDetailPage({
 
   if (!vendor) notFound()
 
-  // QB accounts for GL account dropdowns
-  const { data: accounts } = await supabase
-    .from('qb_accounts_cache')
-    .select('qb_account_id, name, account_type')
-    .in('account_type', ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'])
-    .eq('is_hidden', false)
-    .order('name')
+  // QB accounts for GL account and payment account dropdowns
+  const [{ data: accounts }, { data: classes }, { data: companyCfg }] = await Promise.all([
+    supabase
+      .from('qb_accounts_cache')
+      .select('qb_account_id, name, account_type')
+      .in('account_type', ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability', 'Bank', 'CreditCard'])
+      .eq('is_hidden', false)
+      .order('name'),
+    supabase
+      .from('qb_classes_cache')
+      .select('qb_class_id, name')
+      .eq('is_hidden', false)
+      .order('name'),
+    supabase
+      .from('companies')
+      .select('class_tracking_enabled')
+      .single(),
+  ])
 
   // Line item mappings
   const { data: mappings } = await supabase
@@ -135,7 +146,12 @@ export default async function VendorDetailPage({
       {/* Tab content */}
       <div className="flex-1 overflow-auto px-5 py-5">
         {tab === 'general' && (
-          <VendorGeneralTab vendor={vendor} accounts={accounts ?? []} />
+          <VendorGeneralTab
+            vendor={vendor}
+            accounts={accounts ?? []}
+            classes={classes ?? []}
+            classTrackingEnabled={companyCfg?.class_tracking_enabled ?? false}
+          />
         )}
         {tab === 'line-items' && (
           <VendorLineItemsTab vendorId={id} mappings={mappings ?? []} accounts={accounts ?? []} />

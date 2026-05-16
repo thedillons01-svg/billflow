@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { updateVendor } from './actions'
 
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
+type QBClass = { qb_class_id: string; name: string | null }
 
 type Vendor = {
   vendor_id: string
@@ -17,12 +18,20 @@ type Vendor = {
   default_payment_account_id: string | null
   default_payment_method: string | null
   billflow_gl_account_id: string | null
+  billflow_class_id: string | null
   copy_po_to_qb_reference: boolean
   invoices_processed: number
   confidence_display: string | null
 }
 
-export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; accounts: Account[] }) {
+export function VendorGeneralTab({
+  vendor, accounts, classes, classTrackingEnabled,
+}: {
+  vendor: Vendor
+  accounts: Account[]
+  classes: QBClass[]
+  classTrackingEnabled: boolean
+}) {
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
 
@@ -37,6 +46,7 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
     default_payment_account_id: vendor.default_payment_account_id ?? '',
     default_payment_method: vendor.default_payment_method ?? '',
     billflow_gl_account_id: vendor.billflow_gl_account_id ?? '',
+    billflow_class_id: vendor.billflow_class_id ?? '',
     copy_po_to_qb_reference: vendor.copy_po_to_qb_reference,
   })
 
@@ -54,6 +64,8 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
         default_payment_method:     form.default_payment_method || null,
         billflow_gl_account_id:     form.billflow_gl_account_id || null,
         gl_account_source:          form.billflow_gl_account_id ? 'billflow_override' : 'not_set',
+        billflow_class_id:          form.billflow_class_id || null,
+        class_source:               form.billflow_class_id ? 'Purchasomatic_override' : 'not_set',
         copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
       })
       setSaved(true)
@@ -136,11 +148,24 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
         >
           <select value={form.billflow_gl_account_id} onChange={e => set('billflow_gl_account_id', e.target.value)} style={inputStyle}>
             <option value="">— Use QB vendor default —</option>
-            {accounts.map(a => (
+            {accounts.filter(a => ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'].includes(a.account_type ?? '')).map(a => (
               <option key={a.qb_account_id} value={a.qb_account_id}>{a.name}</option>
             ))}
           </select>
         </Field>
+        {classTrackingEnabled && (
+          <Field
+            label="Default class"
+            helper="When set, all line items from this vendor default to this QuickBooks class. Only visible when class tracking is enabled in Settings."
+          >
+            <select value={form.billflow_class_id} onChange={e => set('billflow_class_id', e.target.value)} style={inputStyle}>
+              <option value="">— No default class —</option>
+              {classes.map(c => (
+                <option key={c.qb_class_id} value={c.qb_class_id}>{c.name}</option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field
           label="Default memo / description"
           helper="Pre-populates the QB bill memo field for all invoices from this vendor. Useful for adding job cost codes or notes automatically."
@@ -192,7 +217,7 @@ export function VendorGeneralTab({ vendor, accounts }: { vendor: Vendor; account
             >
               <select value={form.default_payment_account_id} onChange={e => set('default_payment_account_id', e.target.value)} style={inputStyle}>
                 <option value="">— Select payment account —</option>
-                {accounts.filter(a => ['Bank', 'CreditCard'].includes(a.account_type ?? '')).map(a => (
+                {accounts.filter(a => ['Bank', 'CreditCard'].includes(a.account_type ?? '') && a.account_type != null).map(a => (
                   <option key={a.qb_account_id} value={a.qb_account_id}>{a.name}</option>
                 ))}
               </select>
