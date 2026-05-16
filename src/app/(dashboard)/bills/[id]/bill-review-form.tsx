@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish } from '../actions'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -34,6 +34,7 @@ type Bill = {
   total: number | null
   line_items_total: number | null
   description: string | null
+  bill_type: string | null
   status: string
   autopublish_hold_reason: string | null
   vendor_po_reference: string | null
@@ -94,6 +95,17 @@ export function BillReviewForm({
   // Apply-to-all prompt for header GL account
   const [headerGlApplyPrompt, setHeaderGlApplyPrompt] = useState<{
     glAccountId: string; accountName: string
+  } | null>(null)
+  // Remember prompts for payment account and method
+  const [paymentAccountRemember, setPaymentAccountRemember] = useState<{
+    accountId: string; accountName: string
+  } | null>(null)
+  const [paymentMethodRemember, setPaymentMethodRemember] = useState<{
+    method: string; methodLabel: string
+  } | null>(null)
+  // Remember prompt for class
+  const [classRememberPrompt, setClassRememberPrompt] = useState<{
+    lineId: string; classId: string; className: string
   } | null>(null)
 
   const expenseAccounts = accounts.filter(a =>
@@ -174,8 +186,8 @@ export function BillReviewForm({
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.draft
   const canPublish = ['ready', 'sync_error'].includes(localStatus)
   const canMarkReady = localStatus === 'draft'
-  const canReprocess = localStatus === 'ocr_error'
   const isPublished = localStatus === 'published'
+  const canReprocess = !isPublished
 
   return (
     <>
@@ -389,6 +401,19 @@ export function BillReviewForm({
                 </Field>
               </div>
               <div className="col-span-2">
+                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>
+                  Document Type
+                </label>
+                <BillTypeToggle
+                  value={bill.bill_type ?? 'bill'}
+                  onChange={v => updateBill(bill.bill_id, { bill_type: v })}
+                  disabled={isPublished}
+                />
+                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                  Credit Notes are negative-amount documents issued by vendors (refunds, adjustments).
+                </p>
+              </div>
+              <div className="col-span-2">
                 <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum exactly for auto-publish.">
                   <AutoSaveInput type="number" initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
                 </Field>
@@ -511,6 +536,10 @@ export function BillReviewForm({
                         options={classes.map(c => ({ value: c.qb_class_id, label: c.name ?? c.qb_class_id }))}
                         onSave={async (v) => {
                           await updateLineItem(item.line_id, { class_id: v || null })
+                          if (v && bill.vendor_id) {
+                            const cls = classes.find(c => c.qb_class_id === v)
+                            setClassRememberPrompt({ lineId: item.line_id, classId: v, className: cls?.name ?? v })
+                          }
                         }}
                         placeholder="Class…"
                         emptyLabel="—"
@@ -549,6 +578,34 @@ export function BillReviewForm({
                 </button>
                 <button
                   onClick={() => setRememberPrompt(null)}
+                  style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                >
+                  No
+                </button>
+              </div>
+            )}
+
+            {/* Class remember prompt */}
+            {classRememberPrompt && bill.vendor_id && (
+              <div
+                className="flex items-center gap-3 mt-2 px-3 py-2"
+                style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}
+              >
+                <i className="ti ti-bulb" style={{ fontSize: 14, color: '#D97706' }} />
+                <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                  Remember <strong>{classRememberPrompt.className}</strong> as the default class for this vendor?
+                </p>
+                <button
+                  onClick={async () => {
+                    await saveVendorClassDefault(bill.vendor_id!, classRememberPrompt.classId)
+                    setClassRememberPrompt(null)
+                  }}
+                  style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
+                >
+                  Yes
+                </button>
+                <button
+                  onClick={() => setClassRememberPrompt(null)}
                   style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
                 >
                   No
@@ -688,17 +745,47 @@ export function BillReviewForm({
                 <Field label="Payment Account" helper="The bank or credit card account the payment is posted against in QuickBooks.">
                   <select
                     defaultValue={bill.payment_account_id ?? ''}
-                    onChange={e => updateBill(bill.bill_id, { payment_account_id: e.target.value || null })}
+                    onChange={e => {
+                      const v = e.target.value || null
+                      updateBill(bill.bill_id, { payment_account_id: v })
+                      if (v && bill.vendor_id) {
+                        const acct = paymentAccounts.find(a => a.qb_account_id === v)
+                        setPaymentAccountRemember({ accountId: v, accountName: acct?.name ?? v })
+                      }
+                    }}
                     style={selectStyle}
                   >
                     <option value="">— Select account —</option>
                     {paymentAccounts.map(a => <option key={a.qb_account_id} value={a.qb_account_id}>{a.name}</option>)}
                   </select>
                 </Field>
+                {paymentAccountRemember && bill.vendor_id && (
+                  <div className="flex items-center gap-3 px-3 py-2 mt-1" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
+                    <i className="ti ti-bulb" style={{ fontSize: 14, color: '#D97706' }} />
+                    <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                      Remember <strong>{paymentAccountRemember.accountName}</strong> as the default payment account for this vendor?
+                    </p>
+                    <button
+                      onClick={async () => {
+                        await saveVendorPaymentDefaults(bill.vendor_id!, { default_payment_account_id: paymentAccountRemember.accountId })
+                        setPaymentAccountRemember(null)
+                      }}
+                      style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
+                    >Yes</button>
+                    <button onClick={() => setPaymentAccountRemember(null)} style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}>No</button>
+                  </div>
+                )}
                 <Field label="Payment Method" helper="Sets the payment type on the QB bill payment record.">
                   <select
                     defaultValue={bill.payment_method ?? ''}
-                    onChange={e => updateBill(bill.bill_id, { payment_method: e.target.value || null })}
+                    onChange={e => {
+                      const v = e.target.value || null
+                      updateBill(bill.bill_id, { payment_method: v })
+                      if (v && bill.vendor_id) {
+                        const labels: Record<string, string> = { check: 'Check', ach: 'ACH', credit_card: 'Credit Card', other: 'Other' }
+                        setPaymentMethodRemember({ method: v, methodLabel: labels[v] ?? v })
+                      }
+                    }}
                     style={selectStyle}
                   >
                     <option value="">— Select —</option>
@@ -708,6 +795,22 @@ export function BillReviewForm({
                     <option value="other">Other</option>
                   </select>
                 </Field>
+                {paymentMethodRemember && bill.vendor_id && (
+                  <div className="flex items-center gap-3 px-3 py-2 mt-1" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
+                    <i className="ti ti-bulb" style={{ fontSize: 14, color: '#D97706' }} />
+                    <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                      Remember <strong>{paymentMethodRemember.methodLabel}</strong> as the default payment method for this vendor?
+                    </p>
+                    <button
+                      onClick={async () => {
+                        await saveVendorPaymentDefaults(bill.vendor_id!, { default_payment_method: paymentMethodRemember.method })
+                        setPaymentMethodRemember(null)
+                      }}
+                      style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
+                    >Yes</button>
+                    <button onClick={() => setPaymentMethodRemember(null)} style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}>No</button>
+                  </div>
+                )}
                 <Field label="Payment Date" helper="Defaults to invoice date. Editable.">
                   <input
                     type="date"
@@ -760,9 +863,10 @@ export function BillReviewForm({
             <button
               onClick={handleReprocess}
               disabled={isPending}
+              title="Re-run OCR or re-apply vendor defaults. No credit charge."
               style={{
-                background: 'white', color: '#991B1B',
-                border: '0.5px solid #FCA5A5',
+                background: 'white', color: 'var(--color-text-secondary)',
+                border: '0.5px solid var(--color-border-secondary)',
                 borderRadius: 6, padding: '7px 12px',
                 fontSize: 12, cursor: 'pointer',
                 opacity: isPending ? 0.6 : 1,
@@ -988,5 +1092,46 @@ function SourceBadge({ source }: { source: string }) {
     >
       {cfg.label}
     </span>
+  )
+}
+
+// ── Bill type toggle ──────────────────────────────────────────────────────────
+
+function BillTypeToggle({
+  value, onChange, disabled,
+}: {
+  value: string
+  onChange: (v: string) => void
+  disabled: boolean
+}) {
+  const options = [
+    { value: 'bill', label: 'Invoice / Bill' },
+    { value: 'credit_note', label: 'Credit Note' },
+  ]
+  return (
+    <div className="flex items-center gap-1" style={{ display: 'flex', gap: 4 }}>
+      {options.map(opt => (
+        <button
+          key={opt.value}
+          type="button"
+          disabled={disabled}
+          onClick={() => !disabled && onChange(opt.value)}
+          style={{
+            flex: 1,
+            height: 32,
+            border: `0.5px solid ${value === opt.value ? '#2DB87A' : 'var(--color-border-secondary)'}`,
+            borderRadius: 6,
+            background: value === opt.value ? '#EBF5EF' : 'white',
+            color: value === opt.value ? '#1A3D2B' : 'var(--color-text-secondary)',
+            fontSize: 12,
+            fontWeight: value === opt.value ? 500 : 400,
+            cursor: disabled ? 'default' : 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
   )
 }

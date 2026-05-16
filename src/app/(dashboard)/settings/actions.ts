@@ -65,6 +65,16 @@ export async function toggleAccountVisibility(accountId: string, isHidden: boole
   revalidatePath('/bills')
 }
 
+export async function toggleClassVisibility(classId: string, isHidden: boolean) {
+  const supabase = await createClient()
+  await supabase
+    .from('qb_classes_cache')
+    .update({ is_hidden: isHidden })
+    .eq('id', classId)
+  revalidatePath('/settings')
+  revalidatePath('/bills')
+}
+
 export async function updateCompanySettings(
   companyId: string,
   settings: {

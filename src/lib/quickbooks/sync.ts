@@ -26,6 +26,13 @@ type QBCustomer = {
   Active: boolean
 }
 
+type QBClass = {
+  Id: string
+  Name: string
+  FullyQualifiedName: string
+  Active: boolean
+}
+
 export async function syncAccounts(companyId: string) {
   const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
@@ -107,11 +114,39 @@ export async function syncJobs(companyId: string) {
   if (error) throw new Error(`Jobs cache insert failed: ${error.message}`)
 }
 
+export async function syncClasses(companyId: string) {
+  const supabase = createServiceClient()
+  const { qbFetchAll } = await getQBClient(companyId)
+
+  let classes: QBClass[]
+  try {
+    classes = await qbFetchAll<QBClass>(
+      'Class',
+      'SELECT * FROM Class WHERE Active = true'
+    )
+  } catch {
+    return
+  }
+  if (classes.length === 0) return
+
+  const { error } = await supabase.from('qb_classes_cache').upsert(
+    classes.map(c => ({
+      company_id: companyId,
+      qb_class_id: c.Id,
+      name: c.Name,
+      cached_at: new Date().toISOString(),
+    })),
+    { onConflict: 'company_id,qb_class_id', ignoreDuplicates: false }
+  )
+  if (error) throw new Error(`Classes cache upsert failed: ${error.message}`)
+}
+
 export async function syncAll(companyId: string) {
   await Promise.all([
     syncAccounts(companyId),
     syncVendors(companyId),
     syncJobs(companyId),
+    syncClasses(companyId).catch(() => {}),
   ])
 
   const supabase = createServiceClient()

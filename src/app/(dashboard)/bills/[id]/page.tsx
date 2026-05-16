@@ -15,7 +15,7 @@ export default async function BillDetailPage({
     .select(`
       bill_id, company_id, vendor_name_raw, invoice_number, invoice_date, due_date,
       total, line_items_total, status, autopublish_hold_reason,
-      vendor_po_reference, qb_reference_number, description,
+      vendor_po_reference, qb_reference_number, description, bill_type,
       mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
       pdf_url, qb_sync_error, deleted_at,
       vendor_id,
@@ -56,6 +56,7 @@ export default async function BillDetailPage({
       .from('qb_classes_cache')
       .select('id, qb_class_id, name')
       .eq('company_id', bill.company_id)
+      .eq('is_hidden', false)
       .order('name'),
     supabase
       .from('companies')

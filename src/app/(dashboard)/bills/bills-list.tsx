@@ -14,6 +14,7 @@ type Bill = {
   total: number | null
   status: string
   autopublish_hold_reason: string | null
+  mark_as_paid: boolean | null
 }
 
 type Account = {
@@ -177,7 +178,7 @@ export function BillsList({
       <div
         className="grid items-center px-5 py-2"
         style={{
-          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.6fr 0.9fr 0.7fr 0.9fr 1.2fr 80px`,
+          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.6fr 0.9fr 0.7fr 0.9fr 1.2fr 36px 80px`,
           borderBottom: '0.5px solid var(--color-border-tertiary)',
         }}
       >
@@ -189,7 +190,7 @@ export function BillsList({
             style={{ cursor: 'pointer', width: 14, height: 14 }}
           />
         )}
-        {['Vendor', 'Invoice #', 'Date', 'Total', 'GL Account', 'Status'].map(h => (
+        {['Vendor', 'Invoice #', 'Date', 'Total', 'GL Account', '', 'Status'].map(h => (
           <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
             {h}
           </span>
@@ -208,7 +209,7 @@ export function BillsList({
             key={bill.bill_id}
             className="grid items-center px-5 py-[10px]"
             style={{
-              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.6fr 0.9fr 0.7fr 0.9fr 1.2fr 80px`,
+              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.6fr 0.9fr 0.7fr 0.9fr 1.2fr 36px 80px`,
               borderBottom: '0.5px solid var(--color-border-tertiary)',
               background: isChecked
                 ? '#EBF5EF'
@@ -306,6 +307,23 @@ export function BillsList({
                 >
                   {isInbox ? 'Set GL…' : '—'}
                 </button>
+              )}
+            </div>
+
+            {/* Paid indicator */}
+            <div title={bill.mark_as_paid ? 'Mark as Paid is on' : undefined}>
+              {bill.mark_as_paid && (
+                <span
+                  style={{
+                    display: 'inline-block',
+                    background: '#D1FAE5', color: '#065F46',
+                    borderRadius: 3, padding: '2px 5px',
+                    fontSize: 9, fontWeight: 600, letterSpacing: '0.03em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  Paid
+                </span>
               )}
             </div>
 

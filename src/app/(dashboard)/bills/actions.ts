@@ -79,11 +79,26 @@ export async function saveLineItemMapping(
 ) {
   if (!descriptionText.trim()) return
   const supabase = await createClient()
-  // Upsert by vendor + description — update GL if mapping already exists
   await supabase
     .from('vendor_line_item_mappings')
     .upsert(
       { vendor_id: vendorId, description_text: descriptionText.trim(), gl_account_id: glAccountId },
       { onConflict: 'vendor_id,description_text' }
     )
+}
+
+export async function saveVendorPaymentDefaults(
+  vendorId: string,
+  updates: { default_payment_account_id?: string | null; default_payment_method?: string | null }
+) {
+  const supabase = await createClient()
+  await supabase.from('vendors').update(updates).eq('vendor_id', vendorId)
+}
+
+export async function saveVendorClassDefault(vendorId: string, classId: string) {
+  const supabase = await createClient()
+  await supabase.from('vendors').update({
+    billflow_class_id: classId,
+    class_source: 'Purchasomatic_override',
+  }).eq('vendor_id', vendorId)
 }

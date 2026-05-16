@@ -1,5 +1,5 @@
 ﻿import { createClient } from '@/lib/supabase/server'
-import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, toggleAccountVisibility } from './actions'
+import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, toggleAccountVisibility, toggleClassVisibility } from './actions'
 import { CopyAddress } from './copy-address'
 
 type Company = {
@@ -30,7 +30,7 @@ export default async function SettingsPage({
   const { qb_connected, qb_error, section } = await searchParams
   const supabase = await createClient()
 
-  const [{ data }, { data: qbAccounts }] = await Promise.all([
+  const [{ data }, { data: qbAccounts }, { data: qbClasses }] = await Promise.all([
     supabase
       .from('companies')
       .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, plan_name, credit_balance, stripe_customer_id')
@@ -40,10 +40,15 @@ export default async function SettingsPage({
       .select('id, name, account_type, is_hidden')
       .in('account_type', ['Expense', 'Cost of Goods Sold'])
       .order('name'),
+    supabase
+      .from('qb_classes_cache')
+      .select('id, name, is_hidden')
+      .order('name'),
   ])
 
   const company = data as Company | null
   const expenseAccounts = (qbAccounts ?? []) as { id: string; name: string | null; account_type: string | null; is_hidden: boolean }[]
+  const qbClassList = (qbClasses ?? []) as { id: string; name: string | null; is_hidden: boolean }[]
   const isQBConnected = company?.qb_connection_status === 'connected'
   const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@purchasomatic.com`
   const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@purchasomatic.com`
@@ -371,6 +376,43 @@ export default async function SettingsPage({
                 {expenseAccounts.every(a => !a.is_hidden) && (
                   <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 8 }}>
                     All accounts visible. Click Hide to remove an account from dropdowns.
+                  </p>
+                )}
+              </div>
+            </Card>
+          )}
+
+          {/* ── Class Visibility ─────────────────────────────────────── */}
+          {qbClassList.length > 0 && (
+            <Card title="QB Class Visibility" subtitle="Hide individual QuickBooks classes from Purchasomatic dropdowns. Hidden classes still exist in QB — they just won't appear in dropdowns here.">
+              <div className="space-y-1">
+                {qbClassList.map(cls => (
+                  <form
+                    key={cls.id}
+                    action={toggleClassVisibility.bind(null, cls.id, !cls.is_hidden)}
+                  >
+                    <div className="flex items-center justify-between py-2" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+                      <p style={{ fontSize: 13, color: cls.is_hidden ? 'var(--color-text-tertiary)' : 'var(--color-text-primary)', textDecoration: cls.is_hidden ? 'line-through' : 'none' }}>
+                        {cls.name ?? cls.id}
+                      </p>
+                      <button
+                        type="submit"
+                        style={{
+                          fontSize: 11, fontWeight: 500,
+                          background: cls.is_hidden ? 'var(--color-background-secondary)' : '#EBF5EF',
+                          color: cls.is_hidden ? 'var(--color-text-secondary)' : '#1A3D2B',
+                          border: '0.5px solid var(--color-border-secondary)',
+                          borderRadius: 4, padding: '3px 10px', cursor: 'pointer',
+                        }}
+                      >
+                        {cls.is_hidden ? 'Show' : 'Hide'}
+                      </button>
+                    </div>
+                  </form>
+                ))}
+                {qbClassList.every(c => !c.is_hidden) && (
+                  <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 8 }}>
+                    All classes visible. Click Hide to remove a class from dropdowns.
                   </p>
                 )}
               </div>
