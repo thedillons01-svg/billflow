@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
-import { poActions } from './actions'
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   open:               { bg: '#D1FAE5', color: '#065F46', label: 'Open' },
@@ -129,13 +128,16 @@ export default async function PurchaseOrdersPage({
               const badge = STATUS_BADGE[po.status] ?? STATUS_BADGE.open
               const vendorDisplay = (po.vendors as unknown as { vendor_name_display: string | null } | null)?.vendor_name_display ?? po.vendor_name_raw ?? '—'
               return (
-                <div
+                <Link
                   key={po.po_id}
-                  className="grid items-center px-5 py-[10px] cursor-pointer"
+                  href={`/purchase-orders/${po.po_id}`}
+                  className="grid items-center px-5 py-[10px]"
                   style={{
                     gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
                     borderBottom: '0.5px solid var(--color-border-tertiary)',
                     background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                    textDecoration: 'none',
+                    display: 'grid',
                   }}
                 >
                   <div>
@@ -165,7 +167,7 @@ export default async function PurchaseOrdersPage({
                   >
                     {badge.label}
                   </span>
-                </div>
+                </Link>
               )
             })}
           </>
