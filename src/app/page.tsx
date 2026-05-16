@@ -311,11 +311,12 @@ function HowItWorks() {
       body: 'Set up a one-time email forwarding rule. Invoices from Ferguson, Gensco, Winsupply — any distributor — arrive in Purchasomatic automatically. Our AI reads the PDF and extracts every line item, even from scanned documents.',
     },
     {
-      icon: 'ti-brand-quickbooks',
-      number: '4',
+      icon: 'ti-circle-check',
+      number: '',
       optional: false,
+      result: true,
       title: 'Everything lands in QuickBooks',
-      body: 'Invoices publish as bills, purchase orders create QB PO records, and receiving updates them as materials arrive — all coded to the correct job and GL account. QuickBooks Online and Desktop both supported.',
+      body: 'Purchase orders create PO records in QuickBooks. Receiving updates them as materials arrive. Invoices publish as bills — all matched to the correct job and GL account. QuickBooks Online and Desktop both supported.',
     },
   ]
 
@@ -342,7 +343,7 @@ function HowItWorks() {
                   width: 48,
                   height: 48,
                   borderRadius: 12,
-                  background: step.optional ? '#F3F4F6' : '#EBF5EF',
+                  background: (step as {result?: boolean}).result ? '#EBF5EF' : step.optional ? '#F3F4F6' : '#EBF5EF',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -352,17 +353,25 @@ function HowItWorks() {
                 <i className={`ti ${step.icon}`} style={{ fontSize: 22, color: step.optional ? '#9CA3AF' : '#2DB87A' }} />
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: step.optional ? '#9CA3AF' : '#2DB87A', letterSpacing: '0.08em' }}>
-                  STEP {step.number}
-                </span>
-                {step.optional && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 500, color: '#9CA3AF',
-                    background: '#F3F4F6', borderRadius: 4,
-                    padding: '1px 6px', letterSpacing: '0.04em',
-                  }}>
-                    OPTIONAL
+                {(step as {result?: boolean}).result ? (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#2DB87A', letterSpacing: '0.08em' }}>
+                    THE RESULT
                   </span>
+                ) : (
+                  <>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: step.optional ? '#9CA3AF' : '#2DB87A', letterSpacing: '0.08em' }}>
+                      STEP {step.number}
+                    </span>
+                    {step.optional && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 500, color: '#9CA3AF',
+                        background: '#F3F4F6', borderRadius: 4,
+                        padding: '1px 6px', letterSpacing: '0.04em',
+                      }}>
+                        OPTIONAL
+                      </span>
+                    )}
+                  </>
                 )}
               </div>
               <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111827', marginBottom: 10, letterSpacing: '-0.01em' }}>
