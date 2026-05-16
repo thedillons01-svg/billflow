@@ -44,6 +44,10 @@ export default async function VendorDetailPage({
       .single(),
   ])
 
+  const expenseAccounts = (accounts ?? []).filter(a =>
+    ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'].includes(a.account_type ?? '')
+  )
+
   // Line item mappings
   const { data: mappings } = await supabase
     .from('vendor_line_item_mappings')
@@ -154,10 +158,10 @@ export default async function VendorDetailPage({
           />
         )}
         {tab === 'line-items' && (
-          <VendorLineItemsTab vendorId={id} mappings={mappings ?? []} accounts={accounts ?? []} />
+          <VendorLineItemsTab vendorId={id} mappings={mappings ?? []} accounts={expenseAccounts} />
         )}
         {tab === 'rules' && (
-          <VendorRulesTab vendorId={id} rules={rules ?? []} accounts={accounts ?? []} />
+          <VendorRulesTab vendorId={id} rules={rules ?? []} accounts={expenseAccounts} />
         )}
         {tab === 'inbox' && (
           <BillListTab bills={inboxBills ?? []} empty="No bills in inbox for this vendor." />
