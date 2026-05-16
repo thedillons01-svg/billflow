@@ -24,8 +24,8 @@ export async function POST(
     .single()
 
   if (!bill) return NextResponse.json({ error: 'Bill not found' }, { status: 404 })
-  if (!['ocr_error', 'draft'].includes(bill.status)) {
-    return NextResponse.json({ error: 'Only ocr_error or draft bills can be reprocessed' }, { status: 400 })
+  if (bill.status === 'published') {
+    return NextResponse.json({ error: 'Published bills cannot be reprocessed' }, { status: 400 })
   }
 
   // Reset to draft with service client so processBill sees draft status
