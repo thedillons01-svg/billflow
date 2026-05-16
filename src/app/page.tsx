@@ -301,7 +301,7 @@ function HowItWorks() {
       number: '2',
       optional: true,
       title: 'Record receiving',
-      body: 'Another feature most invoice software skips. When materials arrive on the job site, your team checks off what was actually delivered — on any device. Discrepancies are flagged before the invoice ever hits your desk.',
+      body: 'Another feature most invoice software skips. When materials arrive, your team checks off what was delivered. Staff knows what came in, for what job, and can let the tech know right away.',
     },
     {
       icon: 'ti-mail-forward',
