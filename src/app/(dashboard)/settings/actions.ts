@@ -30,6 +30,7 @@ export async function updateNotificationSettings(
     notification_emails: string[]
     success_notifications: boolean
     daily_digest: boolean
+    notify_uploader?: boolean
   }
 ) {
   const supabase = await createClient()
@@ -82,6 +83,8 @@ export async function updateCompanySettings(
     job_costing_enabled?: boolean
     class_tracking_enabled?: boolean
     fsm_platform?: string | null
+    qb_ref_source?: string
+    default_due_date?: string
   }
 ) {
   const supabase = await createClient()

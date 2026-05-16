@@ -17,6 +17,9 @@ type Company = {
   notification_emails: string[] | null
   success_notifications: boolean | null
   daily_digest: boolean | null
+  notify_uploader: boolean | null
+  qb_ref_source: string | null
+  default_due_date: string | null
   plan_name: string | null
   credit_balance: number | null
   stripe_customer_id: string | null
@@ -33,7 +36,7 @@ export default async function SettingsPage({
   const [{ data }, { data: qbAccounts }, { data: qbClasses }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, plan_name, credit_balance, stripe_customer_id')
       .single(),
     supabase
       .from('qb_accounts_cache')
@@ -222,6 +225,8 @@ export default async function SettingsPage({
                 job_costing_enabled: fd.get('job_costing_enabled') === 'on',
                 class_tracking_enabled: fd.get('class_tracking_enabled') === 'on',
                 fsm_platform: fd.get('fsm_platform') as string || null,
+                qb_ref_source: fd.get('qb_ref_source') as string || 'po_number',
+                default_due_date: fd.get('default_due_date') as string || 'not_required',
               })
             }}>
               <div className="space-y-4">
@@ -243,6 +248,51 @@ export default async function SettingsPage({
                   label="Class tracking enabled"
                   helper="When on, a Class field appears on each bill line item for QB class tracking. Only enable if you use class tracking in QuickBooks. Default: off."
                 />
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    QB Reference Number field source
+                  </label>
+                  <select
+                    name="qb_ref_source"
+                    defaultValue={company?.qb_ref_source ?? 'po_number'}
+                    style={{
+                      width: '100%', height: 36,
+                      border: '0.5px solid var(--color-border-secondary)',
+                      borderRadius: 6, padding: '0 10px',
+                      fontSize: 13, color: 'var(--color-text-primary)',
+                      background: 'white',
+                    }}
+                  >
+                    <option value="po_number">PO / Reference number from invoice</option>
+                    <option value="invoice_number">Invoice number</option>
+                    <option value="blank">Leave blank</option>
+                  </select>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Controls what Purchasomatic puts in the QB Ref No field on each bill. Per-vendor override (copy_po_to_qb_reference) still applies.
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Default due date
+                  </label>
+                  <select
+                    name="default_due_date"
+                    defaultValue={company?.default_due_date ?? 'not_required'}
+                    style={{
+                      width: '100%', height: 36,
+                      border: '0.5px solid var(--color-border-secondary)',
+                      borderRadius: 6, padding: '0 10px',
+                      fontSize: 13, color: 'var(--color-text-primary)',
+                      background: 'white',
+                    }}
+                  >
+                    <option value="not_required">Not required — leave blank if not on invoice</option>
+                    <option value="from_payment_terms">Calculate from payment terms</option>
+                  </select>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    When set to calculate, Purchasomatic uses the vendor payment terms to set a due date if none is found on the invoice.
+                  </p>
+                </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                     Field service platform
@@ -287,6 +337,7 @@ export default async function SettingsPage({
                 notification_emails: emails,
                 success_notifications: fd.get('success_notifications') === 'on',
                 daily_digest: fd.get('daily_digest') === 'on',
+                notify_uploader: fd.get('notify_uploader') === 'on',
               })
             }}>
               <div className="space-y-4">
@@ -334,6 +385,12 @@ export default async function SettingsPage({
                   defaultChecked={company?.daily_digest ?? false}
                   label="Daily digest"
                   helper="Receive a daily summary of all activity instead of individual notifications. Off by default."
+                />
+                <Toggle
+                  name="notify_uploader"
+                  defaultChecked={company?.notify_uploader ?? true}
+                  label="Notify uploader"
+                  helper="When on, the person who forwarded the email receives the result notification in addition to the recipients above. Useful when techs forward their own invoices."
                 />
                 <div className="flex justify-end">
                   <BtnPrimary type="submit">Save</BtnPrimary>
