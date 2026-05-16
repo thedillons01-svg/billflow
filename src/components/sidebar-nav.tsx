@@ -28,7 +28,7 @@ export function SidebarNav({
   const pathname = usePathname()
 
   const isActive = (prefix: string) =>
-    prefix === '/' ? pathname === '/' : pathname.startsWith(prefix)
+    prefix === '/home' ? pathname === '/home' : pathname.startsWith(prefix)
 
   return (
     <aside
@@ -55,7 +55,7 @@ export function SidebarNav({
 
       {/* Zone 2 — Navigation */}
       <nav className="flex-1 py-2 overflow-y-auto">
-        <NavItem href="/" active={isActive('/')} icon="ti-home">Home</NavItem>
+        <NavItem href="/home" active={isActive('/home')} icon="ti-home">Home</NavItem>
         <NavItem href="/bills" active={isActive('/bills')} icon="ti-file-invoice">Bills</NavItem>
         <NavItem href="/purchase-orders" active={isActive('/purchase-orders')} icon="ti-clipboard-list">Purchase Orders</NavItem>
         <NavItem href="/receiving" active={isActive('/receiving')} icon="ti-package">Receiving</NavItem>

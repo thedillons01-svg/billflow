@@ -14,7 +14,7 @@ export default async function LandingPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (user) redirect('/bills')
+  if (user) redirect('/home')
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
