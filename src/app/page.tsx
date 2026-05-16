@@ -400,7 +400,7 @@ function Features() {
     {
       icon: 'ti-rocket',
       title: 'Auto-publish after 5 invoices',
-      body: 'After 5 accurate invoices from a vendor, Purchasomatic promotes them to auto-publish. Bills go straight to QuickBooks without a review step. You get notified when it happens.',
+      body: 'After 5 accurately processed invoices from a vendor, Purchasomatic suggests enabling auto-publish for that vendor. You decide — turn it on and bills go straight to QuickBooks without a review step. You stay in control.',
     },
     {
       icon: 'ti-truck-delivery',
