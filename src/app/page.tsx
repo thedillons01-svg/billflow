@@ -159,7 +159,7 @@ function Hero() {
             margin: '0 auto 40px',
           }}
         >
-          Forward vendor invoices to Purchasomatic once. We extract every line item, match it to the right QuickBooks job, and publish automatically — while you run the business.
+          Forward vendor invoices and purchase order confirmations to Purchasomatic. We extract every line item, match it to the right QuickBooks job, and publish automatically — while you run the business.
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -199,7 +199,7 @@ function Hero() {
         </div>
 
         <p style={{ marginTop: 18, fontSize: 13, color: 'rgba(255,255,255,0.4)' }}>
-          No subscription required · Pay per transaction · Cancel any time
+          25 free trial credits · No credit card required · Cancel any time
         </p>
 
         {/* Hero stats */}
@@ -286,6 +286,12 @@ function HowItWorks() {
       title: 'Published to QuickBooks',
       body: 'After a quick review — or automatically if auto-publish is on — the bill lands in QuickBooks coded to the correct job and GL account. QuickBooks Online and Desktop both supported.',
     },
+    {
+      icon: 'ti-clipboard-check',
+      number: '04',
+      title: 'POs tracked through receiving',
+      body: 'Send purchase order confirmations to your PO address. Purchasomatic tracks what was ordered, matches the invoice when it arrives, flags any discrepancies, and lets your team check off what was actually delivered.',
+    },
   ]
 
   return (
@@ -299,11 +305,11 @@ function HowItWorks() {
             Set it up once. Let it run.
           </h2>
           <p style={{ fontSize: 16, color: '#6B7280', marginTop: 14, maxWidth: 480, margin: '14px auto 0' }}>
-            No templates. No per-vendor setup. Works with any PDF invoice from any distributor.
+            No templates. No per-vendor setup. Works with any PDF invoice or PO from any distributor.
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 32 }}>
           {steps.map((step, i) => (
             <div key={i}>
               <div
@@ -344,7 +350,7 @@ function Features() {
     {
       icon: 'ti-briefcase',
       title: 'Job costing built in',
-      body: 'Purchasomatic matches each invoice to the right QuickBooks job from your field service platform — Housecall Pro, Workiz, ServiceTrade, Jobber. Line items land on the correct job automatically.',
+      body: 'Purchasomatic matches each invoice to the right QuickBooks job based on job numbers and names from your work orders. Every line item lands on the correct job automatically — no manual re-coding.',
     },
     {
       icon: 'ti-rocket',
@@ -359,7 +365,7 @@ function Features() {
     {
       icon: 'ti-clipboard-check',
       title: 'Receiving workflow',
-      body: 'Techs in the field can check off what actually arrived against the PO — on any device. No more phone calls asking what was ordered or when it shipped.',
+      body: 'Your team can check off what actually arrived against the open PO — on any device, from the job site. No more phone calls back to the office asking what was ordered or when it shipped.',
     },
     {
       icon: 'ti-plug-connected',
