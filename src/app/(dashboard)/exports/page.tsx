@@ -31,7 +31,7 @@ export default async function ExportsPage() {
 
   const vendorOptions = (vendors ?? []).map(v => ({
     id: v.vendor_id,
-    label: v.vendor_name_display ?? v.vendor_name_extracted,
+    label: v.vendor_name_display ?? v.vendor_name_extracted ?? '',
   }))
 
   const jobOptions = (jobs ?? []).map(j => ({
@@ -40,56 +40,82 @@ export default async function ExportsPage() {
   }))
 
   return (
-    <div>
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-10 py-4">
-        <h1 className="text-xl font-semibold text-gray-900">FSM Materials Entry Export</h1>
-        <p className="mt-0.5 text-sm text-gray-400">
-          Export published bills grouped by job for entry into your field service platform
-        </p>
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div
+        className="flex-none flex items-center justify-between px-5 py-[14px]"
+        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        <div>
+          <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>FSM Materials Export</h1>
+          <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+            Export published bills grouped by job for entry into your field service platform
+          </p>
+        </div>
       </div>
 
-      <div className="px-10 py-6 max-w-3xl space-y-6">
-        <ExportForm vendors={vendorOptions} jobs={jobOptions} />
+      <div className="flex-1 overflow-auto px-5 py-5">
+        <div style={{ maxWidth: 700 }} className="space-y-5">
 
-        {/* Export history */}
-        {recentExports && recentExports.length > 0 && (
-          <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="px-6 py-4 border-b border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-900">Recent Exports</h2>
-            </div>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100 text-xs font-medium text-gray-400 uppercase tracking-wide">
-                  <th className="px-6 py-2.5 text-left">Date</th>
-                  <th className="px-4 py-2.5 text-left">Date Range</th>
-                  <th className="px-4 py-2.5 text-left">Format</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {recentExports.map(exp => (
-                  <tr key={exp.id} className="text-gray-700">
-                    <td className="px-6 py-2.5 text-gray-900">
-                      {new Date(exp.export_date).toLocaleDateString('en-US', {
-                        month: 'short', day: 'numeric', year: 'numeric',
-                        hour: 'numeric', minute: '2-digit',
-                      })}
-                    </td>
-                    <td className="px-4 py-2.5 text-gray-500 text-xs">
-                      {exp.date_range_start && exp.date_range_end
-                        ? `${exp.date_range_start} – ${exp.date_range_end}`
-                        : exp.date_range_start ?? exp.date_range_end ?? 'All dates'}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-gray-100 text-gray-600 uppercase">
-                        {exp.format}
-                      </span>
-                    </td>
-                  </tr>
+          <ExportForm vendors={vendorOptions} jobs={jobOptions} />
+
+          {/* Export history */}
+          {recentExports && recentExports.length > 0 && (
+            <div
+              style={{
+                background: 'white',
+                border: '0.5px solid var(--color-border-tertiary)',
+                borderRadius: 8,
+                overflow: 'hidden',
+              }}
+            >
+              <div className="px-5 py-4" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>Export History</p>
+              </div>
+              <div
+                className="grid px-5 py-2"
+                style={{ gridTemplateColumns: '1.5fr 1.5fr 80px', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+              >
+                {['Date', 'Date Range', 'Format'].map(h => (
+                  <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
+                    {h}
+                  </span>
                 ))}
-              </tbody>
-            </table>
-          </section>
-        )}
+              </div>
+              {recentExports.map((exp, i) => (
+                <div
+                  key={exp.id}
+                  className="grid items-center px-5 py-[10px]"
+                  style={{
+                    gridTemplateColumns: '1.5fr 1.5fr 80px',
+                    borderBottom: i < recentExports.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
+                    background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                  }}
+                >
+                  <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
+                    {new Date(exp.export_date).toLocaleString()}
+                  </span>
+                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                    {exp.date_range_start && exp.date_range_end
+                      ? `${exp.date_range_start} – ${exp.date_range_end}`
+                      : exp.date_range_start ?? exp.date_range_end ?? 'All dates'}
+                  </span>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      background: 'var(--color-background-secondary)',
+                      color: 'var(--color-text-secondary)',
+                      borderRadius: 4, padding: '2px 8px',
+                      fontSize: 10, fontWeight: 500, textTransform: 'uppercase',
+                    }}
+                  >
+                    {exp.format}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

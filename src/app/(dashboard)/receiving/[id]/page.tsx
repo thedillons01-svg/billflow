@@ -14,7 +14,7 @@ export default async function ReceivingDetailPage({
   const { data: po } = await supabase
     .from('purchase_orders')
     .select(`
-      po_id, vendor_name_raw, po_number, order_date, job_id, status, created_by,
+      po_id, company_id, vendor_name_raw, po_number, order_date, job_id, status, created_by,
       vendors(vendor_name_display),
       po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, extended_cost, sort_order)
     `)
@@ -23,6 +23,19 @@ export default async function ReceivingDetailPage({
 
   if (!po || (po.status !== 'open' && po.status !== 'partially_received')) {
     notFound()
+  }
+
+  let jobLabel: string | null = null
+  if (po.job_id) {
+    const { data: job } = await supabase
+      .from('qb_jobs_cache')
+      .select('job_number, job_name, customer_name')
+      .eq('company_id', po.company_id)
+      .eq('qb_job_id', po.job_id)
+      .single()
+    jobLabel = job
+      ? [job.job_number, job.job_name, job.customer_name].filter(Boolean).join(' – ')
+      : po.job_id
   }
 
   const vendor = (po.vendors as unknown as { vendor_name_display: string | null } | null)
@@ -60,7 +73,7 @@ export default async function ReceivingDetailPage({
             </h1>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
               {po.order_date ? `Ordered ${new Date(po.order_date).toLocaleDateString()}` : ''}
-              {po.job_id ? ` · Job ${po.job_id}` : ''}
+              {jobLabel ? ` · ${jobLabel}` : ''}
             </p>
           </div>
         </div>

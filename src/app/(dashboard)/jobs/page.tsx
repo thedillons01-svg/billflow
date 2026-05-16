@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { getJobProfitability, type JobProfitabilityRow } from '@/lib/quickbooks/profitability'
 import { JobsTable } from './jobs-table'
+import Link from 'next/link'
 
 export default async function JobsPage() {
   const supabase = await createClient()
@@ -13,7 +14,7 @@ export default async function JobsPage() {
   let rows: JobProfitabilityRow[] = []
   let errorMsg: string | null = null
 
-  if (company?.company_id) {
+  if (company?.company_id && company.qb_connection_status === 'connected') {
     try {
       rows = await getJobProfitability(company.company_id)
     } catch (err) {
@@ -26,39 +27,59 @@ export default async function JobsPage() {
     : null
 
   return (
-    <div>
-      <div className="sticky top-0 z-10 border-b border-gray-200 bg-white px-10 py-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-gray-900">Job Profitability</h1>
-            <p className="mt-0.5 text-sm text-gray-400">
-              Jobs with activity in the last 30 days — revenue from QuickBooks, material costs from Purchasomatic
-            </p>
-          </div>
-          {lastSync && (
-            <p className="text-xs text-gray-400 mt-1">QB synced {lastSync}</p>
-          )}
+    <div className="flex flex-col h-full">
+      {/* Page header */}
+      <div
+        className="flex-none flex items-center justify-between px-5 py-[14px]"
+        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        <div>
+          <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>Job Profitability</h1>
+          <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+            Jobs with activity in the last 30 days — revenue from QuickBooks, material costs from Purchasomatic
+          </p>
         </div>
+        {lastSync && (
+          <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>QB synced {lastSync}</p>
+        )}
       </div>
 
-      <div className="px-10 py-6">
-        {!company || company.qb_connection_status !== 'connected' ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-white px-8 py-16 text-center">
-            <p className="text-sm font-medium text-gray-500">QuickBooks not connected</p>
-            <p className="mt-1 text-sm text-gray-400">
-              Connect QuickBooks in{' '}
-              <a href="/settings" className="text-blue-600 hover:underline">Settings</a>{' '}
-              to see job profitability data.
+      <div className="flex-1 overflow-auto px-5 py-5">
+        {company?.qb_connection_status !== 'connected' ? (
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <i className="ti ti-plug" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 16 }}>
+              QuickBooks not connected
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6, maxWidth: 360 }}>
+              Connect QuickBooks in Settings to see revenue and profitability data alongside material costs.
             </p>
+            <Link
+              href="/settings"
+              style={{
+                marginTop: 16, background: '#2DB87A', color: 'white',
+                borderRadius: 6, padding: '8px 20px',
+                fontSize: 13, fontWeight: 500, textDecoration: 'none',
+              }}
+            >
+              Go to Settings
+            </Link>
           </div>
         ) : errorMsg ? (
-          <div className="rounded-lg bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-200">
-            {errorMsg}
+          <div
+            className="flex items-center gap-3 px-4 py-3"
+            style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: 8 }}
+          >
+            <i className="ti ti-alert-circle" style={{ fontSize: 16, color: '#DC2626' }} />
+            <p style={{ fontSize: 13, color: '#991B1B' }}>{errorMsg}</p>
           </div>
         ) : rows.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-gray-300 bg-white px-8 py-16 text-center">
-            <p className="text-sm font-medium text-gray-500">No job activity in the last 30 days</p>
-            <p className="mt-1 text-sm text-gray-400">
+          <div className="flex flex-col items-center justify-center py-24 text-center">
+            <i className="ti ti-chart-bar" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
+            <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 16 }}>
+              No job activity in the last 30 days
+            </h2>
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6, maxWidth: 380 }}>
               Bills published to QuickBooks with job assignments will appear here.
             </p>
           </div>

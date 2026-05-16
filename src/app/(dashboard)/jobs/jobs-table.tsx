@@ -3,17 +3,11 @@
 import { useState } from 'react'
 import type { JobProfitabilityRow } from '@/lib/quickbooks/profitability'
 
-const fmt = (n: number | null, style: 'currency' | 'percent' = 'currency') => {
-  if (n == null) return <span className="text-gray-300">—</span>
-  if (style === 'percent') {
-    return (
-      <span className={n >= 0 ? 'text-green-600' : 'text-red-600'}>
-        {n.toFixed(1)}%
-      </span>
-    )
-  }
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
-}
+const fmtCurrency = (n: number | null) =>
+  n == null ? '—' : new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n)
+
+const fmtPct = (n: number | null) =>
+  n == null ? '—' : `${n.toFixed(1)}%`
 
 export function JobsTable({ rows }: { rows: JobProfitabilityRow[] }) {
   const [search, setSearch] = useState('')
@@ -32,71 +26,111 @@ export function JobsTable({ rows }: { rows: JobProfitabilityRow[] }) {
   return (
     <div className="space-y-4">
       {/* Search */}
-      <div className="relative max-w-sm">
-        <SearchIcon />
+      <div style={{ position: 'relative', maxWidth: 360 }}>
+        <i className="ti ti-search" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: 14, color: 'var(--color-text-tertiary)' }} />
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search job number, name, or customer…"
-          className="w-full rounded-lg border border-gray-300 pl-9 pr-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          style={{
+            width: '100%', height: 36,
+            border: '0.5px solid var(--color-border-secondary)',
+            borderRadius: 6, padding: '0 10px 0 32px',
+            fontSize: 13, color: 'var(--color-text-primary)',
+          }}
         />
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-gray-100 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wide">
-              <th className="px-5 py-3 text-left">Job</th>
-              <th className="px-4 py-3 text-left">Customer</th>
-              <th className="px-4 py-3 text-right">Revenue</th>
-              <th className="px-4 py-3 text-right">Material Cost</th>
-              <th className="px-4 py-3 text-right">Gross Profit</th>
-              <th className="px-4 py-3 text-right">Margin</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan={6} className="px-5 py-10 text-center text-sm text-gray-400">
-                  {search ? 'No jobs match your search.' : 'No jobs with recent activity.'}
-                </td>
-              </tr>
-            ) : (
-              filtered.map(row => (
-                <tr key={row.qb_job_id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="font-medium text-gray-900">
-                      {row.job_number ? `#${row.job_number}` : ''}
-                      {row.job_number && row.job_name ? ' · ' : ''}
-                      {row.job_name ?? ''}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{row.customer_name ?? '—'}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-900">{fmt(row.revenue)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-gray-900">{fmt(row.material_cost)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">{fmt(row.gross_profit)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums font-medium">{fmt(row.margin_pct, 'percent')}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+      <div
+        style={{
+          background: 'white',
+          border: '0.5px solid var(--color-border-tertiary)',
+          borderRadius: 8,
+          overflow: 'hidden',
+        }}
+      >
+        {/* Header */}
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr',
+            borderBottom: '0.5px solid var(--color-border-tertiary)',
+            background: 'var(--color-background-secondary)',
+            padding: '6px 16px',
+          }}
+        >
+          {['Job', 'Customer', 'Revenue', 'Material Cost', 'Gross Profit', 'Margin'].map((h, i) => (
+            <span
+              key={h}
+              style={{
+                fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em',
+                color: 'var(--color-text-secondary)',
+                textAlign: i >= 2 ? 'right' : 'left',
+              }}
+            >
+              {h}
+            </span>
+          ))}
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+              {search ? 'No jobs match your search.' : 'No jobs with recent activity.'}
+            </p>
+          </div>
+        ) : (
+          filtered.map((row, i) => {
+            const marginColor = row.margin_pct == null
+              ? 'var(--color-text-secondary)'
+              : row.margin_pct >= 30 ? '#065F46'
+              : row.margin_pct >= 10 ? '#92400E'
+              : '#991B1B'
+
+            return (
+              <div
+                key={row.qb_job_id}
+                className="grid items-center"
+                style={{
+                  gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr',
+                  borderBottom: i < filtered.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
+                  padding: '10px 16px',
+                  background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                }}
+              >
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                    {row.job_number ? `#${row.job_number}` : ''}
+                    {row.job_number && row.job_name ? ' · ' : ''}
+                    {row.job_name ?? ''}
+                  </p>
+                </div>
+                <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
+                  {row.customer_name ?? '—'}
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--color-text-primary)', textAlign: 'right' }}>
+                  {fmtCurrency(row.revenue)}
+                </span>
+                <span style={{ fontSize: 13, color: 'var(--color-text-primary)', textAlign: 'right' }}>
+                  {fmtCurrency(row.material_cost)}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', textAlign: 'right' }}>
+                  {fmtCurrency(row.gross_profit)}
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: marginColor, textAlign: 'right' }}>
+                  {fmtPct(row.margin_pct)}
+                </span>
+              </div>
+            )
+          })
+        )}
       </div>
 
-      <p className="text-xs text-gray-400">
+      <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
         Showing {filtered.length} of {rows.length} jobs · Revenue from QuickBooks P&amp;L · Material costs from Purchasomatic published bills
       </p>
     </div>
-  )
-}
-
-function SearchIcon() {
-  return (
-    <svg className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <path d="m21 21-4.35-4.35" />
-    </svg>
   )
 }

@@ -56,36 +56,46 @@ export function ExportForm({
     })
   }
 
+  const inputStyle = {
+    height: 36,
+    border: '0.5px solid var(--color-border-secondary)',
+    borderRadius: 6,
+    padding: '0 10px',
+    fontSize: 13,
+    color: 'var(--color-text-primary)',
+    background: 'white',
+  }
+
   return (
-    <section className="rounded-xl border border-gray-200 bg-white shadow-sm">
-      <div className="px-6 py-5 border-b border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-900">Export Options</h2>
+    <div
+      style={{
+        background: 'white',
+        border: '0.5px solid var(--color-border-tertiary)',
+        borderRadius: 8,
+        overflow: 'hidden',
+      }}
+    >
+      <div className="px-5 py-4" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+        <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>Export Options</p>
+        <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+          Filter by date range, vendor, or job. Leave blank to export everything.
+        </p>
       </div>
 
-      <div className="px-6 py-5 space-y-5">
+      <div className="px-5 py-4 space-y-4">
         {/* Date range */}
         <div>
-          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
+          <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
             Invoice Date Range
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="date"
-              value={dateStart}
-              onChange={e => setDateStart(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <span className="text-sm text-gray-400">to</span>
-            <input
-              type="date"
-              value={dateEnd}
-              onChange={e => setDateEnd(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+          </p>
+          <div className="flex items-center gap-2">
+            <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} style={inputStyle} />
+            <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>to</span>
+            <input type="date" value={dateEnd} onChange={e => setDateEnd(e.target.value)} style={inputStyle} />
             {(dateStart || dateEnd) && (
               <button
                 onClick={() => { setDateStart(''); setDateEnd('') }}
-                className="text-xs text-gray-400 hover:text-gray-600"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: 'var(--color-text-tertiary)' }}
               >
                 Clear
               </button>
@@ -96,24 +106,28 @@ export function ExportForm({
         {/* Vendor filter */}
         {vendors.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Filter by Vendor{' '}
-              <span className="normal-case text-gray-400">(all if none selected)</span>
-            </label>
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+              Filter by Vendor <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)' }}>(all if none selected)</span>
+            </p>
             <div className="flex flex-wrap gap-2">
-              {vendors.map(v => (
-                <button
-                  key={v.id}
-                  onClick={() => toggleItem(v.id, selectedVendors, setSelectedVendors)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-                    selectedVendors.includes(v.id)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
+              {vendors.map(v => {
+                const active = selectedVendors.includes(v.id)
+                return (
+                  <button
+                    key={v.id}
+                    onClick={() => toggleItem(v.id, selectedVendors, setSelectedVendors)}
+                    style={{
+                      borderRadius: 100, padding: '3px 10px', fontSize: 11, fontWeight: 500,
+                      border: active ? '1.5px solid #2DB87A' : '0.5px solid var(--color-border-secondary)',
+                      background: active ? '#EBF5EF' : 'white',
+                      color: active ? '#1A3D2B' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {v.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -121,40 +135,49 @@ export function ExportForm({
         {/* Job filter */}
         {jobs.length > 0 && (
           <div>
-            <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">
-              Filter by Job{' '}
-              <span className="normal-case text-gray-400">(all if none selected)</span>
-            </label>
-            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
-              {jobs.map(j => (
-                <button
-                  key={j.id}
-                  onClick={() => toggleItem(j.id, selectedJobs, setSelectedJobs)}
-                  className={`rounded-full px-3 py-1 text-xs font-medium border transition-colors ${
-                    selectedJobs.includes(j.id)
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
-                  }`}
-                >
-                  {j.label}
-                </button>
-              ))}
+            <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
+              Filter by Job <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)' }}>(all if none selected)</span>
+            </p>
+            <div className="flex flex-wrap gap-2" style={{ maxHeight: 120, overflowY: 'auto' }}>
+              {jobs.map(j => {
+                const active = selectedJobs.includes(j.id)
+                return (
+                  <button
+                    key={j.id}
+                    onClick={() => toggleItem(j.id, selectedJobs, setSelectedJobs)}
+                    style={{
+                      borderRadius: 100, padding: '3px 10px', fontSize: 11, fontWeight: 500,
+                      border: active ? '1.5px solid #2DB87A' : '0.5px solid var(--color-border-secondary)',
+                      background: active ? '#EBF5EF' : 'white',
+                      color: active ? '#1A3D2B' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {j.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
 
         {/* Format + export button */}
-        <div className="flex items-center justify-between border-t border-gray-100 pt-4">
-          <div className="flex items-center gap-1 rounded-lg border border-gray-200 p-0.5">
+        <div
+          className="flex items-center justify-between pt-3"
+          style={{ borderTop: '0.5px solid var(--color-border-tertiary)' }}
+        >
+          <div className="flex items-center gap-1 p-0.5" style={{ border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, background: 'var(--color-background-secondary)' }}>
             {(['excel', 'pdf'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => setFormat(f)}
-                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
-                  format === f
-                    ? 'bg-white text-gray-900 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
+                style={{
+                  borderRadius: 4, padding: '5px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                  border: 'none',
+                  background: format === f ? 'white' : 'transparent',
+                  color: format === f ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                  boxShadow: format === f ? '0 1px 2px rgba(0,0,0,0.08)' : 'none',
+                }}
               >
                 {f === 'excel' ? 'Excel (.xlsx)' : 'PDF'}
               </button>
@@ -164,12 +187,20 @@ export function ExportForm({
           <button
             onClick={handleExport}
             disabled={isPending}
-            className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            style={{
+              background: '#2DB87A', color: 'white',
+              borderRadius: 6, padding: '7px 20px',
+              fontSize: 13, fontWeight: 500,
+              border: 'none', cursor: isPending ? 'not-allowed' : 'pointer',
+              opacity: isPending ? 0.6 : 1,
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}
           >
+            <i className="ti ti-download" style={{ fontSize: 14 }} />
             {isPending ? 'Generating…' : 'Export'}
           </button>
         </div>
       </div>
-    </section>
+    </div>
   )
 }

@@ -70,6 +70,7 @@ export async function updateCompanySettings(
   settings: {
     use_items_table?: boolean
     job_costing_enabled?: boolean
+    class_tracking_enabled?: boolean
     fsm_platform?: string | null
   }
 ) {

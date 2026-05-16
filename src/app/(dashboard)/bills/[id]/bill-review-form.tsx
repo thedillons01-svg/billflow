@@ -7,6 +7,7 @@ import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem,
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
+type QBClass = { id: string; qb_class_id: string; name: string | null }
 
 type LineItem = {
   line_id: string
@@ -16,6 +17,7 @@ type LineItem = {
   extended_cost: number | null
   gl_account_id: string | null
   job_id: string | null
+  class_id: string | null
   sort_order: number
   is_tax_line: boolean | null
   gl_account_source: string | null
@@ -59,15 +61,19 @@ export function BillReviewForm({
   lineItems: initialLineItems,
   accounts,
   jobs,
+  classes,
   vendorPromo,
   jobCostingEnabled = false,
+  classTrackingEnabled = false,
 }: {
   bill: Bill
   lineItems: LineItem[]
   accounts: Account[]
   jobs: Job[]
+  classes: QBClass[]
   vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
   jobCostingEnabled?: boolean
+  classTrackingEnabled?: boolean
 }) {
   const router = useRouter()
   const [localStatus, setLocalStatus] = useState(bill.status)
@@ -427,8 +433,13 @@ export function BillReviewForm({
               <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>No line items extracted yet.</p>
             ) : (
               <div style={{ border: '0.5px solid var(--color-border-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
-                <div className="grid" style={{ gridTemplateColumns: jobCostingEnabled ? '3fr 0.6fr 0.8fr 0.9fr 1.4fr 1.2fr 24px' : '3fr 0.6fr 0.8fr 0.9fr 1.4fr 24px', background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
-                  {['Description', 'Qty', 'Unit', 'Amount', 'GL Account', ...(jobCostingEnabled ? ['Job'] : []), ''].map(h => (
+                <div className="grid" style={{ gridTemplateColumns: [
+                      '3fr 0.6fr 0.8fr 0.9fr 1.4fr',
+                      jobCostingEnabled ? ' 1.2fr' : '',
+                      classTrackingEnabled ? ' 1fr' : '',
+                      ' 24px',
+                    ].join(''), background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
+                  {['Description', 'Qty', 'Unit', 'Amount', 'GL Account', ...(jobCostingEnabled ? ['Job'] : []), ...(classTrackingEnabled ? ['Class'] : []), ''].map(h => (
                     <span key={h} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>{h}</span>
                   ))}
                 </div>
@@ -437,7 +448,12 @@ export function BillReviewForm({
                     key={item.line_id}
                     className="grid items-center"
                     style={{
-                      gridTemplateColumns: jobCostingEnabled ? '3fr 0.6fr 0.8fr 0.9fr 1.4fr 1.2fr 24px' : '3fr 0.6fr 0.8fr 0.9fr 1.4fr 24px',
+                      gridTemplateColumns: [
+                      '3fr 0.6fr 0.8fr 0.9fr 1.4fr',
+                      jobCostingEnabled ? ' 1.2fr' : '',
+                      classTrackingEnabled ? ' 1fr' : '',
+                      ' 24px',
+                    ].join(''),
                       borderBottom: i < lineItems.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
                       padding: '4px 8px',
                       background: item.is_tax_line ? '#FFFBEB' : 'white',
@@ -486,6 +502,17 @@ export function BillReviewForm({
                           }
                         }}
                         placeholder="Job…"
+                        emptyLabel="—"
+                      />
+                    )}
+                    {classTrackingEnabled && (
+                      <InlineSelect
+                        initialValue={item.class_id ?? ''}
+                        options={classes.map(c => ({ value: c.qb_class_id, label: c.name ?? c.qb_class_id }))}
+                        onSave={async (v) => {
+                          await updateLineItem(item.line_id, { class_id: v || null })
+                        }}
+                        placeholder="Class…"
                         emptyLabel="—"
                       />
                     )}

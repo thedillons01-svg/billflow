@@ -12,6 +12,7 @@ type Company = {
   capture_email_prefix: string | null
   use_items_table: boolean | null
   job_costing_enabled: boolean | null
+  class_tracking_enabled: boolean | null
   fsm_platform: string | null
   notification_emails: string[] | null
   success_notifications: boolean | null
@@ -32,7 +33,7 @@ export default async function SettingsPage({
   const [{ data }, { data: qbAccounts }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, plan_name, credit_balance, stripe_customer_id')
       .single(),
     supabase
       .from('qb_accounts_cache')
@@ -214,6 +215,7 @@ export default async function SettingsPage({
               await updateCompanySettings(company.company_id, {
                 use_items_table: fd.get('use_items_table') === 'on',
                 job_costing_enabled: fd.get('job_costing_enabled') === 'on',
+                class_tracking_enabled: fd.get('class_tracking_enabled') === 'on',
                 fsm_platform: fd.get('fsm_platform') as string || null,
               })
             }}>
@@ -229,6 +231,12 @@ export default async function SettingsPage({
                   defaultChecked={company?.job_costing_enabled ?? false}
                   label="Job costing enabled"
                   helper="When on, job fields appear throughout Purchasomatic and invoices are matched to QuickBooks jobs. When off, job fields are hidden and Purchasomatic is invoice-capture only."
+                />
+                <Toggle
+                  name="class_tracking_enabled"
+                  defaultChecked={company?.class_tracking_enabled ?? false}
+                  label="Class tracking enabled"
+                  helper="When on, a Class field appears on each bill line item for QB class tracking. Only enable if you use class tracking in QuickBooks. Default: off."
                 />
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>

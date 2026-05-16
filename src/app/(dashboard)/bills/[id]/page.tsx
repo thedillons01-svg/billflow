@@ -41,7 +41,7 @@ export default async function BillDetailPage({
     (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
   )
 
-  const [{ data: accounts }, { data: jobs }, { data: companySettings }] = await Promise.all([
+  const [{ data: accounts }, { data: jobs }, { data: classes }, { data: companySettings }] = await Promise.all([
     supabase
       .from('qb_accounts_cache')
       .select('id, qb_account_id, name, account_type')
@@ -53,12 +53,18 @@ export default async function BillDetailPage({
       .eq('company_id', bill.company_id)
       .order('cached_at', { ascending: false }),
     supabase
+      .from('qb_classes_cache')
+      .select('id, qb_class_id, name')
+      .eq('company_id', bill.company_id)
+      .order('name'),
+    supabase
       .from('companies')
-      .select('job_costing_enabled')
+      .select('job_costing_enabled, class_tracking_enabled')
       .single(),
   ])
 
   const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
+  const classTrackingEnabled = companySettings?.class_tracking_enabled ?? false
 
   let pdfSignedUrl: string | null = null
   if (bill.pdf_url) {
@@ -92,7 +98,9 @@ export default async function BillDetailPage({
               ? { vendorId: bill.vendor_id, invoicesProcessed: bill.vendors.invoices_processed }
               : null
           }
+          classes={(classes ?? []) as Parameters<typeof BillReviewForm>[0]['classes']}
           jobCostingEnabled={jobCostingEnabled}
+          classTrackingEnabled={classTrackingEnabled}
         />
       </div>
 
