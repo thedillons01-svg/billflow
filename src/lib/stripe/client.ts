@@ -11,7 +11,7 @@ export function getStripe(): Stripe {
   return _stripe
 }
 
-export type PlanKey = 50 | 100 | 500 | 1000
+export type PlanKey = 200 | 500
 
 export const SUBSCRIPTION_PLANS: Record<PlanKey, {
   priceId: string
@@ -22,49 +22,31 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, {
   rateNote: string
   popular: boolean
 }> = {
-  50: {
-    priceId:    process.env.STRIPE_PRICE_50  ?? '',
-    credits:    50,
-    monthlyUsd: 20,
+  200: {
+    priceId:    process.env.STRIPE_PRICE_200 ?? '',
+    credits:    200,
+    monthlyUsd: 76,
     name:       'Starter',
-    label:      '50 credits / month',
-    rateNote:   '$0.40 / transaction',
-    popular:    false,
-  },
-  100: {
-    priceId:    process.env.STRIPE_PRICE_100 ?? '',
-    credits:    100,
-    monthlyUsd: 40,
-    name:       'Basic',
-    label:      '100 credits / month',
-    rateNote:   '$0.40 / transaction',
+    label:      '200 credits / month',
+    rateNote:   '$0.38 / transaction',
     popular:    false,
   },
   500: {
     priceId:    process.env.STRIPE_PRICE_500 ?? '',
     credits:    500,
-    monthlyUsd: 190,
+    monthlyUsd: 180,
     name:       'Professional',
     label:      '500 credits / month',
-    rateNote:   '$0.38 / transaction — save 5%',
+    rateNote:   '$0.36 / transaction',
     popular:    true,
-  },
-  1000: {
-    priceId:    process.env.STRIPE_PRICE_1000 ?? '',
-    credits:    1000,
-    monthlyUsd: 360,
-    name:       'Business',
-    label:      '1,000 credits / month',
-    rateNote:   '$0.36 / transaction — save 10%',
-    popular:    false,
   },
 }
 
-// One-time top-up bundles — same credit amounts, $0.40 flat rate
+// One-time top-up bundles
 export const TOPUP_BUNDLES: Record<number, { credits: number; amountCents: number; label: string }> = {
-  50:   { credits: 50,   amountCents: 2000,  label: '50 extra credits — $20'   },
-  100:  { credits: 100,  amountCents: 4000,  label: '100 extra credits — $40'  },
-  250:  { credits: 250,  amountCents: 10000, label: '250 extra credits — $100' },
+  100:  { credits: 100,  amountCents: 3800,  label: '100 extra credits — $38'  },
+  250:  { credits: 250,  amountCents: 9500,  label: '250 extra credits — $95'  },
+  500:  { credits: 500,  amountCents: 18000, label: '500 extra credits — $180' },
 }
 
 export const TRIAL_CREDITS = 25
