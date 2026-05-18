@@ -140,11 +140,10 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }
 
     await supabase.from('bills').update({
-      status:         'published',
-      qb_bill_id:     qbBillId,
-      qb_payment_id:  qbPaymentId,
-      publish_method: 'manual',
-      qb_sync_error:  null,
+      status:        'published',
+      qb_bill_id:    qbBillId,
+      qb_payment_id: qbPaymentId,
+      qb_sync_error: null,
     }).eq('bill_id', billId)
 
     await supabase.from('processing_log').insert({

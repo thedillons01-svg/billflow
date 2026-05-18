@@ -34,6 +34,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Cannot publish bill with status "${bill.status}"` }, { status: 400 })
   }
 
+  // Mark as manual publish before calling push (autopublish sets 'auto' before calling)
+  await supabase.from('bills')
+    .update({ publish_method: 'manual' })
+    .eq('bill_id', billId)
+
   try {
     await pushBillToQBO(billId, company.company_id)
     return NextResponse.json({ success: true })
