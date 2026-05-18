@@ -240,17 +240,23 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         glSource = 'qb_default'
       }
 
+      const descLower = desc.toLowerCase()
+      const isTaxLine = ['sales tax', ' tax', 'hst', 'gst', 'pst', 'qst', 'vat', 'excise tax'].some(
+        kw => descLower === kw || descLower.startsWith(kw + ' ') || descLower.endsWith(' ' + kw)
+      )
+
       return {
-        bill_id:          billId,
-        company_id:       bill.company_id,
-        description:      li.description,
-        quantity:         li.quantity,
-        unit_cost:        li.unit_price,
-        extended_cost:    li.total,
-        sort_order:       li.sort_order,
-        gl_account_id:    glAccountId,
+        bill_id:           billId,
+        company_id:        bill.company_id,
+        description:       li.description,
+        quantity:          li.quantity,
+        unit_cost:         li.unit_price,
+        extended_cost:     li.total,
+        sort_order:        li.sort_order,
+        gl_account_id:     glAccountId,
         gl_account_source: glSource,
-        class_id:         vendorDefaultClassId,
+        class_id:          vendorDefaultClassId,
+        is_tax_line:       isTaxLine,
       }
     })
 
