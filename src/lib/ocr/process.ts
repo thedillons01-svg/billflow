@@ -158,7 +158,22 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       vendorDefaultClassId = vendor.billflow_class_id ?? null
       vendorHoldForJobMatch = vendor.hold_for_job_match ?? false
 
-      await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+      const updates: Record<string, unknown> = { vendor_id: vendorId }
+
+      // Increment invoices_processed for non-duplicate bills
+      if (!isDuplicate) {
+        const { data: vCurrent } = await supabase
+          .from('vendors')
+          .select('invoices_processed')
+          .eq('vendor_id', vendorId)
+          .single()
+        await supabase.from('vendors').update({
+          invoices_processed: (vCurrent?.invoices_processed ?? 0) + 1,
+          last_invoice_date: result.invoice_date ?? undefined,
+        }).eq('vendor_id', vendorId)
+      }
+
+      await supabase.from('bills').update(updates).eq('bill_id', billId)
     }
   }
 
