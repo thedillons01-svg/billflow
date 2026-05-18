@@ -9,12 +9,14 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
   const { data: bill } = await supabase
     .from('bills')
     .select(`
-      bill_id, invoice_number, invoice_date, total, vendor_id,
+      bill_id, invoice_number, invoice_date, total, line_items_total, vendor_id,
+      mark_as_paid, payment_account_id, matched_po_id, autopublish_hold_reason,
       bill_line_items ( line_id, gl_account_id, job_id, extended_cost ),
       vendors!bills_vendor_id_fkey (
         vendor_id, auto_publish_enabled, hold_for_job_match,
         invoices_processed, qb_vendor_id, gl_account_source,
-        billflow_gl_account_id, qb_default_gl_account_id
+        billflow_gl_account_id, qb_default_gl_account_id,
+        mark_as_paid_default, default_payment_account_id
       )
     `)
     .eq('bill_id', billId)
@@ -31,6 +33,8 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
     gl_account_source: string
     billflow_gl_account_id: string | null
     qb_default_gl_account_id: string | null
+    mark_as_paid_default: boolean
+    default_payment_account_id: string | null
   } | null
 
   if (!vendor) return { eligible: false, reason: 'No vendor record linked to this bill.' }
@@ -111,6 +115,34 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
     const missingJob = lineItems.filter(li => !li.job_id)
     if (missingJob.length > 0) {
       return { eligible: false, reason: 'All line items must be assigned to a job before auto-publishing.' }
+    }
+  }
+
+  // 9. PO discrepancy hold — if a PO-related hold reason is present, don't auto-publish
+  const holdReason = (b.autopublish_hold_reason as string | null) ?? null
+  if (holdReason && (holdReason.includes('PO') || holdReason.includes('discrepancy'))) {
+    return { eligible: false, reason: holdReason }
+  }
+
+  // 10. Mark as Paid: if vendor default is on, payment account must be set
+  const effectiveMarkAsPaid = (b.mark_as_paid as boolean | null) ?? vendor.mark_as_paid_default
+  if (effectiveMarkAsPaid) {
+    const paymentAccount = (b.payment_account_id as string | null) ?? vendor.default_payment_account_id
+    if (!paymentAccount) {
+      return {
+        eligible: false,
+        reason: 'Auto-publish held: payment account required — vendor is set to Mark as Paid but no payment account is configured.',
+      }
+    }
+  }
+
+  // 12. Line item total must exactly equal invoice total
+  const invoiceTotal = b.total as number | null
+  const lineItemsTotal = lineItems.reduce((sum, li) => sum + (li.extended_cost ?? 0), 0)
+  if (invoiceTotal != null && Math.abs(lineItemsTotal - invoiceTotal) > 0.01) {
+    return {
+      eligible: false,
+      reason: `Auto-publish held: line item total ($${lineItemsTotal.toFixed(2)}) does not match invoice total ($${invoiceTotal.toFixed(2)}) — difference of $${Math.abs(lineItemsTotal - invoiceTotal).toFixed(2)}.`,
     }
   }
 

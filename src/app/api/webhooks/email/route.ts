@@ -56,24 +56,68 @@ export async function POST(request: NextRequest) {
   const localPart = toAddress.split('@')[0].toLowerCase()
   let captureType: 'bill' | 'po' | null = null
   let companyPrefix = localPart
+  let addressHasSuffix = false
 
   if (localPart.endsWith('-bills')) {
     captureType = 'bill'
     companyPrefix = localPart.slice(0, -6) // strip "-bills"
+    addressHasSuffix = true
   } else if (localPart.endsWith('-pos')) {
     captureType = 'po'
     companyPrefix = localPart.slice(0, -4) // strip "-pos"
+    addressHasSuffix = true
   } else {
     // Fallback: guess from subject/body
     const lc = (subject + ' ' + body).toLowerCase()
     captureType = lc.includes('purchase order') || lc.includes('order confirmation') ? 'po' : 'bill'
   }
 
+  // Wrong document type detection (only when address suffix is explicit)
+  if (addressHasSuffix) {
+    const lc = (subject + ' ' + body).toLowerCase()
+    const looksLikePO = lc.includes('purchase order') || lc.includes('order confirmation') || lc.includes('p.o. #') || lc.includes('po #')
+    const looksLikeInvoice = lc.includes('invoice') || lc.includes('statement') || lc.includes('billing')
+
+    if (captureType === 'bill' && looksLikePO && !looksLikeInvoice) {
+      // PO sent to bills address
+      const supabaseEarly = createServiceClient()
+      const { data: co } = await supabaseEarly.from('companies').select('company_id, capture_email_prefix').eq('capture_email_prefix', companyPrefix).single()
+      if (co) {
+        const posAddr = `${co.capture_email_prefix}-pos@purchasomatic.com`
+        await supabaseEarly.from('processing_log').insert({
+          company_id: co.company_id,
+          action: 'wrong_capture_address',
+          actor: 'system',
+          after_state: { from: payload.From, subject, correct_address: posAddr, detected_as: 'purchase_order' },
+        })
+      }
+      console.warn(`[email-webhook] PO sent to bills address — rejected`)
+      return NextResponse.json({ skipped: true, reason: 'wrong_capture_address_po_to_bills' })
+    }
+
+    if (captureType === 'po' && looksLikeInvoice && !looksLikePO) {
+      // Invoice sent to PO address
+      const supabaseEarly = createServiceClient()
+      const { data: co } = await supabaseEarly.from('companies').select('company_id, capture_email_prefix').eq('capture_email_prefix', companyPrefix).single()
+      if (co) {
+        const billsAddr = `${co.capture_email_prefix}-bills@purchasomatic.com`
+        await supabaseEarly.from('processing_log').insert({
+          company_id: co.company_id,
+          action: 'wrong_capture_address',
+          actor: 'system',
+          after_state: { from: payload.From, subject, correct_address: billsAddr, detected_as: 'invoice' },
+        })
+      }
+      console.warn(`[email-webhook] Invoice sent to PO address — rejected`)
+      return NextResponse.json({ skipped: true, reason: 'wrong_capture_address_invoice_to_pos' })
+    }
+  }
+
   const supabase = createServiceClient()
 
   const { data: company } = await supabase
     .from('companies')
-    .select('company_id')
+    .select('company_id, capture_email_prefix')
     .eq('capture_email_prefix', companyPrefix)
     .single()
 
