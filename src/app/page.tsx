@@ -479,10 +479,8 @@ function Features() {
 /* ─── Pricing ─────────────────────────────────────────────────────── */
 
 const PACKAGES = [
-  { credits: 50,   price: 20,  name: 'Starter',      label: '50 credits / month',    rate: '$0.40 / transaction',             popular: false },
-  { credits: 100,  price: 40,  name: 'Basic',        label: '100 credits / month',   rate: '$0.40 / transaction',             popular: false },
-  { credits: 500,  price: 190, name: 'Professional', label: '500 credits / month',   rate: '$0.38 / transaction — save 5%',  popular: true  },
-  { credits: 1000, price: 360, name: 'Business',     label: '1,000 credits / month', rate: '$0.36 / transaction — save 10%', popular: false },
+  { credits: 200, price: 76,  name: 'Starter',      label: '200 credits / month', rate: '$0.38 / transaction', popular: false },
+  { credits: 500, price: 180, name: 'Professional', label: '500 credits / month', rate: '$0.36 / transaction', popular: true  },
 ]
 
 function Pricing() {
@@ -501,7 +499,7 @@ function Pricing() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, maxWidth: 560, margin: '0 auto' }}>
           {PACKAGES.map(pkg => (
             <div
               key={pkg.credits}
@@ -576,7 +574,7 @@ function Pricing() {
             1 credit per invoice or PO · Credits roll over · No charge for duplicates or reprocessing
           </p>
           <p style={{ fontSize: 13, color: '#9CA3AF', marginTop: 4 }}>
-            Need more mid-month? Top up at $0.40 / credit. Cancel any time.
+            Need more mid-month? Top up at $0.38 / credit. Cancel any time.
           </p>
         </div>
       </div>
