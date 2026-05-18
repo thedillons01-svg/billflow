@@ -323,6 +323,16 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   console.log(
     `[ocr] Bill ${billId} processed — tier ${result.tier}, confidence ${result.confidence}, ${result.line_items.length} line items`
   )
+
+  // 9. Immediately attempt auto-publish for this company — eligible bills publish without waiting for cron
+  if (!isDuplicate) {
+    try {
+      const { runAutopublishForCompany } = await import('@/lib/autopublish/engine')
+      await runAutopublishForCompany(bill.company_id)
+    } catch (err) {
+      console.error(`[ocr] Immediate autopublish attempt failed for company ${bill.company_id}:`, err)
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
