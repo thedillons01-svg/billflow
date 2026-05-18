@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { pushBillToQBO } from '@/lib/quickbooks/push'
+import { sendNotification } from '@/lib/notifications/send-email'
 
 type EligibilityResult = { eligible: true } | { eligible: false; reason: string }
 
@@ -209,9 +210,18 @@ export async function runAutopublishForCompany(companyId: string): Promise<{ att
         .eq('bill_id', bill_id)
         .single()
       if (billData?.vendor_id) {
+        const { data: vendorData } = await supabase.from('vendors').select('vendor_name_display, vendor_name_extracted').eq('vendor_id', billData.vendor_id).single()
+        const vendorName = vendorData?.vendor_name_display ?? vendorData?.vendor_name_extracted ?? 'this vendor'
         await supabase.from('vendors')
           .update({ auto_publish_enabled: false })
           .eq('vendor_id', billData.vendor_id)
+        await sendNotification({
+          companyId,
+          event:   'autopublish_disabled',
+          subject: `Auto-publish disabled for ${vendorName}`,
+          body:    `Auto-publish was disabled for ${vendorName} after a QuickBooks sync error. Review the bill and re-enable auto-publish in vendor settings once the issue is resolved.`,
+          billId:  bill_id,
+        })
       }
       failed++
     }
