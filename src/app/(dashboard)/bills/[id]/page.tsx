@@ -76,57 +76,25 @@ export default async function BillDetailPage({
   }
 
   return (
-    <div className="flex" style={{ height: '100%' }}>
-      {/* Left panel: review form */}
-      <div
-        style={{
-          width: 520, flexShrink: 0,
-          display: 'flex', flexDirection: 'column',
-          borderRight: '0.5px solid var(--color-border-tertiary)',
-          background: 'white',
-        }}
-      >
-        <BillReviewForm
-          bill={bill as unknown as Parameters<typeof BillReviewForm>[0]['bill']}
-          lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
-          accounts={(accounts ?? []) as Parameters<typeof BillReviewForm>[0]['accounts']}
-          jobs={(jobs ?? []) as Parameters<typeof BillReviewForm>[0]['jobs']}
-          vendorPromo={
-            bill.vendor_id &&
-            bill.vendors &&
-            !bill.vendors.auto_publish_enabled &&
-            bill.vendors.invoices_processed >= 5
-              ? { vendorId: bill.vendor_id, invoicesProcessed: bill.vendors.invoices_processed }
-              : null
-          }
-          classes={(classes ?? []) as Parameters<typeof BillReviewForm>[0]['classes']}
-          jobCostingEnabled={jobCostingEnabled}
-          classTrackingEnabled={classTrackingEnabled}
-        />
-      </div>
-
-      {/* Right panel: PDF viewer */}
-      <div className="flex-1 overflow-hidden" style={{ background: 'var(--color-background-secondary)' }}>
-        {pdfSignedUrl ? (
-          <iframe
-            src={pdfSignedUrl}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            title="Invoice PDF"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <i className="ti ti-file" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
-              <p style={{ marginTop: 12, fontSize: 14, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
-                No PDF attached
-              </p>
-              <p style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
-                PDFs captured via email will appear here automatically.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+    <div style={{ height: '100%' }}>
+      <BillReviewForm
+        bill={bill as unknown as Parameters<typeof BillReviewForm>[0]['bill']}
+        lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
+        accounts={(accounts ?? []) as Parameters<typeof BillReviewForm>[0]['accounts']}
+        jobs={(jobs ?? []) as Parameters<typeof BillReviewForm>[0]['jobs']}
+        vendorPromo={
+          bill.vendor_id &&
+          bill.vendors &&
+          !bill.vendors.auto_publish_enabled &&
+          bill.vendors.invoices_processed >= 5
+            ? { vendorId: bill.vendor_id, invoicesProcessed: bill.vendors.invoices_processed }
+            : null
+        }
+        classes={(classes ?? []) as Parameters<typeof BillReviewForm>[0]['classes']}
+        jobCostingEnabled={jobCostingEnabled}
+        classTrackingEnabled={classTrackingEnabled}
+        pdfSignedUrl={pdfSignedUrl}
+      />
     </div>
   )
 }

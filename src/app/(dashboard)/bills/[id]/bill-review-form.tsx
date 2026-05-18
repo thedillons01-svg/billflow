@@ -66,6 +66,7 @@ export function BillReviewForm({
   vendorPromo,
   jobCostingEnabled = false,
   classTrackingEnabled = false,
+  pdfSignedUrl = null,
 }: {
   bill: Bill
   lineItems: LineItem[]
@@ -75,9 +76,11 @@ export function BillReviewForm({
   vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
   jobCostingEnabled?: boolean
   classTrackingEnabled?: boolean
+  pdfSignedUrl?: string | null
 }) {
   const router = useRouter()
   const [localStatus, setLocalStatus] = useState(bill.status)
+  const [swapped, setSwapped] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [publishError, setPublishError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState(initialLineItems)
@@ -189,8 +192,17 @@ export function BillReviewForm({
   const isPublished = localStatus === 'published'
   const canReprocess = !isPublished
 
-  return (
-    <>
+  const formPanel = (
+    <div
+      style={{
+        width: 520, flexShrink: 0,
+        display: 'flex', flexDirection: 'column',
+        borderRight: swapped ? 'none' : '0.5px solid var(--color-border-tertiary)',
+        borderLeft: swapped ? '0.5px solid var(--color-border-tertiary)' : 'none',
+        background: 'white',
+        order: swapped ? 1 : 0,
+      }}
+    >
       {/* Fixed header */}
       <div
         className="flex-none px-5 py-3"
@@ -221,14 +233,29 @@ export function BillReviewForm({
               </a>
             )}
           </div>
-          <span style={{
-            display: 'inline-block',
-            background: badge.bg, color: badge.color,
-            borderRadius: 4, padding: '3px 8px',
-            fontSize: 10, fontWeight: 500, flexShrink: 0,
-          }}>
-            {badge.label}
-          </span>
+          <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={() => setSwapped(s => !s)}
+              title="Swap panels"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                width: 28, height: 28, border: '0.5px solid var(--color-border-secondary)',
+                borderRadius: 6, background: 'white', cursor: 'pointer',
+                color: 'var(--color-text-secondary)',
+              }}
+            >
+              <i className="ti ti-layout-columns" style={{ fontSize: 14 }} />
+            </button>
+            <span style={{
+              display: 'inline-block',
+              background: badge.bg, color: badge.color,
+              borderRadius: 4, padding: '3px 8px',
+              fontSize: 10, fontWeight: 500,
+            }}>
+              {badge.label}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -914,7 +941,41 @@ export function BillReviewForm({
           )}
         </div>
       </div>
-    </>
+    </div>
+  )
+
+  const pdfPanel = (
+    <div
+      className="flex-1 overflow-hidden"
+      style={{ background: 'var(--color-background-secondary)', order: swapped ? 0 : 1 }}
+    >
+      {pdfSignedUrl ? (
+        <iframe
+          src={pdfSignedUrl}
+          style={{ width: '100%', height: '100%', border: 'none' }}
+          title="Invoice PDF"
+        />
+      ) : (
+        <div className="flex h-full items-center justify-center">
+          <div className="text-center">
+            <i className="ti ti-file" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
+            <p style={{ marginTop: 12, fontSize: 14, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
+              No PDF attached
+            </p>
+            <p style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
+              PDFs captured via email will appear here automatically.
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className="flex" style={{ height: '100%' }}>
+      {formPanel}
+      {pdfPanel}
+    </div>
   )
 }
 
