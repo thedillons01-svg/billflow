@@ -145,6 +145,28 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       body:    `Bill ${(bill as Record<string, unknown>).invoice_number ?? billId} was successfully pushed to QuickBooks.`,
       billId,
     })
+
+    // Update vendor confidence score based on last 20 published bills
+    const billVendorId = (bill as Record<string, unknown>).vendor_id as string | null
+    if (billVendorId) {
+      const { data: recentPublished } = await supabase
+        .from('bills')
+        .select('publish_method')
+        .eq('vendor_id', billVendorId)
+        .eq('company_id', companyId)
+        .eq('status', 'published')
+        .order('created_at', { ascending: false })
+        .limit(20)
+      if (recentPublished && recentPublished.length > 0) {
+        const autoCount = recentPublished.filter(b => b.publish_method === 'auto').length
+        const ratio = autoCount / recentPublished.length
+        const score = Math.round(ratio * 100) / 100
+        const display = ratio >= 0.8 ? 'high' : ratio >= 0.5 ? 'medium' : 'low'
+        await supabase.from('vendors')
+          .update({ confidence_score: score, confidence_display: display })
+          .eq('vendor_id', billVendorId)
+      }
+    }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     await supabase.from('bills').update({
