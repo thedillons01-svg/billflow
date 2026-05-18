@@ -48,7 +48,7 @@ export async function getExportData(
       bill_id, invoice_number, invoice_date, total,
       vendors!bills_vendor_id_fkey ( vendor_id, vendor_name_display, vendor_name_extracted ),
       bill_line_items (
-        line_id, description, unit_cost, extended_cost, quantity, job_id, sort_order
+        line_id, description, unit_cost, extended_cost, quantity, job_id, sort_order, is_tax_line
       )
     `)
     .eq('company_id', companyId)
@@ -92,8 +92,11 @@ export async function getExportData(
     const vendorName = vendor?.vendor_name_display ?? vendor?.vendor_name_extracted ?? 'Unknown Vendor'
     const lineItems = (b.bill_line_items as Array<{
       line_id: string; description: string | null; unit_cost: number | null;
-      extended_cost: number | null; quantity: number | null; job_id: string | null; sort_order: number
-    }>).sort((a, c) => a.sort_order - c.sort_order)
+      extended_cost: number | null; quantity: number | null; job_id: string | null;
+      sort_order: number; is_tax_line: boolean | null;
+    }>)
+      .filter(li => !li.is_tax_line)
+      .sort((a, c) => a.sort_order - c.sort_order)
 
     // Group line items by job
     const linesByJob = new Map<string, typeof lineItems>()
