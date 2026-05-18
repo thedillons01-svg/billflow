@@ -252,7 +252,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     }
   }
 
-  // 6.5 Deduct 2 credits for the processed bill (only if not a duplicate or reprocess — duplicates and reprocessing are free)
+  // 6.5 Deduct 1 credit for the processed bill (only if not a duplicate or reprocess — those are free)
   if (!isDuplicate && !opts?.skipCredits) {
     const { data: co } = await supabase
       .from('companies')
