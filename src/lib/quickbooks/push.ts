@@ -26,7 +26,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     .from('bills')
     .select(`
       bill_id, invoice_number, invoice_date, due_date, total, description,
-      vendor_po_reference, qb_reference_number,
+      vendor_po_reference, qb_reference_number, bill_type,
       mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
       vendor_id,
       vendors!bills_vendor_id_fkey (
@@ -85,12 +85,16 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     if (b.description) payload.PrivateNote = b.description
     if (refNumber) payload.CustomField = [{ Name: 'RefNumber', StringValue: refNumber }]
 
-    const result = await qbPost('bill', payload)
-    const qbBillId = result?.Bill?.Id ?? null
+    const isCreditNote = b.bill_type === 'credit_note'
+    const endpoint = isCreditNote ? 'vendorcredit' : 'bill'
+    const result = await qbPost(endpoint, payload)
+    const qbBillId = isCreditNote
+      ? (result?.VendorCredit?.Id ?? null)
+      : (result?.Bill?.Id ?? null)
 
-    // Step 12: Mark as Paid — create a linked bill payment if enabled
+    // Step 12: Mark as Paid — create a linked bill payment if enabled (bills only, not vendor credits)
     let qbPaymentId: string | null = null
-    if (b.mark_as_paid && b.payment_account_id && qbBillId) {
+    if (!isCreditNote && b.mark_as_paid && b.payment_account_id && qbBillId) {
       try {
         const paymentPayload: Record<string, unknown> = {
           VendorRef: { value: vendor.qb_vendor_id },
