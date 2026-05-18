@@ -410,7 +410,7 @@ function Features() {
     {
       icon: 'ti-clipboard-check',
       title: 'Receiving workflow',
-      body: 'Your team can check off what actually arrived against the open PO — on any device, from the job site. No more phone calls back to the office asking what was ordered or when it shipped.',
+      body: 'Your team can check what arrived against open POs to see what job it\'s for, if the part is right, and who to notify without digging through a pile of POs.',
     },
     {
       icon: 'ti-plug-connected',
