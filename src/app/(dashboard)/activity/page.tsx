@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { processAnyway } from '@/app/(dashboard)/bills/actions'
 
 export default async function ActivityPage({
   searchParams,
@@ -35,6 +36,7 @@ export default async function ActivityPage({
     number: string
     created_at: string
     capture_source: string
+    is_fingerprint_duplicate: boolean
   }[] = []
 
   if (tab === 'processed') {
@@ -48,7 +50,8 @@ export default async function ActivityPage({
     const [{ data: bills }, { data: pos }] = await Promise.all([
       supabase
         .from('bills')
-        .select('bill_id, vendor_name_raw, invoice_number, created_at, capture_source')
+        .select('bill_id, vendor_name_raw, invoice_number, created_at, capture_source, status')
+        .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(50),
       supabase
@@ -66,6 +69,7 @@ export default async function ActivityPage({
         number: b.invoice_number ?? '—',
         created_at: b.created_at,
         capture_source: b.capture_source ?? 'upload',
+        is_fingerprint_duplicate: b.status === 'fingerprint_duplicate',
       })),
       ...(pos ?? []).map(p => ({
         id: p.po_id,
@@ -74,6 +78,7 @@ export default async function ActivityPage({
         number: p.po_number ?? '—',
         created_at: p.created_at,
         capture_source: p.capture_source ?? 'email',
+        is_fingerprint_duplicate: false,
       })),
     ].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
   }
@@ -174,11 +179,11 @@ export default async function ActivityPage({
               <div
                 className="grid px-5 py-2"
                 style={{
-                  gridTemplateColumns: '0.5fr 1.5fr 1fr 0.8fr 0.8fr',
+                  gridTemplateColumns: '0.5fr 1.5fr 1fr 0.8fr 0.8fr 1fr',
                   borderBottom: '0.5px solid var(--color-border-tertiary)',
                 }}
               >
-                {['Type', 'Vendor', 'Number', 'Source', 'Date'].map(h => (
+                {['Type', 'Vendor', 'Number', 'Source', 'Date', ''].map(h => (
                   <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
                     {h}
                   </span>
@@ -189,9 +194,9 @@ export default async function ActivityPage({
                   key={f.id}
                   className="grid items-center px-5 py-[10px]"
                   style={{
-                    gridTemplateColumns: '0.5fr 1.5fr 1fr 0.8fr 0.8fr',
+                    gridTemplateColumns: '0.5fr 1.5fr 1fr 0.8fr 0.8fr 1fr',
                     borderBottom: '0.5px solid var(--color-border-tertiary)',
-                    background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                    background: f.is_fingerprint_duplicate ? '#FFFBEB' : i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
                   }}
                 >
                   <span
@@ -205,9 +210,17 @@ export default async function ActivityPage({
                   >
                     {f.type}
                   </span>
-                  <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                    {f.vendor}
-                  </span>
+                  <div>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                      {f.vendor}
+                    </span>
+                    {f.is_fingerprint_duplicate && (
+                      <p style={{ fontSize: 10, color: '#92400E', marginTop: 1 }}>
+                        <i className="ti ti-alert-triangle" style={{ fontSize: 10, marginRight: 2 }} />
+                        Duplicate file — same PDF already received
+                      </p>
+                    )}
+                  </div>
                   <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
                     {f.number}
                   </span>
@@ -218,6 +231,24 @@ export default async function ActivityPage({
                   <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                     {new Date(f.created_at).toLocaleDateString()}
                   </span>
+                  <div>
+                    {f.is_fingerprint_duplicate && f.type === 'Bill' && (
+                      <form action={processAnyway.bind(null, f.id)}>
+                        <button
+                          type="submit"
+                          style={{
+                            fontSize: 11, fontWeight: 500,
+                            color: '#92400E', background: '#FEF3C7',
+                            border: '0.5px solid #F59E0B',
+                            borderRadius: 4, padding: '3px 8px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Process Anyway
+                        </button>
+                      </form>
+                    )}
+                  </div>
                 </div>
               ))}
             </>

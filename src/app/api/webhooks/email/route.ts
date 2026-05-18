@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { randomUUID } from 'crypto'
+import { randomUUID, createHash } from 'crypto'
 import { processBill } from '@/lib/ocr/process'
 import { processPO } from '@/lib/ocr/process-po'
 import { splitPdf } from '@/lib/ocr/split-pdf'
@@ -108,6 +108,39 @@ export async function POST(request: NextRequest) {
     }
 
     for (const pdfBytes of pageBufs) {
+      const fingerprint = createHash('sha256').update(pdfBytes).digest('hex')
+
+      // File fingerprint duplicate check — same PDF already received for this company.
+      // Still upload and create the record so the user can "Process Anyway" from the Activity log.
+      let isFingerprintDuplicate = false
+      let originalDocId: string | null = null
+      if (captureType === 'bill') {
+        const { data: fpMatch } = await supabase
+          .from('bills')
+          .select('bill_id')
+          .eq('company_id', company.company_id)
+          .eq('file_fingerprint', fingerprint)
+          .is('deleted_at', null)
+          .neq('status', 'fingerprint_duplicate')
+          .limit(1)
+        if (fpMatch && fpMatch.length > 0) {
+          isFingerprintDuplicate = true
+          originalDocId = fpMatch[0].bill_id
+        }
+      } else {
+        const { data: fpMatch } = await supabase
+          .from('purchase_orders')
+          .select('po_id')
+          .eq('company_id', company.company_id)
+          .eq('file_fingerprint', fingerprint)
+          .is('deleted_at', null)
+          .limit(1)
+        if (fpMatch && fpMatch.length > 0) {
+          isFingerprintDuplicate = true
+          originalDocId = fpMatch[0].po_id
+        }
+      }
+
       const docId = randomUUID()
       const storagePath = `${company.company_id}/${docId}.pdf`
 
@@ -124,11 +157,12 @@ export async function POST(request: NextRequest) {
       if (captureType === 'po') {
         // Create PO record
         const { error: insertErr } = await supabase.from('purchase_orders').insert({
-          po_id:          docId,
-          company_id:     company.company_id,
-          status:         'open',
-          capture_source: 'email',
-          pdf_url:        storagePath,
+          po_id:            docId,
+          company_id:       company.company_id,
+          status:           'open',
+          capture_source:   'email',
+          pdf_url:          storagePath,
+          file_fingerprint: fingerprint,
         })
 
         if (insertErr) {
@@ -151,12 +185,14 @@ export async function POST(request: NextRequest) {
         }
       } else {
         // Create bill record
+        const billStatus = isFingerprintDuplicate ? 'fingerprint_duplicate' : 'draft'
         const { error: insertErr } = await supabase.from('bills').insert({
-          bill_id:        docId,
-          company_id:     company.company_id,
-          status:         'draft',
-          capture_source: 'email',
-          pdf_url:        storagePath,
+          bill_id:          docId,
+          company_id:       company.company_id,
+          status:           billStatus,
+          capture_source:   'email',
+          pdf_url:          storagePath,
+          file_fingerprint: fingerprint,
         })
 
         if (insertErr) {
@@ -169,13 +205,20 @@ export async function POST(request: NextRequest) {
           bill_id:       docId,
           document_type: 'bill',
           company_id:    company.company_id,
-          action:        'captured',
+          action:        isFingerprintDuplicate ? 'fingerprint_duplicate' : 'captured',
           actor:         'system',
-          after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+          after_state:   {
+            capture_source: 'email', from: payload.From, subject, pdf_url: storagePath,
+            ...(isFingerprintDuplicate ? { original_bill_id: originalDocId } : {}),
+          },
         })
 
-        try { await processBill(docId) } catch (err) {
-          console.error(`[email-webhook] processBill threw (${docId}):`, err)
+        if (!isFingerprintDuplicate) {
+          try { await processBill(docId) } catch (err) {
+            console.error(`[email-webhook] processBill threw (${docId}):`, err)
+          }
+        } else {
+          console.warn(`[email-webhook] Fingerprint duplicate held (${docId}), matches ${originalDocId}`)
         }
       }
 

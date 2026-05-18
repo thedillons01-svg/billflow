@@ -33,7 +33,7 @@ export default async function SettingsPage({
   const { qb_connected, qb_error, section } = await searchParams
   const supabase = await createClient()
 
-  const [{ data }, { data: qbAccounts }, { data: qbClasses }] = await Promise.all([
+  const [{ data }, { data: qbAccounts }, { data: qbClasses }, { data: qbdHeartbeat }] = await Promise.all([
     supabase
       .from('companies')
       .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, plan_name, credit_balance, stripe_customer_id')
@@ -47,6 +47,10 @@ export default async function SettingsPage({
       .from('qb_classes_cache')
       .select('id, name, is_hidden')
       .order('name'),
+    supabase
+      .from('qbd_heartbeats')
+      .select('last_heartbeat_at, connector_status')
+      .single(),
   ])
 
   const company = data as Company | null
@@ -134,24 +138,48 @@ export default async function SettingsPage({
           {/* QBD */}
           {company?.qb_type === 'qbd' && (
             <Card title="QuickBooks Desktop" subtitle="Web Connector polls Purchasomatic every 5–30 minutes to sync bills.">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>Web Connector Config</p>
-                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                    Download and add to QuickBooks Web Connector to start syncing.
-                  </p>
+              <div className="space-y-4">
+                {/* Heartbeat status */}
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const status = (qbdHeartbeat as { last_heartbeat_at: string | null; connector_status: string | null } | null)?.connector_status
+                    const lastBeat = (qbdHeartbeat as { last_heartbeat_at: string | null; connector_status: string | null } | null)?.last_heartbeat_at
+                    const dotColor = status === 'running' ? '#2DB87A' : status === 'overdue' ? '#F59E0B' : '#DC2626'
+                    const label = status === 'running' ? 'Connected — polling normally' : status === 'overdue' ? 'Overdue — no recent heartbeat' : lastBeat ? 'Alert — connection lost' : 'Waiting for first connection'
+                    return (
+                      <>
+                        <span style={{ display: 'block', width: 10, height: 10, borderRadius: '50%', background: dotColor, flexShrink: 0 }} />
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{label}</p>
+                          {lastBeat && (
+                            <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                              Last heartbeat: {new Date(lastBeat).toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )
+                  })()}
                 </div>
-                <a
-                  href="/api/quickbooks/qbd-config"
-                  style={{
-                    background: 'white', color: 'var(--color-text-primary)',
-                    border: '0.5px solid var(--color-border-secondary)',
-                    borderRadius: 6, padding: '7px 16px',
-                    fontSize: 13, textDecoration: 'none',
-                  }}
-                >
-                  Download .QWC
-                </a>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>Web Connector Config</p>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                      Download and add to QuickBooks Web Connector to start syncing.
+                    </p>
+                  </div>
+                  <a
+                    href="/api/quickbooks/qbd-config"
+                    style={{
+                      background: 'white', color: 'var(--color-text-primary)',
+                      border: '0.5px solid var(--color-border-secondary)',
+                      borderRadius: 6, padding: '7px 16px',
+                      fontSize: 13, textDecoration: 'none',
+                    }}
+                  >
+                    Download .QWC
+                  </a>
+                </div>
               </div>
             </Card>
           )}

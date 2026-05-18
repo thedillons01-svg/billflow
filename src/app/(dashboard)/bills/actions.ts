@@ -102,3 +102,25 @@ export async function saveVendorClassDefault(vendorId: string, classId: string) 
     class_source: 'Purchasomatic_override',
   }).eq('vendor_id', vendorId)
 }
+
+export async function processAnyway(billId: string) {
+  const supabase = await createClient()
+  await supabase.from('bills').update({ status: 'draft' }).eq('bill_id', billId)
+  // Fire-and-forget OCR in background — the page will reload
+  const { processBill } = await import('@/lib/ocr/process')
+  processBill(billId, { skipCredits: true }).catch(console.error)
+  revalidatePath('/activity')
+}
+
+export async function getVendorBillHistory(vendorId: string, excludeBillId: string) {
+  const supabase = await createClient()
+  const { data } = await supabase
+    .from('bills')
+    .select('bill_id, invoice_number, invoice_date, total, status')
+    .eq('vendor_id', vendorId)
+    .neq('bill_id', excludeBillId)
+    .is('deleted_at', null)
+    .order('invoice_date', { ascending: false })
+    .limit(10)
+  return data ?? []
+}

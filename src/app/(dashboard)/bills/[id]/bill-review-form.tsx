@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useRef, useTransition } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault } from '../actions'
+import { useState, useRef, useTransition, useEffect } from 'react'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, getVendorBillHistory } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -110,6 +110,32 @@ export function BillReviewForm({
   const [classRememberPrompt, setClassRememberPrompt] = useState<{
     lineId: string; classId: string; className: string
   } | null>(null)
+  // Invoice history popover
+  const [showHistory, setShowHistory] = useState(false)
+  const [historyBills, setHistoryBills] = useState<Array<{
+    bill_id: string; invoice_number: string | null; invoice_date: string | null; total: number | null; status: string
+  }> | null>(null)
+  const historyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!showHistory) return
+    const handler = (e: MouseEvent) => {
+      if (historyRef.current && !historyRef.current.contains(e.target as Node)) {
+        setShowHistory(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showHistory])
+
+  const handleShowHistory = async () => {
+    if (!bill.vendor_id) return
+    setShowHistory(s => !s)
+    if (historyBills === null) {
+      const data = await getVendorBillHistory(bill.vendor_id, bill.bill_id)
+      setHistoryBills(data)
+    }
+  }
 
   const expenseAccounts = accounts.filter(a =>
     ['Expense', 'Cost of Goods Sold', 'OtherCurrentLiability'].includes(a.account_type ?? '')
@@ -234,6 +260,73 @@ export function BillReviewForm({
             )}
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+            {bill.vendor_id && (
+              <div style={{ position: 'relative' }} ref={historyRef}>
+                <button
+                  type="button"
+                  onClick={handleShowHistory}
+                  title="Previous invoices from this vendor"
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    width: 28, height: 28, border: '0.5px solid var(--color-border-secondary)',
+                    borderRadius: 6, background: showHistory ? '#EBF5EF' : 'white', cursor: 'pointer',
+                    color: showHistory ? '#1A3D2B' : 'var(--color-text-secondary)',
+                  }}
+                >
+                  <i className="ti ti-history" style={{ fontSize: 14 }} />
+                </button>
+                {showHistory && (
+                  <div style={{
+                    position: 'absolute', top: 32, right: 0, zIndex: 50,
+                    width: 320, background: 'white',
+                    border: '0.5px solid var(--color-border-secondary)',
+                    borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,0.10)',
+                    overflow: 'hidden',
+                  }}>
+                    <div style={{ padding: '10px 14px', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+                      <p style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Previous invoices from this vendor
+                      </p>
+                    </div>
+                    {historyBills === null ? (
+                      <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--color-text-tertiary)' }}>Loading…</div>
+                    ) : historyBills.length === 0 ? (
+                      <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--color-text-tertiary)' }}>No previous invoices</div>
+                    ) : historyBills.map((b, i) => (
+                      <Link
+                        key={b.bill_id}
+                        href={`/bills/${b.bill_id}`}
+                        onClick={() => setShowHistory(false)}
+                        style={{
+                          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                          padding: '9px 14px',
+                          background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                          textDecoration: 'none',
+                          borderTop: i === 0 ? 'none' : '0.5px solid var(--color-border-tertiary)',
+                        }}
+                      >
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                            {b.invoice_number ?? '—'}
+                          </p>
+                          <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                            {b.invoice_date ? new Date(b.invoice_date).toLocaleDateString() : '—'}
+                          </p>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: 12, color: 'var(--color-text-primary)' }}>
+                            {b.total != null ? `$${Number(b.total).toFixed(2)}` : '—'}
+                          </p>
+                          <p style={{ fontSize: 10, color: STATUS_BADGE[b.status]?.color ?? 'var(--color-text-secondary)' }}>
+                            {STATUS_BADGE[b.status]?.label ?? b.status}
+                          </p>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <button
               type="button"
               onClick={() => setSwapped(s => !s)}
