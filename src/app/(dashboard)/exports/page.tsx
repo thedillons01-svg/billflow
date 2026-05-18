@@ -57,7 +57,11 @@ export default async function ExportsPage() {
       <div className="flex-1 overflow-auto px-5 py-5">
         <div style={{ maxWidth: 700 }} className="space-y-5">
 
-          <ExportForm vendors={vendorOptions} jobs={jobOptions} />
+          <ExportForm
+            vendors={vendorOptions}
+            jobs={jobOptions}
+            lastExportDate={recentExports?.[0]?.export_date ?? null}
+          />
 
           {/* Export history */}
           {recentExports && recentExports.length > 0 && (

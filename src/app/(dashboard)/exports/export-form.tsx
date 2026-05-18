@@ -8,12 +8,14 @@ type Option = { id: string; label: string }
 export function ExportForm({
   vendors,
   jobs,
+  lastExportDate,
 }: {
   vendors: Option[]
   jobs: Option[]
+  lastExportDate?: string | null
 }) {
   const [format, setFormat] = useState<'excel' | 'pdf'>('excel')
-  const [dateStart, setDateStart] = useState('')
+  const [dateStart, setDateStart] = useState(lastExportDate ? lastExportDate.slice(0, 10) : '')
   const [dateEnd, setDateEnd] = useState('')
   const [selectedVendors, setSelectedVendors] = useState<string[]>([])
   const [selectedJobs, setSelectedJobs] = useState<string[]>([])
