@@ -141,10 +141,11 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   let vendorId: string | null = null
   let vendorDefaultGlAccountId: string | null = null
   let vendorDefaultClassId: string | null = null
+  let vendorHoldForJobMatch = false
   if (result.vendor_name_raw) {
     const { data: vendor } = await supabase
       .from('vendors')
-      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id')
+      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match')
       .eq('company_id', bill.company_id)
       .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
       .limit(1)
@@ -155,6 +156,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       vendorDefaultGlAccountId =
         vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
       vendorDefaultClassId = vendor.billflow_class_id ?? null
+      vendorHoldForJobMatch = vendor.hold_for_job_match ?? false
 
       await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
     }
@@ -240,6 +242,16 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
+  // 6.2 Job matching — if vendor has hold_for_job_match and no job is matched, hold bill
+  if (!isDuplicate && vendorHoldForJobMatch && result.vendor_po_reference) {
+    const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, result.vendor_po_reference)
+    if (!jobMatched) {
+      await supabase.from('bills')
+        .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — PO reference: ${result.vendor_po_reference}` })
+        .eq('bill_id', billId)
+    }
+  }
+
   // 6.5 Deduct 2 credits for the processed bill (only if not a duplicate or reprocess — duplicates and reprocessing are free)
   if (!isDuplicate && !opts?.skipCredits) {
     const { data: co } = await supabase
@@ -288,6 +300,47 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   console.log(
     `[ocr] Bill ${billId} processed — tier ${result.tier}, confidence ${result.confidence}, ${result.line_items.length} line items`
   )
+}
+
+// ---------------------------------------------------------------------------
+// Job matching — match bill to QB job by PO reference field
+// ---------------------------------------------------------------------------
+
+export async function tryMatchJob(
+  supabase: SupabaseClient,
+  billId: string,
+  companyId: string,
+  poReference: string,
+): Promise<boolean> {
+  const normalised = poReference.trim().toLowerCase()
+
+  const { data: jobs } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id, job_number, job_name')
+    .eq('company_id', companyId)
+
+  if (!jobs || jobs.length === 0) return false
+
+  const match = jobs.find(j =>
+    j.job_number?.trim().toLowerCase() === normalised ||
+    j.job_name?.trim().toLowerCase() === normalised
+  )
+
+  if (!match) return false
+
+  // Apply job to all line items for this bill
+  await supabase
+    .from('bill_line_items')
+    .update({ job_id: match.qb_job_id })
+    .eq('bill_id', billId)
+
+  await supabase
+    .from('bills')
+    .update({ status: 'ready', autopublish_hold_reason: null })
+    .eq('bill_id', billId)
+
+  console.log(`[ocr] Bill ${billId} job-matched to ${match.qb_job_id}`)
+  return true
 }
 
 // ---------------------------------------------------------------------------

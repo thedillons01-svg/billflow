@@ -440,8 +440,14 @@ export function BillReviewForm({
               <button
                 onClick={() => {
                   startTransition(async () => {
-                    const res = await fetch('/api/quickbooks/sync', { method: 'POST' })
-                    if (res.ok) router.refresh()
+                    const res = await fetch(`/api/bills/${bill.bill_id}/find-match`, { method: 'POST' })
+                    if (res.ok) {
+                      const json = await res.json()
+                      if (json.matched) {
+                        setLocalStatus('ready')
+                      }
+                      router.refresh()
+                    }
                   })
                 }}
                 disabled={isPending}
@@ -452,7 +458,7 @@ export function BillReviewForm({
                   opacity: isPending ? 0.6 : 1,
                 }}
               >
-                Find Match
+                {isPending ? 'Searching…' : 'Find Match'}
               </button>
             </div>
           )}
