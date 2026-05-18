@@ -48,6 +48,13 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     throw new Error('Vendor not linked to QuickBooks — set the QB vendor on the vendor record first.')
   }
 
+  const { data: companySettings } = await supabase
+    .from('companies')
+    .select('qb_ref_source')
+    .eq('company_id', companyId)
+    .single()
+  const qbRefSource = companySettings?.qb_ref_source ?? 'po_number'
+
   await supabase.from('bills').update({ status: 'publishing', qb_sync_error: null }).eq('bill_id', billId)
 
   try {
@@ -71,9 +78,17 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }))
 
     const b = bill as Record<string, unknown>
-    const refNumber = vendor.copy_po_to_qb_reference
-      ? (b.qb_reference_number ?? b.vendor_po_reference ?? undefined)
-      : (b.qb_reference_number ?? undefined)
+    // Compute QB Ref No: vendor flag copy_po_to_qb_reference overrides company qb_ref_source setting
+    let refNumber: string | undefined
+    if (vendor.copy_po_to_qb_reference) {
+      refNumber = (b.qb_reference_number as string | null) ?? (b.vendor_po_reference as string | null) ?? undefined
+    } else if (qbRefSource === 'invoice_number') {
+      refNumber = (b.qb_reference_number as string | null) ?? (b.invoice_number as string | null) ?? undefined
+    } else if (qbRefSource === 'po_number') {
+      refNumber = (b.qb_reference_number as string | null) ?? (b.vendor_po_reference as string | null) ?? undefined
+    } else {
+      refNumber = (b.qb_reference_number as string | null) ?? undefined
+    }
 
     const payload: Record<string, unknown> = {
       Line: qboLines,
