@@ -26,6 +26,7 @@ type SupabaseClient = ReturnType<typeof getServiceClient>
 
 async function markOcrError(supabase: SupabaseClient, billId: string, error: string): Promise<void> {
   console.error(`[ocr] ${billId} → ocr_error: ${error}`)
+  const { data: bill } = await supabase.from('bills').select('company_id').eq('bill_id', billId).single()
   await Promise.all([
     supabase.from('bills').update({ status: 'ocr_error' }).eq('bill_id', billId),
     supabase.from('processing_log').insert({
@@ -34,6 +35,13 @@ async function markOcrError(supabase: SupabaseClient, billId: string, error: str
       actor:       'system',
       after_state: { status: 'ocr_error', error },
     }),
+    ...(bill?.company_id ? [sendNotification({
+      companyId:  bill.company_id,
+      event:      'pdf_unreadable',
+      subject:    'PDF could not be read',
+      body:       `A bill PDF could not be extracted automatically: ${error}. You can reprocess it or fill in the fields manually.`,
+      billId,
+    })] : []),
   ])
 }
 
@@ -130,7 +138,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     console.log(`[ocr] Bill ${billId} flagged as duplicate`)
     await sendNotification({
       companyId:  bill.company_id,
-      event:      'wrong_capture_address',
+      event:      'duplicate_held',
       subject:    `Duplicate invoice held`,
       body:       `Invoice ${result.invoice_number} from ${result.vendor_name_raw} already exists. The duplicate has been held for review.`,
       billId,

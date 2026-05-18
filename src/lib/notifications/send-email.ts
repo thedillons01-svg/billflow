@@ -27,6 +27,8 @@ export type NotificationEvent =
   | 'qb_heartbeat_lost'
   | 'wrong_capture_address'
   | 'unrecognized_sender'
+  | 'pdf_unreadable'
+  | 'duplicate_held'
 
 const ERROR_EVENTS: NotificationEvent[] = [
   'bill_sync_error',
@@ -35,6 +37,8 @@ const ERROR_EVENTS: NotificationEvent[] = [
   'qb_heartbeat_lost',
   'wrong_capture_address',
   'unrecognized_sender',
+  'pdf_unreadable',
+  'duplicate_held',
 ]
 
 export async function sendNotification({
