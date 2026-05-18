@@ -118,6 +118,24 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
     }
   }
 
+  // 8b. Jobs assigned to line items must exist in QB
+  const assignedJobIds = [...new Set(lineItems.map(li => li.job_id).filter(Boolean))] as string[]
+  if (assignedJobIds.length > 0) {
+    const { data: knownJobs } = await supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id')
+      .eq('company_id', companyId)
+      .in('qb_job_id', assignedJobIds)
+    const knownJobIds = new Set((knownJobs ?? []).map(j => j.qb_job_id))
+    const missingJobs = assignedJobIds.filter(jid => !knownJobIds.has(jid))
+    if (missingJobs.length > 0) {
+      return {
+        eligible: false,
+        reason: `Auto-publish held: ${missingJobs.length === 1 ? 'a matched job is' : 'matched jobs are'} not yet in QuickBooks — waiting for job to sync from FSM.`,
+      }
+    }
+  }
+
   // 9. PO discrepancy hold — if a PO-related hold reason is present, don't auto-publish
   const holdReason = (b.autopublish_hold_reason as string | null) ?? null
   if (holdReason && (holdReason.includes('PO') || holdReason.includes('discrepancy'))) {
