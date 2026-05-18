@@ -132,7 +132,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       bill_id:       billId,
       company_id:    companyId,
       document_type: 'bill',
-      credits_used:  2,
+      credits_used:  0,
       action:        'published_to_qbo',
       actor:         'system',
       after_state:   { qb_bill_id: qbBillId, qb_payment_id: qbPaymentId },
