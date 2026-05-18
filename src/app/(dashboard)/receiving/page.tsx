@@ -1,8 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
 
 export default async function ReceivingPage() {
   const supabase = await createClient()
+  const serviceClient = createServiceClient()
 
   const [{ data: openPOs }, { data: jobs }, { data: { user } }] = await Promise.all([
     supabase
@@ -18,6 +20,25 @@ export default async function ReceivingPage() {
     supabase.from('qb_jobs_cache').select('qb_job_id, job_number, job_name, customer_name'),
     supabase.auth.getUser(),
   ])
+
+  // Build a map of user_id → display name using auth.admin
+  const creatorIds = [...new Set((openPOs ?? []).map(p => p.created_by).filter(Boolean) as string[])]
+  const userNameMap = new Map<string, string>()
+  if (creatorIds.length > 0) {
+    await Promise.all(
+      creatorIds.map(async (uid) => {
+        try {
+          const { data } = await serviceClient.auth.admin.getUserById(uid)
+          if (data?.user) {
+            const email = data.user.email ?? ''
+            const meta = data.user.user_metadata as Record<string, string> | undefined
+            const name = meta?.full_name ?? meta?.name ?? email.split('@')[0] ?? uid.slice(0, 8)
+            userNameMap.set(uid, name)
+          }
+        } catch { /* silent */ }
+      })
+    )
+  }
 
   const jobMap = new Map((jobs ?? []).map(j => [
     j.qb_job_id,
@@ -92,7 +113,7 @@ export default async function ReceivingPage() {
                       <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                         {po.order_date ? `Ordered ${new Date(po.order_date).toLocaleDateString()}` : ''}
                         {po.job_id ? ` · ${jobMap.get(po.job_id) ?? po.job_id}` : ''}
-                        {po.created_by ? ` · ${po.created_by === user?.id ? 'You' : 'Team member'}` : ''}
+                        {po.created_by ? ` · Ordered by ${po.created_by === user?.id ? 'you' : (userNameMap.get(po.created_by) ?? 'team member')}` : ''}
                       </p>
                     </div>
                     <span
