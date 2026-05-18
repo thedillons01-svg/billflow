@@ -4,6 +4,7 @@ import { processBill } from '@/lib/ocr/process'
 import { processPO } from '@/lib/ocr/process-po'
 import { splitPdf } from '@/lib/ocr/split-pdf'
 import { createServiceClient } from '@/lib/supabase/service'
+import { sendNotification } from '@/lib/notifications/send-email'
 
 export const maxDuration = 60
 
@@ -90,6 +91,12 @@ export async function POST(request: NextRequest) {
           actor: 'system',
           after_state: { from: payload.From, subject, correct_address: posAddr, detected_as: 'purchase_order' },
         })
+        await sendNotification({
+          companyId: co.company_id,
+          event:     'wrong_capture_address',
+          subject:   'Document sent to wrong address',
+          body:      `A purchase order was sent to your bills address. Forward it to ${posAddr} instead. No credit was charged.`,
+        })
       }
       console.warn(`[email-webhook] PO sent to bills address — rejected`)
       return NextResponse.json({ skipped: true, reason: 'wrong_capture_address_po_to_bills' })
@@ -106,6 +113,12 @@ export async function POST(request: NextRequest) {
           action: 'wrong_capture_address',
           actor: 'system',
           after_state: { from: payload.From, subject, correct_address: billsAddr, detected_as: 'invoice' },
+        })
+        await sendNotification({
+          companyId: co.company_id,
+          event:     'wrong_capture_address',
+          subject:   'Document sent to wrong address',
+          body:      `An invoice was sent to your PO address. Forward it to ${billsAddr} instead. No credit was charged.`,
         })
       }
       console.warn(`[email-webhook] Invoice sent to PO address — rejected`)
