@@ -72,6 +72,8 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       ...(li.description ? { Description: li.description } : {}),
       AccountBasedExpenseLineDetail: {
         AccountRef: { value: li.gl_account_id! },
+        ...(li.quantity != null ? { Qty: li.quantity } : {}),
+        ...(li.unit_cost != null ? { UnitPrice: li.unit_cost } : {}),
         ...(li.job_id ? { CustomerRef: { value: li.job_id } } : {}),
         ...(li.class_id ? { ClassRef: { value: li.class_id } } : {}),
       },
@@ -96,9 +98,9 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }
     if (b.invoice_date) payload.TxnDate = b.invoice_date
     if (b.due_date) payload.DueDate = b.due_date
-    if (b.invoice_number) payload.DocNumber = b.invoice_number
+    // DocNumber is the QB "Ref No." field — use the value from qb_ref_source
+    if (refNumber) payload.DocNumber = refNumber
     if (b.description) payload.PrivateNote = b.description
-    if (refNumber) payload.CustomField = [{ Name: 'RefNumber', StringValue: refNumber }]
 
     const isCreditNote = b.bill_type === 'credit_note'
     const endpoint = isCreditNote ? 'vendorcredit' : 'bill'
