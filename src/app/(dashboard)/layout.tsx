@@ -1,9 +1,12 @@
 import { createClient } from '@/lib/supabase/server'
 import { SidebarNav } from '@/components/sidebar-nav'
+import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
 
   let notifications: {
     id: string
@@ -30,6 +33,11 @@ export default async function DashboardLayout({ children }: { children: React.Re
     .from('companies')
     .select('job_costing_enabled')
     .single()
+
+  // Redirect to onboarding if user has no company, except when already there
+  const hdrs = await headers()
+  const pathname = hdrs.get('x-pathname') ?? ''
+  if (!company && !pathname.startsWith('/onboarding')) redirect('/onboarding')
 
   const jobCostingEnabled = company?.job_costing_enabled ?? false
 
