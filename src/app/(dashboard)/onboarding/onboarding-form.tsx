@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { saveCompanySetup } from './actions'
+import { useState, useTransition } from 'react'
+import { saveCompanySetupStep1 } from './actions'
 
 const FSM_OPTIONS = [
   { value: 'hcp', label: 'Housecall Pro' },
@@ -30,22 +30,33 @@ export function OnboardingForm({
   defaultFsm: string
   defaultJobCosting: boolean
 }) {
-  const [step, setStep] = useState(1)
+  const [step, setStep] = useState(defaultName ? 2 : 1)
   const [name, setName] = useState(defaultName)
   const [qbType, setQbType] = useState<'qbo' | 'qbd'>(defaultQbType)
   const [fsm, setFsm] = useState(defaultFsm)
   const [jobCosting, setJobCosting] = useState(defaultJobCosting)
   const [nameError, setNameError] = useState('')
+  const [isPending, startTransition] = useTransition()
 
-  const handleNext = () => {
-    if (step === 1) {
-      if (!name.trim()) {
-        setNameError('Company name is required.')
-        return
-      }
-      setNameError('')
+  // Capture address preview (before company is saved, use the name to preview)
+  const prefixPreview = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'yourcompany'
+
+  const handleStep1 = () => {
+    if (!name.trim()) {
+      setNameError('Company name is required.')
+      return
     }
-    setStep(s => s + 1)
+    setNameError('')
+    // Save company (no redirect) so it exists before QB connect on step 2
+    startTransition(async () => {
+      const fd = new FormData()
+      fd.set('name', name.trim())
+      fd.set('qb_type', qbType)
+      fd.set('fsm_platform', fsm)
+      fd.set('job_costing_enabled', String(jobCosting))
+      await saveCompanySetupStep1(fd)
+      setStep(2)
+    })
   }
 
   return (
@@ -76,6 +87,7 @@ export function OnboardingForm({
       </div>
 
       <div style={{ padding: '24px 32px' }}>
+        {/* Step 1: Company setup — saves immediately so company exists before QB connect */}
         {step === 1 && (
           <div className="space-y-4">
             <div>
@@ -128,11 +140,7 @@ export function OnboardingForm({
               <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                 Field Service Platform <span style={{ fontWeight: 400 }}>(optional)</span>
               </label>
-              <select
-                value={fsm}
-                onChange={e => setFsm(e.target.value)}
-                style={{ ...inputStyle }}
-              >
+              <select value={fsm} onChange={e => setFsm(e.target.value)} style={{ ...inputStyle }}>
                 {FSM_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
@@ -159,18 +167,21 @@ export function OnboardingForm({
 
             <button
               type="button"
-              onClick={handleNext}
+              onClick={handleStep1}
+              disabled={isPending}
               style={{
                 width: '100%', background: '#2DB87A', color: 'white',
                 borderRadius: 8, padding: '10px', fontSize: 14, fontWeight: 600,
-                border: 'none', cursor: 'pointer',
+                border: 'none', cursor: isPending ? 'default' : 'pointer',
+                opacity: isPending ? 0.7 : 1,
               }}
             >
-              Continue
+              {isPending ? 'Saving…' : 'Continue'}
             </button>
           </div>
         )}
 
+        {/* Step 2: Connect QuickBooks — company now exists so OAuth can proceed */}
         {step === 2 && (
           <div className="space-y-4">
             <div>
@@ -233,9 +244,9 @@ export function OnboardingForm({
                     'Download your Purchasomatic .QWC config file (button below)',
                     'In QuickBooks Desktop, go to File → App Center → Update Web Services',
                     'Add the .QWC file and enter your Purchasomatic password',
-                  ].map((step, i) => (
+                  ].map((s, i) => (
                     <p key={i} style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6 }}>
-                      {i + 1}. {step}
+                      {i + 1}. {s}
                     </p>
                   ))}
                 </div>
@@ -268,13 +279,9 @@ export function OnboardingForm({
           </div>
         )}
 
+        {/* Step 3: Email forwarding */}
         {step === 3 && (
-          <form action={saveCompanySetup} className="space-y-4">
-            <input type="hidden" name="name" value={name} />
-            <input type="hidden" name="qb_type" value={qbType} />
-            <input type="hidden" name="fsm_platform" value={fsm} />
-            <input type="hidden" name="job_costing_enabled" value={String(jobCosting)} />
-
+          <div className="space-y-4">
             <div>
               <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>Email Forwarding</p>
               <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 2 }}>
@@ -290,10 +297,10 @@ export function OnboardingForm({
               }}
             >
               <p style={{ fontSize: 11, fontWeight: 600, color: '#1A3D2B', marginBottom: 4 }}>
-                Your Purchasomatic capture address
+                Your capture address for invoices
               </p>
               <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#1A3D2B', wordBreak: 'break-all' }}>
-                <strong>{name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'yourcompany'}</strong>-bills@purchasomatic.com
+                {prefixPreview}-bills@purchasomatic.com
               </p>
             </div>
 
@@ -311,24 +318,25 @@ export function OnboardingForm({
                 'Log in to your email provider (Gmail, Outlook, etc.)',
                 'Set up a forwarding rule: emails with "invoice" in the subject → forward to the address above',
                 'Ask your vendors to email invoices to you as usual — Purchasomatic handles the rest',
-              ].map((step, i) => (
+              ].map((s, i) => (
                 <p key={i} style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6 }}>
-                  {i + 1}. {step}
+                  {i + 1}. {s}
                 </p>
               ))}
             </div>
 
-            <button
-              type="submit"
+            <a
+              href="/bills"
               style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
                 width: '100%', background: '#2DB87A', color: 'white',
                 borderRadius: 8, padding: '10px', fontSize: 14, fontWeight: 600,
-                border: 'none', cursor: 'pointer',
+                textDecoration: 'none',
               }}
             >
-              Finish Setup →
-            </button>
-          </form>
+              Start capturing invoices →
+            </a>
+          </div>
         )}
       </div>
     </>

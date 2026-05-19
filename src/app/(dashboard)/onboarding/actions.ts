@@ -69,3 +69,64 @@ export async function saveCompanySetup(formData: FormData) {
 
   redirect('/bills')
 }
+
+// Same as saveCompanySetup but does NOT redirect — used by step 1 of the onboarding form
+// so the company exists before the user clicks "Connect QuickBooks" on step 2.
+export async function saveCompanySetupStep1(formData: FormData) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const name = formData.get('name') as string
+  const qbType = formData.get('qb_type') as 'qbo' | 'qbd' | null
+  const fsmPlatform = (formData.get('fsm_platform') as string) || 'unknown'
+  const jobCostingEnabled = formData.get('job_costing_enabled') === 'true'
+
+  const service = createServiceClient()
+
+  const { data: membership } = await service
+    .from('company_members')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (membership) {
+    await service.from('companies')
+      .update({
+        name: name.trim(),
+        qb_type: qbType,
+        fsm_platform: fsmPlatform,
+        job_costing_enabled: jobCostingEnabled,
+      })
+      .eq('company_id', membership.company_id)
+  } else {
+    const capturePrefix = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) + randomBytes(3).toString('hex')
+
+    const { data: newCompany, error } = await service.from('companies').insert({
+      name: name.trim(),
+      qb_type: qbType,
+      fsm_platform: fsmPlatform,
+      job_costing_enabled: jobCostingEnabled,
+      capture_email_prefix: capturePrefix,
+    }).select('company_id').single()
+
+    if (error || !newCompany) throw new Error('Failed to create company')
+
+    await service.from('company_members').insert({
+      user_id: user.id,
+      company_id: newCompany.company_id,
+      role: 'owner',
+    })
+
+    await service.from('companies')
+      .update({ credit_balance: 25, subscription_status: 'trial' })
+      .eq('company_id', newCompany.company_id)
+
+    await service.from('credit_ledger').insert({
+      company_id:  newCompany.company_id,
+      amount:      25,
+      description: 'Free trial — 25 credits',
+    })
+  }
+  // No redirect — caller advances the step in client state
+}
