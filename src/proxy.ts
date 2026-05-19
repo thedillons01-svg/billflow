@@ -2,7 +2,13 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const { pathname } = request.nextUrl
+
+  // Pass pathname to server components via header (used by dashboard layout for onboarding redirect)
+  const requestHeaders = new Headers(request.headers)
+  requestHeaders.set('x-pathname', pathname)
+
+  let supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,7 +22,7 @@ export async function proxy(request: NextRequest) {
           cookiesToSet.forEach(({ name, value }) =>
             request.cookies.set(name, value)
           )
-          supabaseResponse = NextResponse.next({ request })
+          supabaseResponse = NextResponse.next({ request: { headers: requestHeaders } })
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           )
@@ -28,12 +34,9 @@ export async function proxy(request: NextRequest) {
   // Refresh session — do not add logic between createServerClient and getUser
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
-
   const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup')
-  const isDashboardRoute = pathname.startsWith('/bills') ||
-    pathname.startsWith('/jobs') ||
-    pathname.startsWith('/settings')
+  const isPublicApiRoute = pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/quickbooks/callback')
+  const isDashboardRoute = !isAuthRoute && !isPublicApiRoute && !pathname.startsWith('/api/')
 
   if (!user && isDashboardRoute) {
     const url = request.nextUrl.clone()
