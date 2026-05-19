@@ -45,7 +45,7 @@ export default async function VendorsPage() {
               No vendors yet
             </h2>
             <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6, maxWidth: 380 }}>
-              Vendors are created automatically when invoices arrive. Forward an invoice to get started.
+              Connect QuickBooks to import your vendor list, or forward a vendor invoice and Purchasomatic will create the vendor record automatically.
             </p>
           </div>
         ) : (

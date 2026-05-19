@@ -64,7 +64,7 @@ export async function processPO(poId: string): Promise<void> {
     })
     .eq('po_id', poId)
 
-  // Vendor matching — find vendor by extracted name
+  // Vendor matching — find existing vendor or create new record
   if (result.vendor_name_raw) {
     const { data: vendor } = await supabase
       .from('vendors')
@@ -76,6 +76,40 @@ export async function processPO(poId: string): Promise<void> {
 
     if (vendor) {
       await supabase.from('purchase_orders').update({ vendor_id: vendor.vendor_id }).eq('po_id', poId)
+    } else {
+      // New vendor — try to match from QB cache, then create
+      const { data: qbMatch } = await supabase
+        .from('qb_vendors_cache')
+        .select('qb_vendor_id, name, default_expense_account_id, payment_terms')
+        .eq('company_id', po.company_id)
+        .ilike('name', `%${result.vendor_name_raw}%`)
+        .limit(1)
+        .single()
+
+      const { data: created } = await supabase
+        .from('vendors')
+        .insert({
+          company_id:               po.company_id,
+          vendor_name_extracted:    result.vendor_name_raw,
+          vendor_name_display:      qbMatch?.name ?? result.vendor_name_raw,
+          qb_vendor_id:             qbMatch?.qb_vendor_id ?? null,
+          qb_vendor_name:           qbMatch?.name ?? null,
+          qb_default_gl_account_id: qbMatch?.default_expense_account_id ?? null,
+          gl_account_source:        qbMatch?.default_expense_account_id ? 'qb_default' : 'not_set',
+          qb_payment_terms:         qbMatch?.payment_terms ?? null,
+          payment_terms_source:     qbMatch?.payment_terms ? 'qb_default' : 'not_set',
+          copy_po_to_qb_reference:  true,
+          is_visible:               true,
+          auto_publish_enabled:     false,
+          hold_for_job_match:       false,
+          invoices_processed:       0,
+        })
+        .select('vendor_id')
+        .single()
+
+      if (created) {
+        await supabase.from('purchase_orders').update({ vendor_id: created.vendor_id }).eq('po_id', poId)
+      }
     }
   }
 
