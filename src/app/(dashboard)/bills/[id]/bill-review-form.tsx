@@ -23,11 +23,14 @@ type LineItem = {
   gl_account_source: string | null
 }
 
+type Vendor = { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null }
+
 type Bill = {
   bill_id: string
   company_id: string
   vendor_id: string | null
   vendor_name_raw: string | null
+  vendor_name_display: string | null
   invoice_number: string | null
   invoice_date: string | null
   due_date: string | null
@@ -64,6 +67,7 @@ export function BillReviewForm({
   jobs,
   classes,
   vendorPromo,
+  vendors = [],
   jobCostingEnabled = false,
   classTrackingEnabled = false,
   pdfSignedUrl = null,
@@ -74,6 +78,7 @@ export function BillReviewForm({
   jobs: Job[]
   classes: QBClass[]
   vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
+  vendors?: Vendor[]
   jobCostingEnabled?: boolean
   classTrackingEnabled?: boolean
   pdfSignedUrl?: string | null
@@ -245,7 +250,7 @@ export function BillReviewForm({
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 min-w-0">
             <h1 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {bill.vendor_name_raw ?? 'Unknown Vendor'}
+              {bill.vendor_name_display ?? bill.vendor_name_raw ?? 'Unknown Vendor'}
             </h1>
             {bill.vendor_id && (
               <a
@@ -501,6 +506,24 @@ export function BillReviewForm({
           {/* INVOICE DETAILS */}
           <Section title="Invoice Details">
             <div className="grid grid-cols-2 gap-3">
+              {vendors.length > 0 && (
+                <div className="col-span-2">
+                  <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
+                    <select
+                      defaultValue={bill.vendor_id ?? ''}
+                      onChange={e => updateBill(bill.bill_id, { vendor_id: e.target.value || null })}
+                      style={selectStyle}
+                    >
+                      <option value="">— Unmatched —</option>
+                      {vendors.map(v => (
+                        <option key={v.vendor_id} value={v.vendor_id}>
+                          {v.vendor_name_display ?? v.vendor_name_extracted ?? v.vendor_id}
+                        </option>
+                      ))}
+                    </select>
+                  </Field>
+                </div>
+              )}
               <div className="col-span-2">
                 <Field label="Invoice #" helper="The invoice number from the vendor PDF. Used for duplicate detection — checked against vendor + invoice number combination.">
                   <AutoSaveInput

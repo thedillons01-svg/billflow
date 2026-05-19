@@ -41,7 +41,7 @@ export default async function BillDetailPage({
     (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
   )
 
-  const [{ data: accounts }, { data: jobs }, { data: classes }, { data: companySettings }] = await Promise.all([
+  const [{ data: accounts }, { data: jobs }, { data: classes }, { data: companySettings }, { data: vendors }] = await Promise.all([
     supabase
       .from('qb_accounts_cache')
       .select('id, qb_account_id, name, account_type')
@@ -62,6 +62,12 @@ export default async function BillDetailPage({
       .from('companies')
       .select('job_costing_enabled, class_tracking_enabled')
       .single(),
+    supabase
+      .from('vendors')
+      .select('vendor_id, vendor_name_display, vendor_name_extracted')
+      .eq('company_id', bill.company_id)
+      .eq('is_visible', true)
+      .order('vendor_name_display'),
   ])
 
   const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
@@ -78,7 +84,10 @@ export default async function BillDetailPage({
   return (
     <div style={{ height: '100%' }}>
       <BillReviewForm
-        bill={bill as unknown as Parameters<typeof BillReviewForm>[0]['bill']}
+        bill={{
+          ...(bill as unknown as Parameters<typeof BillReviewForm>[0]['bill']),
+          vendor_name_display: (bill.vendors as unknown as { vendor_name_display: string | null } | null)?.vendor_name_display ?? null,
+        }}
         lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
         accounts={(accounts ?? []) as Parameters<typeof BillReviewForm>[0]['accounts']}
         jobs={(jobs ?? []) as Parameters<typeof BillReviewForm>[0]['jobs']}
@@ -91,6 +100,7 @@ export default async function BillDetailPage({
             : null
         }
         classes={(classes ?? []) as Parameters<typeof BillReviewForm>[0]['classes']}
+        vendors={(vendors ?? []) as Parameters<typeof BillReviewForm>[0]['vendors']}
         jobCostingEnabled={jobCostingEnabled}
         classTrackingEnabled={classTrackingEnabled}
         pdfSignedUrl={pdfSignedUrl}

@@ -403,7 +403,7 @@ export default async function DashboardPage() {
             <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
               {[
                 { href: '/bills', icon: 'ti-file-invoice', label: 'Review Bills', sub: `${inboxTotal} waiting` },
-                { href: '/receiving', icon: 'ti-package', label: 'Record Receiving', sub: `${openPOCount ?? 0} open POs` },
+                { href: '/receiving', icon: 'ti-package', label: 'Record Receiving', sub: `${(openPOCount ?? 0) + (partialPOCount ?? 0)} POs awaiting` },
                 { href: '/vendors', icon: 'ti-building-store', label: 'Manage Vendors', sub: 'Rules & settings' },
                 { href: '/settings', icon: 'ti-settings', label: 'Settings', sub: 'Integrations & config' },
               ].map((item, i) => (
