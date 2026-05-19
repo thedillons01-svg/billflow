@@ -166,8 +166,6 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       vendorDefaultClassId = vendor.billflow_class_id ?? null
       vendorHoldForJobMatch = vendor.hold_for_job_match ?? false
 
-      const updates: Record<string, unknown> = { vendor_id: vendorId }
-
       // Increment invoices_processed for non-duplicate bills
       if (!isDuplicate) {
         const { data: vCurrent } = await supabase
@@ -181,7 +179,46 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         }).eq('vendor_id', vendorId)
       }
 
-      await supabase.from('bills').update(updates).eq('bill_id', billId)
+      await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+    } else {
+      // New vendor — try to match from QB cache first, then create a vendor record
+      const { data: qbMatch } = await supabase
+        .from('qb_vendors_cache')
+        .select('qb_vendor_id, name, default_expense_account_id, payment_terms')
+        .eq('company_id', bill.company_id)
+        .ilike('name', `%${result.vendor_name_raw}%`)
+        .limit(1)
+        .single()
+
+      const { data: created } = await supabase
+        .from('vendors')
+        .insert({
+          company_id:               bill.company_id,
+          vendor_name_extracted:    result.vendor_name_raw,
+          vendor_name_display:      qbMatch?.name ?? result.vendor_name_raw,
+          qb_vendor_id:             qbMatch?.qb_vendor_id ?? null,
+          qb_vendor_name:           qbMatch?.name ?? null,
+          qb_default_gl_account_id: qbMatch?.default_expense_account_id ?? null,
+          gl_account_source:        qbMatch?.default_expense_account_id ? 'qb_default' : 'not_set',
+          qb_payment_terms:         qbMatch?.payment_terms ?? null,
+          payment_terms_source:     qbMatch?.payment_terms ? 'qb_default' : 'not_set',
+          copy_po_to_qb_reference:  true,
+          is_visible:               true,
+          auto_publish_enabled:     false,
+          hold_for_job_match:       false,
+          invoices_processed:       isDuplicate ? 0 : 1,
+          last_invoice_date:        result.invoice_date ?? null,
+        })
+        .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match')
+        .single()
+
+      if (created) {
+        vendorId = created.vendor_id
+        vendorDefaultGlAccountId = created.billflow_gl_account_id ?? created.qb_default_gl_account_id ?? null
+        vendorDefaultClassId = created.billflow_class_id ?? null
+        vendorHoldForJobMatch = created.hold_for_job_match ?? false
+        await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+      }
     }
   }
 
