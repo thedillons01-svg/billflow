@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ReceivingForm } from './receiving-form'
@@ -38,6 +39,14 @@ export default async function ReceivingDetailPage({
       : po.job_id
   }
 
+  let creatorName: string | null = null
+  if (po.created_by) {
+    const serviceClient = createServiceClient()
+    const { data } = await serviceClient.auth.admin.getUserById(po.created_by)
+    const meta = data?.user?.user_metadata as Record<string, string> | undefined
+    creatorName = meta?.full_name ?? meta?.name ?? data?.user?.email?.split('@')[0] ?? null
+  }
+
   const vendor = (po.vendors as unknown as { vendor_name_display: string | null } | null)
   const vendorName = vendor?.vendor_name_display ?? po.vendor_name_raw ?? 'Unknown Vendor'
   const lines = (po.po_line_items as {
@@ -74,6 +83,7 @@ export default async function ReceivingDetailPage({
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
               {po.order_date ? `Ordered ${new Date(po.order_date).toLocaleDateString()}` : ''}
               {jobLabel ? ` · ${jobLabel}` : ''}
+              {creatorName ? ` · Ordered by ${creatorName}` : ''}
             </p>
           </div>
         </div>
