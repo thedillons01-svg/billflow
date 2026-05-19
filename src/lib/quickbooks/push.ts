@@ -28,7 +28,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       bill_id, invoice_number, invoice_date, due_date, total, description,
       vendor_po_reference, qb_reference_number, bill_type,
       mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
-      vendor_id,
+      vendor_id, matched_po_id,
       vendors!bills_vendor_id_fkey (
         qb_vendor_id, copy_po_to_qb_reference
       ),
@@ -126,25 +126,28 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     let qbPaymentId: string | null = null
     if (!isCreditNote && b.mark_as_paid && b.payment_account_id && qbBillId) {
       try {
+        const isCreditCard = b.payment_method === 'credit_card'
         const paymentPayload: Record<string, unknown> = {
           VendorRef: { value: vendor.qb_vendor_id },
           TotalAmt: b.total,
-          PayType: 'Check',
-          CheckPayment: {
-            BankAccountRef: { value: b.payment_account_id },
-          },
+          PayType: isCreditCard ? 'CreditCard' : 'Check',
           Line: [{
             Amount: b.total,
             LinkedTxn: [{ TxnId: qbBillId, TxnType: 'Bill' }],
           }],
         }
-        if (b.payment_date) paymentPayload.TxnDate = b.payment_date
-        if (b.payment_ref_number) {
-          paymentPayload.CheckPayment = {
-            ...(paymentPayload.CheckPayment as object),
-            CheckNum: b.payment_ref_number,
+        if (isCreditCard) {
+          paymentPayload.CreditCardPayment = { CCAccountRef: { value: b.payment_account_id } }
+        } else {
+          paymentPayload.CheckPayment = { BankAccountRef: { value: b.payment_account_id } }
+          if (b.payment_ref_number) {
+            paymentPayload.CheckPayment = {
+              ...(paymentPayload.CheckPayment as object),
+              CheckNum: b.payment_ref_number,
+            }
           }
         }
+        if (b.payment_date) paymentPayload.TxnDate = b.payment_date
 
         const payResult = await qbPost('billpayment', paymentPayload)
         qbPaymentId = payResult?.BillPayment?.Id ?? null
@@ -160,6 +163,21 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       qb_payment_id: qbPaymentId,
       qb_sync_error: null,
     }).eq('bill_id', billId)
+
+    // Update matched PO status when bill publishes
+    const matchedPoId = (b.matched_po_id as string | null)
+    if (matchedPoId) {
+      const { data: poLines } = await supabase
+        .from('po_line_items')
+        .select('quantity_ordered, quantity_received')
+        .eq('po_id', matchedPoId)
+      if (poLines && poLines.length > 0) {
+        const allReceived = poLines.every(l => (l.quantity_received ?? 0) >= (l.quantity_ordered ?? 0))
+        const anyReceived = poLines.some(l => (l.quantity_received ?? 0) > 0)
+        const newPoStatus = allReceived ? 'received' : anyReceived ? 'partially_received' : 'partially_received'
+        await supabase.from('purchase_orders').update({ status: newPoStatus }).eq('po_id', matchedPoId)
+      }
+    }
 
     await supabase.from('processing_log').insert({
       bill_id:       billId,
