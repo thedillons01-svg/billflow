@@ -11,7 +11,7 @@ export function getStripe(): Stripe {
   return _stripe
 }
 
-export type PlanKey = 200 | 500
+export type PlanKey = 50 | 100 | 200 | 500
 
 export const SUBSCRIPTION_PLANS: Record<PlanKey, {
   priceId: string
@@ -22,23 +22,41 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, {
   rateNote: string
   popular: boolean
 }> = {
+  50: {
+    priceId:    process.env.STRIPE_PRICE_50 ?? '',
+    credits:    50,
+    monthlyUsd: 20,
+    name:       'Starter',
+    label:      '50 credits / month',
+    rateNote:   '$0.40 / transaction',
+    popular:    false,
+  },
+  100: {
+    priceId:    process.env.STRIPE_PRICE_100 ?? '',
+    credits:    100,
+    monthlyUsd: 40,
+    name:       'Basic',
+    label:      '100 credits / month',
+    rateNote:   '$0.40 / transaction',
+    popular:    false,
+  },
   200: {
     priceId:    process.env.STRIPE_PRICE_200 ?? '',
     credits:    200,
     monthlyUsd: 76,
-    name:       'Starter',
+    name:       'Professional',
     label:      '200 credits / month',
     rateNote:   '$0.38 / transaction',
-    popular:    false,
+    popular:    true,
   },
   500: {
     priceId:    process.env.STRIPE_PRICE_500 ?? '',
     credits:    500,
     monthlyUsd: 180,
-    name:       'Professional',
+    name:       'Business',
     label:      '500 credits / month',
     rateNote:   '$0.36 / transaction',
-    popular:    true,
+    popular:    false,
   },
 }
 
