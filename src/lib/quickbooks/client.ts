@@ -97,6 +97,34 @@ export async function getQBClient(companyId: string) {
     return res.json()
   }
 
+  async function qbUpload(entityType: string, entityId: string, fileBytes: Buffer, filename: string) {
+    const boundary = `----PurchasomaticBoundary${Date.now()}`
+    const metadata = JSON.stringify({
+      AttachableRef: [{ EntityRef: { type: entityType, value: entityId } }],
+      ContentType: 'application/pdf',
+      FileName: filename,
+    })
+    const body = Buffer.concat([
+      Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file_metadata_01"\r\nContent-Type: application/json\r\n\r\n`),
+      Buffer.from(metadata),
+      Buffer.from(`\r\n--${boundary}\r\nContent-Disposition: form-data; name="file_content_01"; filename="${filename}"\r\nContent-Type: application/pdf\r\n\r\n`),
+      fileBytes,
+      Buffer.from(`\r\n--${boundary}--\r\n`),
+    ])
+    const url = `${QBO_BASE_URL}/v3/company/${realmId}/upload?minorversion=65`
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': `multipart/form-data; boundary=${boundary}`,
+        Accept: 'application/json',
+      },
+      body,
+    })
+    if (!res.ok) throw new Error(`QBO upload failed (${res.status}): ${await res.text()}`)
+    return res.json()
+  }
+
   async function qbReport(reportType: string, params: Record<string, string>) {
     const url = new URL(`${QBO_BASE_URL}/v3/company/${realmId}/reports/${reportType}`)
     url.searchParams.set('minorversion', '65')
@@ -108,5 +136,5 @@ export async function getQBClient(companyId: string) {
     return res.json()
   }
 
-  return { qbFetchAll, qbPost, qbReport, realmId }
+  return { qbFetchAll, qbPost, qbReport, qbUpload, realmId }
 }

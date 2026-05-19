@@ -8,6 +8,7 @@ import { bulkPublish } from './bulk-actions'
 
 type Bill = {
   bill_id: string
+  vendor_id: string | null
   vendor_name_raw: string | null
   invoice_number: string | null
   invoice_date: string | null
@@ -226,7 +227,7 @@ export function BillsList({
               />
             )}
 
-            {/* Vendor — inline edit on click */}
+            {/* Vendor — inline edit on click, open-in-new-tab icon */}
             <div>
               {isEditingVendorHere ? (
                 <input
@@ -246,13 +247,27 @@ export function BillsList({
                   }}
                 />
               ) : (
-                <p
-                  style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', cursor: 'text' }}
-                  onClick={e => startVendorEdit(bill, e)}
-                  title="Click to edit vendor name"
-                >
-                  {bill.vendor_name_raw ?? 'Unknown Vendor'}
-                </p>
+                <div className="flex items-center gap-1">
+                  <p
+                    style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', cursor: 'text' }}
+                    onClick={e => startVendorEdit(bill, e)}
+                    title="Click to edit vendor name"
+                  >
+                    {bill.vendor_name_raw ?? 'Unknown Vendor'}
+                  </p>
+                  {bill.vendor_id && (
+                    <a
+                      href={`/vendors/${bill.vendor_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={e => e.stopPropagation()}
+                      title="Open vendor record"
+                      style={{ color: 'var(--color-text-tertiary)', lineHeight: 1, flexShrink: 0 }}
+                    >
+                      <i className="ti ti-external-link" style={{ fontSize: 11 }} />
+                    </a>
+                  )}
+                </div>
               )}
               {bill.autopublish_hold_reason && !isEditingVendorHere && (
                 <p style={{ fontSize: 11, color: '#D97706' }}>{bill.autopublish_hold_reason}</p>

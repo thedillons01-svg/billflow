@@ -58,7 +58,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
   await supabase.from('bills').update({ status: 'publishing', qb_sync_error: null }).eq('bill_id', billId)
 
   try {
-    const { qbPost } = await getQBClient(companyId)
+    const { qbPost, qbUpload } = await getQBClient(companyId)
 
     const lineItems = ((bill as Record<string, unknown>).bill_line_items as LineItem[])
       .sort((a, b) => a.sort_order - b.sort_order)
@@ -108,6 +108,19 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     const qbBillId = isCreditNote
       ? (result?.VendorCredit?.Id ?? null)
       : (result?.Bill?.Id ?? null)
+
+    // Attach PDF to QBO bill (QBD cannot receive attachments — see requirements §9.2)
+    if (!isCreditNote && qbBillId && b.pdf_url) {
+      try {
+        const { data: pdfBlob } = await supabase.storage.from('bill-pdfs').download(b.pdf_url as string)
+        if (pdfBlob) {
+          const arrayBuffer = await pdfBlob.arrayBuffer()
+          await qbUpload('Bill', qbBillId, Buffer.from(arrayBuffer), `invoice-${bill.invoice_number ?? billId}.pdf`)
+        }
+      } catch (attachErr) {
+        console.error(`[push] PDF attachment failed for ${billId}:`, attachErr)
+      }
+    }
 
     // Step 12: Mark as Paid — create a linked bill payment if enabled (bills only, not vendor credits)
     let qbPaymentId: string | null = null

@@ -6,6 +6,7 @@ import { UploadButton } from './upload-button'
 const REVIEW_STATUSES = ['draft', 'ready', 'sync_error', 'ocr_error']
 const PENDING_STATUSES = ['pending_job_match']
 const ARCHIVE_STATUSES = ['published']
+const ALL_INBOX_STATUSES = [...REVIEW_STATUSES, ...PENDING_STATUSES, 'publishing']
 
 export default async function BillsPage({
   searchParams,
@@ -13,7 +14,7 @@ export default async function BillsPage({
   searchParams: Promise<{ tab?: string; q?: string }>
 }) {
   const { tab, q } = await searchParams
-  const activeTab = tab === 'pending' ? 'pending' : tab === 'archive' ? 'archive' : 'review'
+  const activeTab = tab === 'pending' ? 'pending' : tab === 'archive' ? 'archive' : tab === 'all' ? 'all' : 'review'
   const search = q?.trim() ?? ''
 
   const supabase = await createClient()
@@ -21,11 +22,12 @@ export default async function BillsPage({
   let statuses: string[]
   if (activeTab === 'review') statuses = REVIEW_STATUSES
   else if (activeTab === 'pending') statuses = PENDING_STATUSES
+  else if (activeTab === 'all') statuses = ALL_INBOX_STATUSES
   else statuses = ARCHIVE_STATUSES
 
   let query = supabase
     .from('bills')
-    .select('bill_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason, mark_as_paid')
+    .select('bill_id, vendor_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason, mark_as_paid')
     .in('status', statuses)
     .is('deleted_at', null)
     .order('created_at', { ascending: activeTab === 'archive' })
@@ -51,6 +53,7 @@ export default async function BillsPage({
   const tabs = [
     { id: 'review',  label: 'Needs Review',      count: reviewCountResult.count ?? 0 },
     { id: 'pending', label: 'Pending Job Match',  count: pendingCountResult.count ?? 0 },
+    { id: 'all',     label: 'All Inbox',          count: (reviewCountResult.count ?? 0) + (pendingCountResult.count ?? 0) },
     { id: 'archive', label: 'Archive',            count: null },
   ]
 
