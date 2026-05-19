@@ -67,6 +67,7 @@ export async function syncVendors(companyId: string) {
   )
   if (vendors.length === 0) return
 
+  // Update cache (replace all)
   await supabase.from('qb_vendors_cache').delete().eq('company_id', companyId)
   const { error } = await supabase.from('qb_vendors_cache').insert(
     vendors.map(v => ({
@@ -79,6 +80,40 @@ export async function syncVendors(companyId: string) {
     }))
   )
   if (error) throw new Error(`Vendors cache insert failed: ${error.message}`)
+
+  // Upsert into vendors table — insert new QB vendors, skip existing (Purchasomatic settings preserved)
+  const insertRows = vendors.map(v => ({
+    company_id:              companyId,
+    qb_vendor_id:            v.Id,
+    qb_vendor_name:          v.DisplayName,
+    vendor_name_display:     v.DisplayName,
+    qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
+    gl_account_source:       v.DefaultExpenseAccountRef?.value ? 'qb_default' : 'not_set',
+    qb_payment_terms:        v.SalesTermRef?.name ?? null,
+    payment_terms_source:    v.SalesTermRef?.name ? 'qb_default' : 'not_set',
+    copy_po_to_qb_reference: true,
+    is_visible:              true,
+    auto_publish_enabled:    false,
+    hold_for_job_match:      false,
+    invoices_processed:      0,
+  }))
+  // ignoreDuplicates: true = INSERT ... ON CONFLICT DO NOTHING (preserves existing Purchasomatic settings)
+  await supabase.from('vendors').upsert(insertRows, {
+    onConflict: 'company_id,qb_vendor_id',
+    ignoreDuplicates: true,
+  })
+
+  // For existing vendors, update only the QB-derived fields (name, GL, payment terms)
+  for (const v of vendors) {
+    await supabase.from('vendors')
+      .update({
+        qb_vendor_name:           v.DisplayName,
+        qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
+        qb_payment_terms:         v.SalesTermRef?.name ?? null,
+      })
+      .eq('company_id', companyId)
+      .eq('qb_vendor_id', v.Id)
+  }
 }
 
 export async function syncJobs(companyId: string) {
