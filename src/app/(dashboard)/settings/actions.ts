@@ -76,6 +76,22 @@ export async function toggleClassVisibility(classId: string, isHidden: boolean) 
   revalidatePath('/bills')
 }
 
+export async function updateCompanyDetails(
+  companyId: string,
+  details: { name: string }
+) {
+  const supabase = await createClient()
+  const name = details.name.trim()
+  if (!name) return { error: 'Company name is required.' }
+  await supabase
+    .from('companies')
+    .update({ name })
+    .eq('company_id', companyId)
+  revalidatePath('/settings')
+  revalidatePath('/home')
+  return { ok: true }
+}
+
 export async function updateCompanySettings(
   companyId: string,
   settings: {

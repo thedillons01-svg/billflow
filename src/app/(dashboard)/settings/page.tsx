@@ -1,5 +1,5 @@
 ﻿import { createClient } from '@/lib/supabase/server'
-import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, toggleAccountVisibility, toggleClassVisibility } from './actions'
+import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, toggleAccountVisibility, toggleClassVisibility, updateCompanyDetails } from './actions'
 import { CopyAddress } from './copy-address'
 
 type Company = {
@@ -84,6 +84,41 @@ export default async function SettingsPage({
           {qb_error && (
             <Banner type="error">{errorMessage(qb_error)}</Banner>
           )}
+
+          {/* ── Company Details ───────────────────────────────────────── */}
+          <Card title="Company Details" subtitle="Your company name as it appears in Purchasomatic.">
+            <form action={async (fd: FormData) => {
+              'use server'
+              if (!company) return
+              await updateCompanyDetails(company.company_id, { name: fd.get('name') as string })
+            }}>
+              <div className="space-y-3">
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Company Name
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    defaultValue={company?.name ?? ''}
+                    placeholder="e.g. Smith HVAC Services"
+                    style={{
+                      width: '100%', height: 36,
+                      border: '0.5px solid var(--color-border-secondary)',
+                      borderRadius: 6, padding: '0 10px',
+                      fontSize: 13,
+                    }}
+                  />
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Used as the display name throughout Purchasomatic and in email notifications.
+                  </p>
+                </div>
+                <div className="flex justify-end">
+                  <BtnPrimary type="submit">Save</BtnPrimary>
+                </div>
+              </div>
+            </form>
+          </Card>
 
           {/* ── QuickBooks ─────────────────────────────────────────────── */}
           <Card title="QuickBooks Online" subtitle="Connect to sync vendors, jobs, and push bills automatically.">
