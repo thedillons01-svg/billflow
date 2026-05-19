@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { getQBClient } from './client'
+import { sendNotification } from '@/lib/notifications/send-email'
 
 export async function pushPOToQBO(poId: string, companyId: string): Promise<void> {
   const supabase = createServiceClient()
@@ -70,8 +71,16 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
       company_id:    companyId,
       action:        'published_to_qbo',
       actor:         'system',
-      credits_used:  1,
+      credits_used:  0,
       after_state:   { qb_po_id: qbPoId },
+    })
+
+    await sendNotification({
+      companyId,
+      event:   'po_processed',
+      subject: 'Purchase order sent to QuickBooks',
+      body:    `PO ${(po as Record<string, unknown>).po_number ?? poId} was successfully pushed to QuickBooks.`,
+      poId,
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)

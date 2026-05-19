@@ -147,9 +147,23 @@ async function handleSendRequest(body: string, supabase: ReturnType<typeof creat
     return xmlResponse(soapResponse('sendRequestXML', ''))
   }
 
-  const refNumber = vendor.copy_po_to_qb_reference
-    ? ((b.qb_reference_number ?? b.vendor_po_reference) as string | null)
-    : (b.qb_reference_number as string | null)
+  const { data: companyCfg } = await supabase
+    .from('companies')
+    .select('qb_ref_source')
+    .eq('company_id', session.companyId)
+    .single()
+  const qbRefSource = companyCfg?.qb_ref_source ?? 'po_number'
+
+  let refNumber: string | null
+  if (vendor.copy_po_to_qb_reference) {
+    refNumber = (b.qb_reference_number ?? b.vendor_po_reference) as string | null
+  } else if (qbRefSource === 'invoice_number') {
+    refNumber = (b.qb_reference_number ?? b.invoice_number) as string | null
+  } else if (qbRefSource === 'po_number') {
+    refNumber = (b.qb_reference_number ?? b.vendor_po_reference) as string | null
+  } else {
+    refNumber = (b.qb_reference_number as string | null)
+  }
 
   const xml = buildBillAddXML({
     requestId: bill.bill_id,
