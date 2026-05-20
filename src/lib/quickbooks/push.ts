@@ -50,10 +50,21 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
 
   const { data: companySettings } = await supabase
     .from('companies')
-    .select('qb_ref_source')
+    .select('qb_ref_source, default_due_date')
     .eq('company_id', companyId)
     .single()
   const qbRefSource = companySettings?.qb_ref_source ?? 'po_number'
+  const companyDueDateSetting = companySettings?.default_due_date ?? 'not_required'
+
+  // Fetch vendor's due date override
+  const { data: vendorSettings } = bill.vendor_id ? await supabase
+    .from('vendors')
+    .select('default_due_date, billflow_payment_terms, qb_payment_terms')
+    .eq('vendor_id', bill.vendor_id as string)
+    .single() : { data: null }
+  const vendorDueDateSetting = vendorSettings?.default_due_date && vendorSettings.default_due_date !== 'not_set'
+    ? vendorSettings.default_due_date
+    : companyDueDateSetting
 
   await supabase.from('bills').update({ status: 'publishing', qb_sync_error: null }).eq('bill_id', billId)
 
@@ -97,7 +108,21 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       VendorRef: { value: vendor.qb_vendor_id },
     }
     if (b.invoice_date) payload.TxnDate = b.invoice_date
-    if (b.due_date) payload.DueDate = b.due_date
+
+    // Apply due date: use explicit bill due_date first, then fall back to vendor/company setting
+    if (b.due_date) {
+      payload.DueDate = b.due_date
+    } else if (vendorDueDateSetting === 'same_as_invoice_date' && b.invoice_date) {
+      payload.DueDate = b.invoice_date
+    } else if (vendorDueDateSetting === 'from_payment_terms') {
+      const terms = vendorSettings?.billflow_payment_terms ?? vendorSettings?.qb_payment_terms ?? null
+      const termDays = terms ? parseInt(terms.replace(/\D/g, ''), 10) : NaN
+      if (b.invoice_date && !isNaN(termDays) && termDays > 0) {
+        const due = new Date(b.invoice_date as string)
+        due.setDate(due.getDate() + termDays)
+        payload.DueDate = due.toISOString().slice(0, 10)
+      }
+    }
     // DocNumber is the QB "Ref No." field — use the value from qb_ref_source
     if (refNumber) payload.DocNumber = refNumber
     if (b.description) payload.PrivateNote = b.description

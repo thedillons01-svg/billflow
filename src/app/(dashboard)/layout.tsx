@@ -32,7 +32,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: company } = await supabase
     .from('companies')
     .select('job_costing_enabled')
-    .single()
+    .limit(1)
+    .maybeSingle()
 
   // Redirect to onboarding if user has no company, except when already there
   const hdrs = await headers()

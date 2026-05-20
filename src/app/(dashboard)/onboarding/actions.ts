@@ -23,7 +23,8 @@ export async function saveCompanySetup(formData: FormData) {
     .from('company_members')
     .select('company_id')
     .eq('user_id', user.id)
-    .single()
+    .limit(1)
+    .maybeSingle()
 
   if (membership) {
     // Update the existing company
@@ -88,7 +89,8 @@ export async function saveCompanySetupStep1(formData: FormData) {
     .from('company_members')
     .select('company_id')
     .eq('user_id', user.id)
-    .single()
+    .limit(1)
+    .maybeSingle()
 
   if (membership) {
     await service.from('companies')

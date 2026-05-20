@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import Stripe from 'stripe'
 import { getStripe } from '@/lib/stripe/client'
 import { createServiceClient } from '@/lib/supabase/service'
 
@@ -73,14 +74,14 @@ export async function POST(request: NextRequest) {
 
   // ── Monthly subscription renewal ─────────────────────────────────
   if (event.type === 'invoice.paid') {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const invoice = event.data.object as any
+    const invoice = event.data.object as Stripe.Invoice
 
     // Only handle subscription renewals (not the initial checkout invoice,
     // which is credited via checkout.session.completed above)
+    const subRef = invoice.parent?.subscription_details?.subscription
     const subscriptionId: string | null =
-      typeof invoice.subscription === 'string' ? invoice.subscription
-      : (invoice.subscription?.id ?? null)
+      typeof subRef === 'string' ? subRef
+      : (subRef?.id ?? null)
 
     const billingReason: string | null = invoice.billing_reason ?? null
 

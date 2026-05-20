@@ -22,6 +22,7 @@ type Vendor = {
   copy_po_to_qb_reference: boolean
   invoices_processed: number
   confidence_display: string | null
+  default_due_date: string | null
 }
 
 export function VendorGeneralTab({
@@ -48,6 +49,7 @@ export function VendorGeneralTab({
     billflow_gl_account_id: vendor.billflow_gl_account_id ?? '',
     billflow_class_id: vendor.billflow_class_id ?? '',
     copy_po_to_qb_reference: vendor.copy_po_to_qb_reference,
+    default_due_date: vendor.default_due_date ?? 'not_set',
   })
 
   const handleSave = () => {
@@ -67,6 +69,7 @@ export function VendorGeneralTab({
         billflow_class_id:          form.billflow_class_id || null,
         class_source:               form.billflow_class_id ? 'Purchasomatic_override' : 'not_set',
         copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
+        default_due_date:           form.default_due_date,
       })
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -181,6 +184,17 @@ export function VendorGeneralTab({
 
       {/* Publish settings */}
       <Section title="Publish Settings">
+        <Field
+          label="Default due date"
+          helper="Overrides the company default. Applied when no due date is found on the invoice. 'Same as invoice date' sets due date equal to the invoice date. 'Calculate from payment terms' adds the vendor's payment term days."
+        >
+          <select value={form.default_due_date} onChange={e => set('default_due_date', e.target.value)} style={inputStyle}>
+            <option value="not_set">Use company default</option>
+            <option value="not_required">Not required — leave blank if not on invoice</option>
+            <option value="same_as_invoice_date">Same as invoice date</option>
+            <option value="from_payment_terms">Calculate from payment terms</option>
+          </select>
+        </Field>
         <ToggleField
           label="Auto-publish enabled"
           helper="When on, invoices from this vendor are automatically pushed to QuickBooks without review — as long as all eligibility checks pass. Purchasomatic will suggest enabling this after 5 accurate invoices."

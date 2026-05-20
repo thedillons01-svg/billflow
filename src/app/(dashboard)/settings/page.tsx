@@ -1,6 +1,7 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, toggleAccountVisibility, toggleClassVisibility, updateCompanyDetails } from './actions'
 import { CopyAddress } from './copy-address'
+import { DirtyForm, SaveButton } from '@/components/dirty-form'
 
 type Company = {
   company_id: string
@@ -87,7 +88,7 @@ export default async function SettingsPage({
 
           {/* ── Company Details ───────────────────────────────────────── */}
           <Card title="Company Details" subtitle="Your company name as it appears in Purchasomatic.">
-            <form action={async (fd: FormData) => {
+            <DirtyForm action={async (fd: FormData) => {
               'use server'
               if (!company) return
               await updateCompanyDetails(company.company_id, { name: fd.get('name') as string })
@@ -114,10 +115,10 @@ export default async function SettingsPage({
                   </p>
                 </div>
                 <div className="flex justify-end">
-                  <BtnPrimary type="submit">Save</BtnPrimary>
+                  <SaveButton>Save</SaveButton>
                 </div>
               </div>
-            </form>
+            </DirtyForm>
           </Card>
 
           {/* ── QuickBooks ─────────────────────────────────────────────── */}
@@ -223,7 +224,7 @@ export default async function SettingsPage({
           <Card title="Email Capture" subtitle="Forward vendor emails to these addresses — Purchasomatic handles the rest.">
             <div className="space-y-4">
               {/* Prefix editor */}
-              <form action={async (fd: FormData) => {
+              <DirtyForm action={async (fd: FormData) => {
                 'use server'
                 if (!company) return
                 await updateCapturePrefix(company.company_id, fd.get('prefix') as string)
@@ -246,13 +247,13 @@ export default async function SettingsPage({
                       }}
                     />
                     <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>-bills@purchasomatic.com</span>
-                    <BtnSecondary>Save</BtnSecondary>
+                    <SaveButton>Save</SaveButton>
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
                     Lowercase letters, numbers, and hyphens only. Changing this will break any existing forwarding rules — update them in your email client too.
                   </p>
                 </div>
-              </form>
+              </DirtyForm>
 
               <div style={{ borderTop: '0.5px solid var(--color-border-tertiary)', paddingTop: 16 }} />
 
@@ -280,7 +281,7 @@ export default async function SettingsPage({
 
           {/* ── Processing Defaults ───────────────────────────────────── */}
           <Card title="Processing Defaults" subtitle="Control how bills are processed and what fields are used.">
-            <form action={async (fd: FormData) => {
+            <DirtyForm action={async (fd: FormData) => {
               'use server'
               if (!company) return
               await updateCompanySettings(company.company_id, {
@@ -331,7 +332,7 @@ export default async function SettingsPage({
                     <option value="blank">Leave blank</option>
                   </select>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-                    Controls what Purchasomatic puts in the QB Ref No field on each bill. Per-vendor override (copy_po_to_qb_reference) still applies.
+                    Controls what goes in the QB Ref No field on each pushed bill. &ldquo;PO / Reference number&rdquo; uses the vendor&apos;s PO or reference field. &ldquo;Invoice number&rdquo; uses the invoice number instead. Per-vendor &ldquo;Copy PO to QB reference&rdquo; toggle overrides this setting.
                   </p>
                 </div>
                 <div>
@@ -350,10 +351,11 @@ export default async function SettingsPage({
                     }}
                   >
                     <option value="not_required">Not required — leave blank if not on invoice</option>
+                    <option value="same_as_invoice_date">Same as invoice date</option>
                     <option value="from_payment_terms">Calculate from payment terms</option>
                   </select>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-                    When set to calculate, Purchasomatic uses the vendor payment terms to set a due date if none is found on the invoice.
+                    Applied when no due date is found on the invoice. &ldquo;Same as invoice date&rdquo; sets due date equal to the invoice date. &ldquo;Calculate from payment terms&rdquo; adds the vendor&apos;s payment term days to the invoice date. Per-vendor setting overrides this company default.
                   </p>
                 </div>
                 <div>
@@ -383,15 +385,15 @@ export default async function SettingsPage({
                   </p>
                 </div>
                 <div className="flex justify-end">
-                  <BtnPrimary type="submit">Save</BtnPrimary>
+                  <SaveButton>Save</SaveButton>
                 </div>
               </div>
-            </form>
+            </DirtyForm>
           </Card>
 
           {/* ── Notifications ─────────────────────────────────────────── */}
           <Card title="Notifications" subtitle="Control when and where Purchasomatic sends alerts.">
-            <form action={async (fd: FormData) => {
+            <DirtyForm action={async (fd: FormData) => {
               'use server'
               if (!company) return
               const rawEmails = fd.get('notification_emails') as string
@@ -456,10 +458,10 @@ export default async function SettingsPage({
                   helper="When on, the person who forwarded the email receives the result notification in addition to the recipients above. Useful when techs forward their own invoices."
                 />
                 <div className="flex justify-end">
-                  <BtnPrimary type="submit">Save</BtnPrimary>
+                  <SaveButton>Save</SaveButton>
                 </div>
               </div>
-            </form>
+            </DirtyForm>
           </Card>
 
           {/* ── Account Visibility ───────────────────────────────────── */}
@@ -619,27 +621,10 @@ function Toggle({ name, defaultChecked, label, helper }: { name: string; default
         <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{label}</p>
         <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{helper}</p>
       </div>
-      <label className="relative" style={{ width: 36, height: 20, flexShrink: 0, marginTop: 2 }}>
-        <input type="checkbox" name={name} defaultChecked={defaultChecked} className="sr-only peer" />
-        <div
-          className="peer-checked:bg-[#2DB87A] peer-focus:ring-2 peer-focus:ring-[#2DB87A]/30"
-          style={{
-            position: 'absolute', inset: 0,
-            background: 'var(--color-border-secondary)',
-            borderRadius: 10,
-            transition: 'background 0.2s',
-          }}
-        />
-        <div
-          className="peer-checked:translate-x-4"
-          style={{
-            position: 'absolute', top: 2, left: 2,
-            width: 16, height: 16,
-            background: 'white', borderRadius: '50%',
-            transition: 'transform 0.2s',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.15)',
-          }}
-        />
+      <label className="relative" style={{ width: 36, height: 20, flexShrink: 0, marginTop: 2, cursor: 'pointer' }}>
+        <input type="checkbox" name={name} defaultChecked={defaultChecked} className="toggle-input sr-only" />
+        <div className="toggle-track" />
+        <div className="toggle-thumb" />
       </label>
     </div>
   )
