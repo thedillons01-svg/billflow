@@ -63,7 +63,8 @@ export function PODetail({
   matchedBills: MatchedBill[]
   jobLabel: string | null
   pushPosToQb?: boolean
-}) {
+}
+) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [pushError, setPushError] = useState<string | null>(null)

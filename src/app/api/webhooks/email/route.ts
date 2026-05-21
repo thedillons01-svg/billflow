@@ -5,6 +5,7 @@ import { processPO } from '@/lib/ocr/process-po'
 import { splitPdf } from '@/lib/ocr/split-pdf'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendNotification } from '@/lib/notifications/send-email'
+import { getFileCategory, convertToPdf, SUPPORTED_TYPES_LABEL } from '@/lib/converters/to-pdf'
 
 export const maxDuration = 60
 
@@ -139,42 +140,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ skipped: true, reason: 'unknown_recipient' })
   }
 
-  const pdfs = (payload.Attachments ?? []).filter(isPdf)
-  const nonPdfs = (payload.Attachments ?? []).filter(a => !isPdf(a))
+  const allAttachments = payload.Attachments ?? []
+  const supported   = allAttachments.filter(a => getFileCategory(a.ContentType, a.Name) !== 'unsupported')
+  const unsupported = allAttachments.filter(a => getFileCategory(a.ContentType, a.Name) === 'unsupported')
 
-  if (pdfs.length === 0) {
-    if (nonPdfs.length > 0) {
-      // Attachments were present but none were PDFs — notify the user
-      const fileList = nonPdfs.map(a => a.Name).join(', ')
-      const exts = [...new Set(nonPdfs.map(a => {
-        const parts = (a.Name ?? '').split('.')
-        return parts.length > 1 ? parts.pop()!.toUpperCase() : 'unknown'
-      }))].join(', ')
-
-      await supabase.from('processing_log').insert({
-        company_id:  company.company_id,
-        action:      'unsupported_file_type',
-        actor:       'system',
-        after_state: { from: payload.From, subject, files: fileList, types: exts },
-      })
-
-      await sendNotification({
-        companyId: company.company_id,
-        event:     'pdf_unreadable',
-        subject:   `Unsupported file type: ${exts}`,
-        body:      `An email from ${payload.From} contained ${nonPdfs.length > 1 ? `${nonPdfs.length} attachments` : 'an attachment'} (${fileList}) that could not be processed. Purchasomatic only accepts PDF files. Ask your vendor to send invoices as PDFs, or export the file to PDF before forwarding it. No credit was charged.`,
-      })
-
-      console.warn(`[email-webhook] Unsupported attachment types (${exts}) from ${payload.From} — notified company ${company.company_id}`)
-    }
-    // No attachments at all — silent skip (plain-text email forwards are normal)
-    return NextResponse.json({ skipped: true, reason: 'no_pdf_attachments' })
-  }
-
-  // If there are also non-PDF attachments alongside valid PDFs, notify separately
-  if (nonPdfs.length > 0) {
-    const fileList = nonPdfs.map(a => a.Name).join(', ')
-    const exts = [...new Set(nonPdfs.map(a => {
+  // Notify about any truly unsupported types (DOCX, PPTX, ZIP, etc.)
+  if (unsupported.length > 0) {
+    const fileList = unsupported.map(a => a.Name).join(', ')
+    const exts = [...new Set(unsupported.map(a => {
       const parts = (a.Name ?? '').split('.')
       return parts.length > 1 ? parts.pop()!.toUpperCase() : 'unknown'
     }))].join(', ')
@@ -189,31 +162,46 @@ export async function POST(request: NextRequest) {
     await sendNotification({
       companyId: company.company_id,
       event:     'pdf_unreadable',
-      subject:   `Attachment skipped: ${exts}`,
-      body:      `An email from ${payload.From} contained a mix of file types. The PDF(s) were processed normally, but ${nonPdfs.length > 1 ? `${nonPdfs.length} attachments` : 'one attachment'} (${fileList}) could not be processed because Purchasomatic only accepts PDF files. No credit was charged for the skipped file(s).`,
+      subject:   `Attachment could not be processed: ${exts}`,
+      body:      `An email from ${payload.From} contained ${unsupported.length > 1 ? `${unsupported.length} attachments` : 'an attachment'} (${fileList}) that could not be converted. Purchasomatic can process ${SUPPORTED_TYPES_LABEL}. No credit was charged.`,
     })
 
-    console.warn(`[email-webhook] Mixed attachments — PDFs processed, unsupported (${exts}) skipped, company ${company.company_id}`)
+    console.warn(`[email-webhook] Unsupported types (${exts}) from ${payload.From} — notified company ${company.company_id}`)
+  }
+
+  if (supported.length === 0) {
+    // No attachments at all → silent skip; only attachments of wrong type already notified above
+    return NextResponse.json({ skipped: true, reason: 'no_processable_attachments' })
   }
 
   const created: string[] = []
   const errors: string[] = []
 
-  for (const attachment of pdfs) {
+  for (const attachment of supported) {
     const rawBytes = Buffer.from(attachment.Content, 'base64')
+
+    // Convert to PDF if the attachment isn't already one
+    let pdfBytes: Buffer
+    try {
+      pdfBytes = await convertToPdf(rawBytes, attachment.ContentType, attachment.Name)
+    } catch (err) {
+      console.error(`[email-webhook] Conversion failed for ${attachment.Name}:`, err)
+      errors.push(attachment.Name)
+      continue
+    }
 
     // For bills only: detect and split multi-invoice PDF bundles (e.g. Gensco statement + invoices).
     // POs are always single documents — skip splitting.
     let pageBufs: Buffer[]
     if (captureType === 'bill') {
       try {
-        pageBufs = await splitPdf(rawBytes)
+        pageBufs = await splitPdf(pdfBytes)
       } catch (err) {
         console.warn(`[email-webhook] splitPdf failed, treating as single PDF:`, err)
-        pageBufs = [rawBytes]
+        pageBufs = [pdfBytes]
       }
     } else {
-      pageBufs = [rawBytes]
+      pageBufs = [pdfBytes]
     }
 
     for (const pdfBytes of pageBufs) {
@@ -335,11 +323,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ received: pdfs.length, created: created.length, errors: errors.length, ids: created })
-}
-
-function isPdf(att: PostmarkAttachment): boolean {
-  const name = att.Name?.toLowerCase() ?? ''
-  const type = att.ContentType?.toLowerCase() ?? ''
-  return type === 'application/pdf' || name.endsWith('.pdf')
+  return NextResponse.json({ received: supported.length, created: created.length, errors: errors.length, ids: created })
 }

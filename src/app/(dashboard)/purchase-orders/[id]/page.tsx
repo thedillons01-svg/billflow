@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { PODetail } from './po-detail'
+import { POPdfPanel } from './po-pdf-panel'
 
 export default async function PODetailPage({
   params,
@@ -113,27 +114,12 @@ export default async function PODetailPage({
       </div>
 
       {/* Right panel: PDF */}
-      <div className="flex-1 overflow-hidden" style={{ background: 'var(--color-background-secondary)' }}>
-        {pdfSignedUrl ? (
-          <iframe
-            src={pdfSignedUrl}
-            style={{ width: '100%', height: '100%', border: 'none' }}
-            title="Purchase Order PDF"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center">
-            <div className="text-center">
-              <i className="ti ti-clipboard-list" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
-              <p style={{ marginTop: 12, fontSize: 14, fontWeight: 500, color: 'var(--color-text-secondary)' }}>
-                No PDF attached
-              </p>
-              <p style={{ marginTop: 4, fontSize: 12, color: 'var(--color-text-tertiary)' }}>
-                PDFs captured via email will appear here automatically.
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+      <POPdfPanel
+        pdfSignedUrl={pdfSignedUrl}
+        vendorName={vendorName}
+        poNumber={po.po_number}
+        poId={po.po_id}
+      />
     </div>
   )
 }
