@@ -98,6 +98,7 @@ export async function updateCompanySettings(
     use_items_table?: boolean
     job_costing_enabled?: boolean
     class_tracking_enabled?: boolean
+    push_pos_to_qb?: boolean
     fsm_platform?: string | null
     qb_ref_source?: string
     default_due_date?: string

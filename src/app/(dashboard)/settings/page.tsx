@@ -14,6 +14,7 @@ type Company = {
   use_items_table: boolean | null
   job_costing_enabled: boolean | null
   class_tracking_enabled: boolean | null
+  push_pos_to_qb: boolean | null
   fsm_platform: string | null
   notification_emails: string[] | null
   success_notifications: boolean | null
@@ -37,7 +38,7 @@ export default async function SettingsPage({
   const [{ data }, { data: qbAccounts }, { data: qbClasses }, { data: qbdHeartbeat }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, plan_name, credit_balance, stripe_customer_id')
       .single(),
     supabase
       .from('qb_accounts_cache')
@@ -288,6 +289,7 @@ export default async function SettingsPage({
                 use_items_table: fd.get('use_items_table') === 'on',
                 job_costing_enabled: fd.get('job_costing_enabled') === 'on',
                 class_tracking_enabled: fd.get('class_tracking_enabled') === 'on',
+                push_pos_to_qb: fd.get('push_pos_to_qb') === 'on',
                 fsm_platform: fd.get('fsm_platform') as string || null,
                 qb_ref_source: fd.get('qb_ref_source') as string || 'po_number',
                 default_due_date: fd.get('default_due_date') as string || 'not_required',
@@ -311,6 +313,12 @@ export default async function SettingsPage({
                   defaultChecked={company?.class_tracking_enabled ?? false}
                   label="Class tracking enabled"
                   helper="When on, a Class field appears on each bill line item for QB class tracking. Only enable if you use class tracking in QuickBooks. Default: off."
+                />
+                <Toggle
+                  name="push_pos_to_qb"
+                  defaultChecked={company?.push_pos_to_qb ?? true}
+                  label="Push purchase orders to QuickBooks"
+                  helper="When on, captured POs can be pushed to QuickBooks as Purchase Order records. Turn off if you want to use PO capture and receiving workflow in Purchasomatic only — without creating PO records in QuickBooks."
                 />
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>

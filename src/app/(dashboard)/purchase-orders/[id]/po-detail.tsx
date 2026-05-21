@@ -56,11 +56,13 @@ export function PODetail({
   lineItems,
   matchedBills,
   jobLabel,
+  pushPosToQb = true,
 }: {
   po: PO
   lineItems: LineItem[]
   matchedBills: MatchedBill[]
   jobLabel: string | null
+  pushPosToQb?: boolean
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -153,6 +155,20 @@ export function PODetail({
       <div className="flex-1 overflow-auto">
         <div className="px-5 py-4 space-y-5">
 
+          {/* QB push disabled notice */}
+          {!pushPosToQb && (
+            <div
+              className="flex items-center gap-2"
+              style={{ background: '#F3F4F6', border: '0.5px solid #E5E7EB', borderRadius: 6, padding: '10px 12px' }}
+            >
+              <i className="ti ti-info-circle" style={{ fontSize: 14, color: 'var(--color-text-secondary)' }} />
+              <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
+                QuickBooks PO push is turned off. This PO is tracked in Purchasomatic only.
+                <a href="/settings" style={{ color: '#2DB87A', marginLeft: 4 }}>Change in Settings</a>
+              </p>
+            </div>
+          )}
+
           {/* QB sync error */}
           {po.qb_sync_error && (
             <div
@@ -191,7 +207,7 @@ export function PODetail({
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {!isQBPushed && !pushSuccess && (
+            {pushPosToQb && !isQBPushed && !pushSuccess && (
               <ActionButton
                 onClick={handlePushToQB}
                 disabled={isPending}
@@ -201,7 +217,7 @@ export function PODetail({
                 Push to QuickBooks
               </ActionButton>
             )}
-            {isQBPushed && (
+            {pushPosToQb && isQBPushed && (
               <span
                 className="flex items-center gap-1.5"
                 style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}

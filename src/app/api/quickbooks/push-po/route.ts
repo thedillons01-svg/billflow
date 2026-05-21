@@ -12,10 +12,13 @@ export async function POST(req: NextRequest) {
 
   const { data: company } = await supabase
     .from('companies')
-    .select('company_id, qb_connection_status')
+    .select('company_id, qb_connection_status, push_pos_to_qb')
     .single()
 
   if (!company) return NextResponse.json({ error: 'No company found' }, { status: 404 })
+  if (company.push_pos_to_qb === false) {
+    return NextResponse.json({ error: 'QuickBooks PO push is disabled in Settings' }, { status: 400 })
+  }
   if (company.qb_connection_status !== 'connected') {
     return NextResponse.json({ error: 'QuickBooks is not connected' }, { status: 400 })
   }

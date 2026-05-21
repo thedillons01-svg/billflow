@@ -23,12 +23,19 @@ export default async function PODetailPage({
 
   if (!po || po.deleted_at) notFound()
 
-  // Matched bills — bills whose matched_po_id points to this PO
-  const { data: matchedBills } = await supabase
-    .from('bills')
-    .select('bill_id, invoice_number, total, status, vendor_name_raw')
-    .eq('matched_po_id', id)
-    .is('deleted_at', null)
+  // Matched bills + company settings (in parallel)
+  const [{ data: matchedBills }, { data: companySettings }] = await Promise.all([
+    supabase
+      .from('bills')
+      .select('bill_id, invoice_number, total, status, vendor_name_raw')
+      .eq('matched_po_id', id)
+      .is('deleted_at', null),
+    supabase
+      .from('companies')
+      .select('push_pos_to_qb')
+      .eq('company_id', po.company_id)
+      .single(),
+  ])
 
   // Job label from QB cache
   let jobLabel: string | null = null
@@ -101,6 +108,7 @@ export default async function PODetailPage({
             vendor_name_raw: string | null
           }[]}
           jobLabel={jobLabel}
+          pushPosToQb={companySettings?.push_pos_to_qb ?? true}
         />
       </div>
 
