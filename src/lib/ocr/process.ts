@@ -49,7 +49,7 @@ async function markOcrError(supabase: SupabaseClient, billId: string, error: str
 // processBill — entry point called after a bill record is created
 // ---------------------------------------------------------------------------
 
-export async function processBill(billId: string, opts?: { skipCredits?: boolean }): Promise<void> {
+export async function processBill(billId: string, opts?: { skipCredits?: boolean; userComment?: string; forceTier?: 2 | 3 }): Promise<void> {
   const supabase = getServiceClient()
 
   // 1. Load the bill record
@@ -84,7 +84,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   // 3. Run tiered extraction
   let result: ExtractionResult
   try {
-    result = await runTieredExtraction(pdfBuffer)
+    result = await runTieredExtraction(pdfBuffer, { forceTier: opts?.forceTier, userComment: opts?.userComment })
   } catch (err) {
     await markOcrError(supabase, billId, `Extraction failed: ${err instanceof Error ? err.message : String(err)}`)
     return
@@ -126,6 +126,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       ocr_tier:                 result.tier,
       ocr_confidence:           result.confidence,
       autopublish_hold_reason:  holdReason,
+      ...(result.raw_text != null ? { raw_text: result.raw_text } : {}),
     })
     .eq('bill_id', billId)
 
@@ -497,29 +498,42 @@ function evaluateRule(
 // Tiered extraction logic
 // ---------------------------------------------------------------------------
 
-async function runTieredExtraction(pdfBuffer: Buffer): Promise<ExtractionResult> {
-  // Tier 1: pdf-parse
-  const tier1 = await extractTier1(pdfBuffer)
+async function runTieredExtraction(
+  pdfBuffer: Buffer,
+  opts?: { forceTier?: 2 | 3; userComment?: string }
+): Promise<ExtractionResult> {
+  const { forceTier, userComment } = opts ?? {}
 
-  // No text layer → go straight to Tier 3 (vision)
-  if (!hasTextLayer(tier1.rawText)) {
-    console.log('[ocr] No text layer detected → Tier 3 (vision)')
-    const tier3 = await extractTier3(pdfBuffer)
+  // Forced Tier 3 — vision extraction (scanned docs or 2nd+ reprocess)
+  if (forceTier === 3) {
+    console.log('[ocr] Forced Tier 3 (vision)')
+    const tier3 = await extractTier3(pdfBuffer, userComment)
     return { ...tier3, tier: 3 }
   }
 
-  // Required fields found with good confidence → Tier 1 is sufficient
-  if (
-    tier1.invoice_number !== null &&
-    tier1.invoice_date !== null &&
-    tier1.total !== null
-  ) {
-    console.log('[ocr] Tier 1 extraction complete')
-    return { ...tier1, tier: 1, raw_text: tier1.rawText }
+  // Tier 1: always extract raw text first
+  const tier1 = await extractTier1(pdfBuffer)
+
+  // No text layer → Tier 3 regardless
+  if (!hasTextLayer(tier1.rawText)) {
+    console.log('[ocr] No text layer detected → Tier 3 (vision)')
+    const tier3 = await extractTier3(pdfBuffer, userComment)
+    return { ...tier3, tier: 3 }
   }
 
-  // Tier 2: Claude Haiku with raw text
-  console.log('[ocr] Tier 1 incomplete → Tier 2 (Claude Haiku)')
-  const tier2 = await extractTier2(tier1.rawText)
-  return { ...tier2, tier: 2, raw_text: tier1.rawText }
+  // Forced Tier 2 (1st reprocess) or Tier 1 incomplete → Claude Haiku
+  if (
+    forceTier === 2 ||
+    tier1.invoice_number === null ||
+    tier1.invoice_date === null ||
+    tier1.total === null
+  ) {
+    console.log(forceTier === 2 ? '[ocr] Forced Tier 2 (Claude Haiku)' : '[ocr] Tier 1 incomplete → Tier 2 (Claude Haiku)')
+    const tier2 = await extractTier2(tier1.rawText, userComment)
+    return { ...tier2, tier: 2, raw_text: tier1.rawText }
+  }
+
+  // Tier 1 sufficient
+  console.log('[ocr] Tier 1 extraction complete')
+  return { ...tier1, tier: 1, raw_text: tier1.rawText }
 }

@@ -52,9 +52,13 @@ function getClient(): Anthropic {
   return _client
 }
 
-export async function extractTier3(pdfBuffer: Buffer): Promise<TierResult> {
+export async function extractTier3(pdfBuffer: Buffer, userComment?: string): Promise<TierResult> {
   const client = getClient()
   const base64Pdf = pdfBuffer.toString('base64')
+
+  const extractText = userComment
+    ? `Extract all invoice data from this PDF and return the JSON.\n\nNote from the person who reviewed this invoice: "${userComment}"\nUse this context to help identify and correctly extract any fields that may have been difficult to read.`
+    : 'Extract all invoice data from this PDF and return the JSON.'
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',
@@ -81,7 +85,7 @@ export async function extractTier3(pdfBuffer: Buffer): Promise<TierResult> {
           } as Anthropic.DocumentBlockParam,
           {
             type: 'text',
-            text: 'Extract all invoice data from this PDF and return the JSON.',
+            text: extractText,
           },
         ],
       },

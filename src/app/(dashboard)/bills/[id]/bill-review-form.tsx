@@ -48,6 +48,8 @@ type Bill = {
   payment_method: string | null
   payment_date: string | null
   payment_ref_number: string | null
+  reprocess_count: number | null
+  ocr_tier: number | null
 }
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
@@ -115,6 +117,10 @@ export function BillReviewForm({
   const [classRememberPrompt, setClassRememberPrompt] = useState<{
     lineId: string; classId: string; className: string
   } | null>(null)
+  // Reprocess modal
+  const [showReprocessModal, setShowReprocessModal] = useState(false)
+  const [reprocessComment, setReprocessComment] = useState('')
+
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
   const [historyBills, setHistoryBills] = useState<Array<{
@@ -205,9 +211,15 @@ export function BillReviewForm({
     await updateBill(bill.bill_id, { mark_as_paid: v })
   }
 
-  const handleReprocess = () => {
+  const handleReprocessSubmit = (comment: string) => {
+    setShowReprocessModal(false)
+    setReprocessComment('')
     startTransition(async () => {
-      const res = await fetch(`/api/bills/${bill.bill_id}/reprocess`, { method: 'POST' })
+      const res = await fetch(`/api/bills/${bill.bill_id}/reprocess`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ comment: comment.trim() || undefined }),
+      })
       if (res.ok) {
         router.refresh()
       } else {
@@ -489,7 +501,7 @@ export function BillReviewForm({
                 </p>
               </div>
               <button
-                onClick={handleReprocess}
+                onClick={() => setShowReprocessModal(true)}
                 disabled={isPending}
                 style={{
                   background: '#DC2626', color: 'white',
@@ -1010,7 +1022,7 @@ export function BillReviewForm({
           )}
           {canReprocess && (
             <button
-              onClick={handleReprocess}
+              onClick={() => setShowReprocessModal(true)}
               disabled={isPending}
               title="Re-run OCR or re-apply vendor defaults. No credit charge."
               style={{
@@ -1093,10 +1105,100 @@ export function BillReviewForm({
     </div>
   )
 
+  const reprocessCount = bill.reprocess_count ?? 0
+  const nextTier = reprocessCount === 0 ? 2 : 3
+  const tierLabel = nextTier === 2
+    ? 'Tier 2 — Claude Haiku (enhanced text extraction)'
+    : 'Tier 3 — Claude Opus (vision / scanned document)'
+
   return (
     <div className="flex" style={{ height: '100%' }}>
       {formPanel}
       {pdfPanel}
+
+      {showReprocessModal && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 100,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) { setShowReprocessModal(false); setReprocessComment('') } }}
+        >
+          <div style={{
+            background: 'white', borderRadius: 10,
+            width: 440, padding: '24px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+          }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+              Reprocess Invoice
+            </h2>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 16, lineHeight: 1.5 }}>
+              This will re-run extraction and re-apply your vendor rules and GL mappings. No credit charge.
+            </p>
+
+            <div
+              style={{
+                background: '#EBF5EF', border: '0.5px solid #6EE7B7',
+                borderRadius: 6, padding: '8px 12px', marginBottom: 16,
+                fontSize: 12, color: '#1A3D2B',
+              }}
+            >
+              <strong>Processing tier:</strong> {tierLabel}
+              {reprocessCount > 0 && (
+                <span style={{ color: '#5A8C6A', marginLeft: 6 }}>
+                  (reprocess #{reprocessCount + 1})
+                </span>
+              )}
+            </div>
+
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>
+              What was wrong? <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)' }}>(optional)</span>
+            </label>
+            <textarea
+              value={reprocessComment}
+              onChange={e => setReprocessComment(e.target.value)}
+              placeholder="e.g. Wrong vendor matched, invoice total is $1,234.56 not $123.45, line items are missing…"
+              rows={4}
+              style={{
+                width: '100%', border: '0.5px solid var(--color-border-secondary)',
+                borderRadius: 6, padding: '8px 10px',
+                fontSize: 13, color: 'var(--color-text-primary)',
+                resize: 'vertical', outline: 'none',
+                fontFamily: 'inherit', lineHeight: 1.5,
+                boxSizing: 'border-box',
+              }}
+            />
+            <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 4 }}>
+              Your note is passed to the AI to help it read the invoice correctly.
+            </p>
+
+            <div className="flex items-center justify-end gap-2" style={{ marginTop: 20 }}>
+              <button
+                onClick={() => { setShowReprocessModal(false); setReprocessComment('') }}
+                style={{
+                  background: 'white', color: 'var(--color-text-secondary)',
+                  border: '0.5px solid var(--color-border-secondary)',
+                  borderRadius: 6, padding: '7px 16px',
+                  fontSize: 13, cursor: 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleReprocessSubmit(reprocessComment)}
+                style={{
+                  background: '#2DB87A', color: 'white',
+                  border: 'none', borderRadius: 6, padding: '7px 16px',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Reprocess
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

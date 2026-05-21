@@ -17,7 +17,7 @@ export default async function BillDetailPage({
       total, line_items_total, status, autopublish_hold_reason,
       vendor_po_reference, qb_reference_number, description, bill_type,
       mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
-      pdf_url, qb_sync_error, deleted_at,
+      pdf_url, qb_sync_error, deleted_at, reprocess_count, ocr_tier,
       vendor_id,
       vendors!bills_vendor_id_fkey(vendor_name_display, qb_vendor_id, auto_publish_enabled, invoices_processed),
       bill_line_items (

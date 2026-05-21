@@ -54,8 +54,12 @@ function getClient(): Anthropic {
   return _client
 }
 
-export async function extractTier2(rawText: string): Promise<TierResult> {
+export async function extractTier2(rawText: string, userComment?: string): Promise<TierResult> {
   const client = getClient()
+
+  const userMessage = userComment
+    ? `Extract invoice data from this text.\n\nNote from the person who reviewed this invoice: "${userComment}"\nUse this context to help identify and correctly extract any fields that may have been difficult to parse.\n\nInvoice text:\n\n${rawText}`
+    : `Extract invoice data from this text:\n\n${rawText}`
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5',
@@ -70,7 +74,7 @@ export async function extractTier2(rawText: string): Promise<TierResult> {
     messages: [
       {
         role: 'user',
-        content: `Extract invoice data from this text:\n\n${rawText}`,
+        content: userMessage,
       },
     ],
   })
