@@ -140,8 +140,60 @@ export async function POST(request: NextRequest) {
   }
 
   const pdfs = (payload.Attachments ?? []).filter(isPdf)
+  const nonPdfs = (payload.Attachments ?? []).filter(a => !isPdf(a))
+
   if (pdfs.length === 0) {
+    if (nonPdfs.length > 0) {
+      // Attachments were present but none were PDFs — notify the user
+      const fileList = nonPdfs.map(a => a.Name).join(', ')
+      const exts = [...new Set(nonPdfs.map(a => {
+        const parts = (a.Name ?? '').split('.')
+        return parts.length > 1 ? parts.pop()!.toUpperCase() : 'unknown'
+      }))].join(', ')
+
+      await supabase.from('processing_log').insert({
+        company_id:  company.company_id,
+        action:      'unsupported_file_type',
+        actor:       'system',
+        after_state: { from: payload.From, subject, files: fileList, types: exts },
+      })
+
+      await sendNotification({
+        companyId: company.company_id,
+        event:     'pdf_unreadable',
+        subject:   `Unsupported file type: ${exts}`,
+        body:      `An email from ${payload.From} contained ${nonPdfs.length > 1 ? `${nonPdfs.length} attachments` : 'an attachment'} (${fileList}) that could not be processed. Purchasomatic only accepts PDF files. Ask your vendor to send invoices as PDFs, or export the file to PDF before forwarding it. No credit was charged.`,
+      })
+
+      console.warn(`[email-webhook] Unsupported attachment types (${exts}) from ${payload.From} — notified company ${company.company_id}`)
+    }
+    // No attachments at all — silent skip (plain-text email forwards are normal)
     return NextResponse.json({ skipped: true, reason: 'no_pdf_attachments' })
+  }
+
+  // If there are also non-PDF attachments alongside valid PDFs, notify separately
+  if (nonPdfs.length > 0) {
+    const fileList = nonPdfs.map(a => a.Name).join(', ')
+    const exts = [...new Set(nonPdfs.map(a => {
+      const parts = (a.Name ?? '').split('.')
+      return parts.length > 1 ? parts.pop()!.toUpperCase() : 'unknown'
+    }))].join(', ')
+
+    await supabase.from('processing_log').insert({
+      company_id:  company.company_id,
+      action:      'unsupported_file_type',
+      actor:       'system',
+      after_state: { from: payload.From, subject, files: fileList, types: exts },
+    })
+
+    await sendNotification({
+      companyId: company.company_id,
+      event:     'pdf_unreadable',
+      subject:   `Attachment skipped: ${exts}`,
+      body:      `An email from ${payload.From} contained a mix of file types. The PDF(s) were processed normally, but ${nonPdfs.length > 1 ? `${nonPdfs.length} attachments` : 'one attachment'} (${fileList}) could not be processed because Purchasomatic only accepts PDF files. No credit was charged for the skipped file(s).`,
+    })
+
+    console.warn(`[email-webhook] Mixed attachments — PDFs processed, unsupported (${exts}) skipped, company ${company.company_id}`)
   }
 
   const created: string[] = []
