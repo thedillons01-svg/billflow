@@ -4,6 +4,7 @@ import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
 import type { ExtractionResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
+import { saveToStorage } from '@/lib/storage/save-to-storage'
 
 // ---------------------------------------------------------------------------
 // Service-role Supabase client (bypasses RLS)
@@ -368,7 +369,16 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     `[ocr] Bill ${billId} processed — tier ${result.tier}, confidence ${result.confidence}, ${result.line_items.length} line items`
   )
 
-  // 9. Immediately attempt auto-publish for this company — eligible bills publish without waiting for cron
+  // 9. Save to external storage (SFTP / Google Drive) if configured
+  if (!isDuplicate) {
+    try {
+      await saveToStorage(billId, 'bill', bill.company_id)
+    } catch (err) {
+      console.error(`[ocr] saveToStorage failed for bill ${billId}:`, err)
+    }
+  }
+
+  // 10. Immediately attempt auto-publish for this company — eligible bills publish without waiting for cron
   if (!isDuplicate) {
     try {
       const { runAutopublishForCompany } = await import('@/lib/autopublish/engine')

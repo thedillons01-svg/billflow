@@ -3,6 +3,7 @@ import { extractTier1, hasTextLayer } from './tier1'
 import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
 import type { ExtractionResult } from './types'
+import { saveToStorage } from '@/lib/storage/save-to-storage'
 
 function getServiceClient() {
   return createClient(
@@ -144,6 +145,13 @@ export async function processPO(poId: string): Promise<void> {
   })
 
   console.log(`[ocr-po] PO ${poId} processed — tier ${tier}, ${result.line_items.length} line items`)
+
+  // Save to external storage (SFTP / Google Drive) if configured
+  try {
+    await saveToStorage(poId, 'po', po.company_id)
+  } catch (err) {
+    console.error(`[ocr-po] saveToStorage failed for PO ${poId}:`, err)
+  }
 }
 
 async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: ExtractionResult; tier: number }> {
