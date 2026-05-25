@@ -510,7 +510,7 @@ export function BillReviewForm({
               </button>
             </div>
           )}
-          {bill.autopublish_hold_reason && localStatus !== 'pending_job_match' && (
+          {bill.autopublish_hold_reason && bill.autopublish_hold_reason !== 'No vendor record linked to this bill.' && localStatus !== 'pending_job_match' && (
             <div style={{ background: '#FEF3C7', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#92400E' }}>
               {bill.autopublish_hold_reason}
             </div>
@@ -568,6 +568,12 @@ export function BillReviewForm({
                       </option>
                     ))}
                   </select>
+                  {localVendorId === '' && (
+                    <p style={{ marginTop: 5, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />
+                      No vendor record linked — required to publish to QuickBooks.
+                    </p>
+                  )}
                   {localVendorId === '' && bill.vendor_name_raw && (
                     <button
                       type="button"

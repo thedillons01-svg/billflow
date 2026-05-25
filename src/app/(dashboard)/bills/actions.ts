@@ -150,7 +150,7 @@ export async function createVendorFromBill(billId: string, companyId: string, ve
 
   const { error: billError } = await supabase
     .from('bills')
-    .update({ vendor_id: vendor.vendor_id })
+    .update({ vendor_id: vendor.vendor_id, autopublish_hold_reason: null })
     .eq('bill_id', billId)
   if (billError) throw new Error(billError.message)
 
