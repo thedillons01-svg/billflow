@@ -36,6 +36,7 @@ export default async function DashboardPage() {
       .from('bills')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'sync_error')
+      .not('qb_sync_error', 'is', null)
       .is('deleted_at', null),
     supabase
       .from('companies')

@@ -275,6 +275,19 @@ function EmptyState({ tab, search }: { tab: string; search: string }) {
       </div>
     )
   }
+  if (tab === 'all') {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
+        <i className="ti ti-circle-check" style={{ fontSize: 48, color: '#2DB87A' }} />
+        <h2 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', marginTop: 16 }}>
+          Your inbox is empty
+        </h2>
+        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>
+          No bills are waiting for review or job matching.
+        </p>
+      </div>
+    )
+  }
   return (
     <div className="flex flex-col items-center justify-center py-24 px-6 text-center">
       <i className="ti ti-file-invoice" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
