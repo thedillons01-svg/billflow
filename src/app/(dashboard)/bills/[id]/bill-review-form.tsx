@@ -131,7 +131,7 @@ export function BillReviewForm({
   }> | null>(null)
   const historyRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
-  const [formWidth, setFormWidth] = useState(600)
+  const [formWidth, setFormWidth] = useState(720)
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -687,6 +687,36 @@ export function BillReviewForm({
                   </Field>
                 </div>
               )}
+              {jobCostingEnabled && lineItems.length > 0 && (
+                <div className="col-span-2">
+                  <Field label="Job (all lines)" helper="Sets the job for all line items at once. Individual line items can still be changed after.">
+                    <InlineSelect
+                      initialValue={
+                        lineItems.every(li => li.job_id === lineItems[0].job_id)
+                          ? (lineItems[0].job_id ?? '')
+                          : ''
+                      }
+                      options={jobs.map(j => ({
+                        value: j.qb_job_id,
+                        label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+                      }))}
+                      onSave={async (v) => {
+                        if (!v) return
+                        const job = jobs.find(j => j.qb_job_id === v)
+                        const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
+                        if (lineItems.length > 1) {
+                          setJobApplyPrompt({ jobId: v, jobLabel: label })
+                        } else if (lineItems.length === 1) {
+                          await updateLineItem(lineItems[0].line_id, { job_id: v })
+                          router.refresh()
+                        }
+                      }}
+                      placeholder={lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'Job…' : 'Mixed — select to apply all'}
+                      emptyLabel="—"
+                    />
+                  </Field>
+                </div>
+              )}
             </div>
           </Section>
 
@@ -702,8 +732,17 @@ export function BillReviewForm({
                       classTrackingEnabled ? ' 1fr' : '',
                       ' 24px',
                     ].join(''), background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
-                  {['Description', 'Qty', 'Unit', 'Amount', 'GL Account', ...(jobCostingEnabled ? ['Job'] : []), ...(classTrackingEnabled ? ['Class'] : []), ''].map(h => (
-                    <span key={h} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>{h}</span>
+                  {([
+                    { label: 'Description', align: 'left' },
+                    { label: 'Qty', align: 'right' },
+                    { label: 'Unit', align: 'right' },
+                    { label: 'Amount', align: 'right' },
+                    { label: 'GL Account', align: 'left' },
+                    ...(jobCostingEnabled ? [{ label: 'Job', align: 'left' }] : []),
+                    ...(classTrackingEnabled ? [{ label: 'Class', align: 'left' }] : []),
+                    { label: '', align: 'left' },
+                  ] as { label: string; align: 'left' | 'right' }[]).map(h => (
+                    <span key={h.label} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', textAlign: h.align }}>{h.label}</span>
                   ))}
                 </div>
                 {lineItems.map((item, i) => (
