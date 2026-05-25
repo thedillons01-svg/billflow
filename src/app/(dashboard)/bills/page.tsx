@@ -14,7 +14,7 @@ export default async function BillsPage({
   searchParams: Promise<{ tab?: string; q?: string }>
 }) {
   const { tab, q } = await searchParams
-  const activeTab = tab === 'pending' ? 'pending' : tab === 'archive' ? 'archive' : tab === 'all' ? 'all' : 'review'
+  const activeTab = tab === 'review' ? 'review' : tab === 'pending' ? 'pending' : tab === 'archive' ? 'archive' : 'all'
   const search = q?.trim() ?? ''
 
   const supabase = await createClient()
@@ -51,9 +51,9 @@ export default async function BillsPage({
   const subscriptionStatus = companyResult.data?.subscription_status ?? 'trial'
 
   const tabs = [
-    { id: 'review',  label: 'Needs Review',      count: reviewCountResult.count ?? 0 },
-    { id: 'pending', label: 'Pending Job Match',  count: pendingCountResult.count ?? 0 },
     { id: 'all',     label: 'All Inbox',          count: (reviewCountResult.count ?? 0) + (pendingCountResult.count ?? 0) },
+    { id: 'review',  label: 'Needs Review',       count: reviewCountResult.count ?? 0 },
+    { id: 'pending', label: 'Pending Job Match',  count: pendingCountResult.count ?? 0 },
     { id: 'archive', label: 'Archive',            count: null },
   ]
 
@@ -79,7 +79,7 @@ export default async function BillsPage({
         style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
       >
         {tabs.map(t => {
-          const href = t.id === 'review' ? '/bills' : `/bills?tab=${t.id}`
+          const href = t.id === 'all' ? '/bills' : `/bills?tab=${t.id}`
           return (
             <Link
               key={t.id}
