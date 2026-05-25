@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useRef, useTransition, useEffect } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, getVendorBillHistory } from '../actions'
+import { useState, useRef, useTransition, useEffect, useCallback } from 'react'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, getVendorBillHistory, createVendorFromBill } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -87,6 +87,7 @@ export function BillReviewForm({
 }) {
   const router = useRouter()
   const [localStatus, setLocalStatus] = useState(bill.status)
+  const [localVendorId, setLocalVendorId] = useState(bill.vendor_id ?? '')
   const [swapped, setSwapped] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [publishError, setPublishError] = useState<string | null>(null)
@@ -129,6 +130,35 @@ export function BillReviewForm({
     bill_id: string; invoice_number: string | null; invoice_date: string | null; total: number | null; status: string
   }> | null>(null)
   const historyRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLDivElement>(null)
+  const [formWidth, setFormWidth] = useState(600)
+
+  const handleDragStart = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    const startX = e.clientX
+    const startWidth = formRef.current?.offsetWidth ?? formWidth
+
+    const onMove = (ev: MouseEvent) => {
+      if (!formRef.current) return
+      const delta = swapped ? startX - ev.clientX : ev.clientX - startX
+      const next = Math.min(900, Math.max(320, startWidth + delta))
+      formRef.current.style.width = next + 'px'
+    }
+
+    const onUp = (ev: MouseEvent) => {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      const delta = swapped ? startX - ev.clientX : ev.clientX - startX
+      setFormWidth(Math.min(900, Math.max(320, startWidth + delta)))
+    }
+
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [swapped, formWidth])
 
   useEffect(() => {
     if (!showHistory) return
@@ -239,8 +269,9 @@ export function BillReviewForm({
 
   const formPanel = (
     <div
+      ref={formRef}
       style={{
-        width: 600, flexShrink: 0,
+        width: formWidth, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         background: 'white',
         order: swapped ? 2 : 0,
@@ -521,17 +552,45 @@ export function BillReviewForm({
               <div className="col-span-2">
                 <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
                   <select
-                    defaultValue={bill.vendor_id ?? ''}
-                    onChange={e => updateBill(bill.bill_id, { vendor_id: e.target.value || null })}
+                    value={localVendorId}
+                    onChange={e => {
+                      setLocalVendorId(e.target.value)
+                      updateBill(bill.bill_id, { vendor_id: e.target.value || null })
+                    }}
                     style={selectStyle}
                   >
-                    <option value="">— Unmatched —</option>
+                    <option value="">
+                      {bill.vendor_name_raw ? `— ${bill.vendor_name_raw} (unmatched) —` : '— Unmatched —'}
+                    </option>
                     {vendors.map(v => (
                       <option key={v.vendor_id} value={v.vendor_id}>
                         {v.vendor_name_display ?? v.vendor_name_extracted ?? v.vendor_id}
                       </option>
                     ))}
                   </select>
+                  {localVendorId === '' && bill.vendor_name_raw && (
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        startTransition(async () => {
+                          const newId = await createVendorFromBill(bill.bill_id, bill.company_id, bill.vendor_name_raw!)
+                          setLocalVendorId(newId)
+                          router.refresh()
+                        })
+                      }}
+                      style={{
+                        marginTop: 6,
+                        background: 'none', border: 'none', padding: 0,
+                        fontSize: 12, color: '#2DB87A', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', gap: 4,
+                        opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                      {isPending ? 'Creating…' : `Create "${bill.vendor_name_raw}" as new vendor`}
+                    </button>
+                  )}
                 </Field>
               </div>
               <Field label="Invoice #" helper="The invoice number from the vendor PDF. Used for duplicate detection.">
@@ -1168,9 +1227,24 @@ export function BillReviewForm({
     ? 'Tier 2 — Claude Haiku (enhanced text extraction)'
     : 'Tier 3 — Claude Opus (vision / scanned document)'
 
+  const dragHandle = (
+    <div
+      onMouseDown={handleDragStart}
+      style={{
+        width: 5, flexShrink: 0, cursor: 'col-resize',
+        background: 'var(--color-border-tertiary)',
+        order: 1,
+        transition: 'background 0.15s',
+      }}
+      onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-border-secondary)')}
+      onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-border-tertiary)')}
+    />
+  )
+
   return (
     <div className="flex" style={{ height: '100%' }}>
       {formPanel}
+      {dragHandle}
       {pdfPanel}
 
       {showReprocessModal && (
