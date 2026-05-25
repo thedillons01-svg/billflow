@@ -107,6 +107,13 @@ export function BillReviewForm({
   const [headerGlApplyPrompt, setHeaderGlApplyPrompt] = useState<{
     glAccountId: string; accountName: string
   } | null>(null)
+  // Inline pending prompts shown directly below header fields
+  const [headerGlPending, setHeaderGlPending] = useState<{
+    glAccountId: string; accountName: string
+  } | null>(null)
+  const [headerJobPending, setHeaderJobPending] = useState<{
+    jobId: string; jobLabel: string
+  } | null>(null)
   // Remember prompts for payment account and method
   const [paymentAccountRemember, setPaymentAccountRemember] = useState<{
     accountId: string; accountName: string
@@ -671,7 +678,7 @@ export function BillReviewForm({
                         const account = expenseAccounts.find(a => a.qb_account_id === v)
                         const name = account?.name ?? v
                         if (lineItems.length > 1) {
-                          setHeaderGlApplyPrompt({ glAccountId: v, accountName: name })
+                          setHeaderGlPending({ glAccountId: v, accountName: name })
                         } else if (lineItems.length === 1) {
                           await updateLineItem(lineItems[0].line_id, { gl_account_id: v, gl_account_source: 'manual' })
                           if (bill.vendor_id) {
@@ -684,6 +691,36 @@ export function BillReviewForm({
                       placeholder={lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id) ? 'GL account…' : 'Mixed — select to apply all'}
                       emptyLabel="Connect QB"
                     />
+                    {headerGlPending && (
+                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
+                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                          Apply <strong>{headerGlPending.accountName}</strong> to all {lineItems.length} lines?
+                        </span>
+                        <button
+                          onClick={async () => {
+                            const pending = headerGlPending
+                            setHeaderGlPending(null)
+                            for (const li of lineItems) {
+                              await updateLineItem(li.line_id, { gl_account_id: pending.glAccountId, gl_account_source: 'manual' })
+                            }
+                            if (bill.vendor_id) {
+                              setRememberPrompt({ lineId: lineItems[0].line_id, description: 'all lines', glAccountId: pending.glAccountId, accountName: pending.accountName })
+                            }
+                            router.refresh()
+                          }}
+                          style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: '#FEF3C7', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Yes, all {lineItems.length}
+                        </button>
+                        <button
+                          onClick={() => setHeaderGlPending(null)}
+                          style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    )}
                   </Field>
                 </div>
               )}
@@ -705,7 +742,7 @@ export function BillReviewForm({
                         const job = jobs.find(j => j.qb_job_id === v)
                         const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
                         if (lineItems.length > 1) {
-                          setJobApplyPrompt({ jobId: v, jobLabel: label })
+                          setHeaderJobPending({ jobId: v, jobLabel: label })
                         } else if (lineItems.length === 1) {
                           await updateLineItem(lineItems[0].line_id, { job_id: v })
                           router.refresh()
@@ -714,6 +751,33 @@ export function BillReviewForm({
                       placeholder={lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'Job…' : 'Mixed — select to apply all'}
                       emptyLabel="—"
                     />
+                    {headerJobPending && (
+                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EEF2FF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}>
+                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#4338CA', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#3730A3', flex: 1 }}>
+                          Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?
+                        </span>
+                        <button
+                          onClick={async () => {
+                            const pending = headerJobPending
+                            setHeaderJobPending(null)
+                            for (const li of lineItems) {
+                              await updateLineItem(li.line_id, { job_id: pending.jobId })
+                            }
+                            router.refresh()
+                          }}
+                          style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#4338CA', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Yes, all {lineItems.length}
+                        </button>
+                        <button
+                          onClick={() => setHeaderJobPending(null)}
+                          style={{ fontSize: 12, color: '#3730A3', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    )}
                   </Field>
                 </div>
               )}
@@ -921,39 +985,6 @@ export function BillReviewForm({
               </div>
             )}
 
-            {/* Apply GL account to all lines prompt */}
-            {headerGlApplyPrompt && lineItems.length > 1 && (
-              <div
-                className="flex items-center gap-3 mt-2 px-3 py-2"
-                style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}
-              >
-                <i className="ti ti-tag" style={{ fontSize: 14, color: '#D97706' }} />
-                <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
-                  Apply <strong>{headerGlApplyPrompt.accountName}</strong> to all {lineItems.length} lines?
-                </p>
-                <button
-                  onClick={async () => {
-                    for (const li of lineItems) {
-                      await updateLineItem(li.line_id, { gl_account_id: headerGlApplyPrompt.glAccountId, gl_account_source: 'manual' })
-                    }
-                    setHeaderGlApplyPrompt(null)
-                    if (bill.vendor_id) {
-                      setRememberPrompt({ lineId: lineItems[0].line_id, description: 'all lines', glAccountId: headerGlApplyPrompt.glAccountId, accountName: headerGlApplyPrompt.accountName })
-                    }
-                    router.refresh()
-                  }}
-                  style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: '#FEF3C7', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer' }}
-                >
-                  Yes, all {lineItems.length}
-                </button>
-                <button
-                  onClick={() => setHeaderGlApplyPrompt(null)}
-                  style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
-                >
-                  No
-                </button>
-              </div>
-            )}
 
             {!isPublished && (
               <button
