@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, getVendorBillHistory, createVendorFromBill } from '../actions'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -113,6 +113,10 @@ export function BillReviewForm({
   } | null>(null)
   const [headerJobPending, setHeaderJobPending] = useState<{
     jobId: string; jobLabel: string
+  } | null>(null)
+  // Remember vendor default GL after header apply-to-all
+  const [vendorGlRemember, setVendorGlRemember] = useState<{
+    glAccountId: string; accountName: string
   } | null>(null)
   // Remember prompts for payment account and method
   const [paymentAccountRemember, setPaymentAccountRemember] = useState<{
@@ -691,6 +695,29 @@ export function BillReviewForm({
                       placeholder={lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id) ? 'GL account…' : 'Mixed — select to apply all'}
                       emptyLabel="Connect QB"
                     />
+                    {vendorGlRemember && (
+                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
+                        <i className="ti ti-bulb" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                          Remember <strong>{vendorGlRemember.accountName}</strong> as the default GL account for this vendor?
+                        </span>
+                        <button
+                          onClick={async () => {
+                            await saveVendorGlDefault(bill.vendor_id!, vendorGlRemember.glAccountId)
+                            setVendorGlRemember(null)
+                          }}
+                          style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setVendorGlRemember(null)}
+                          style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    )}
                     {headerGlPending && (
                       <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
                         <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
@@ -704,6 +731,9 @@ export function BillReviewForm({
                             setLineItems(ls => ls.map(li => ({ ...li, gl_account_id: pending.glAccountId, gl_account_source: 'manual' })))
                             for (const li of lineItems) {
                               await updateLineItem(li.line_id, { gl_account_id: pending.glAccountId, gl_account_source: 'manual' })
+                            }
+                            if (bill.vendor_id) {
+                              setVendorGlRemember({ glAccountId: pending.glAccountId, accountName: pending.accountName })
                             }
                             router.refresh()
                           }}

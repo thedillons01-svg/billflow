@@ -96,6 +96,15 @@ export async function saveVendorPaymentDefaults(
   await supabase.from('vendors').update(updates).eq('vendor_id', vendorId)
 }
 
+export async function saveVendorGlDefault(vendorId: string, glAccountId: string) {
+  const supabase = await createClient()
+  await supabase.from('vendors').update({
+    billflow_gl_account_id: glAccountId,
+    gl_account_source: 'billflow_override',
+  }).eq('vendor_id', vendorId)
+  revalidatePath('/vendors')
+}
+
 export async function saveVendorClassDefault(vendorId: string, classId: string) {
   const supabase = await createClient()
   await supabase.from('vendors').update({
