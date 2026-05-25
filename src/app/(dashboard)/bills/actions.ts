@@ -154,6 +154,7 @@ export async function createVendorFromBill(billId: string, companyId: string, ve
     .eq('bill_id', billId)
   if (billError) throw new Error(billError.message)
 
+  revalidatePath('/bills')
   revalidatePath(`/bills/${billId}`)
   revalidatePath('/vendors')
   return vendor.vendor_id
