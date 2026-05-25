@@ -705,9 +705,6 @@ export function BillReviewForm({
                             for (const li of lineItems) {
                               await updateLineItem(li.line_id, { gl_account_id: pending.glAccountId, gl_account_source: 'manual' })
                             }
-                            if (bill.vendor_id) {
-                              setRememberPrompt({ lineId: lineItems[0].line_id, description: 'all lines', glAccountId: pending.glAccountId, accountName: pending.accountName })
-                            }
                             router.refresh()
                           }}
                           style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: '#FEF3C7', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
