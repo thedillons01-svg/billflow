@@ -120,6 +120,11 @@ export function BillReviewForm({
   // Reprocess modal
   const [showReprocessModal, setShowReprocessModal] = useState(false)
   const [reprocessComment, setReprocessComment] = useState('')
+  // Bill type local state for optimistic UI
+  const [billType, setBillType] = useState(bill.bill_type ?? 'bill')
+  // Resizable panes
+  const [leftWidth, setLeftWidth] = useState(600)
+  const dragRef = useRef(false)
 
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
@@ -146,6 +151,25 @@ export function BillReviewForm({
       const data = await getVendorBillHistory(bill.vendor_id, bill.bill_id)
       setHistoryBills(data)
     }
+  }
+
+  const handleDividerMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    dragRef.current = true
+    const startX = e.clientX
+    const startWidth = leftWidth
+    const onMove = (e: MouseEvent) => {
+      if (!dragRef.current) return
+      const delta = swapped ? startX - e.clientX : e.clientX - startX
+      setLeftWidth(Math.max(380, Math.min(startWidth + delta, window.innerWidth - 320)))
+    }
+    const onUp = () => {
+      dragRef.current = false
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
   }
 
   const expenseAccounts = accounts.filter(a =>
@@ -238,12 +262,10 @@ export function BillReviewForm({
   const formPanel = (
     <div
       style={{
-        width: 520, flexShrink: 0,
+        width: leftWidth, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
-        borderRight: swapped ? 'none' : '0.5px solid var(--color-border-tertiary)',
-        borderLeft: swapped ? '0.5px solid var(--color-border-tertiary)' : 'none',
         background: 'white',
-        order: swapped ? 1 : 0,
+        order: swapped ? 2 : 0,
       }}
     >
       {/* Fixed header */}
@@ -518,38 +540,37 @@ export function BillReviewForm({
           {/* INVOICE DETAILS */}
           <Section title="Invoice Details">
             <div className="grid grid-cols-2 gap-3">
-              {vendors.length > 0 && (
-                <div className="col-span-2">
-                  <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
-                    <select
-                      defaultValue={bill.vendor_id ?? ''}
-                      onChange={e => updateBill(bill.bill_id, { vendor_id: e.target.value || null })}
-                      style={selectStyle}
-                    >
-                      <option value="">— Unmatched —</option>
-                      {vendors.map(v => (
-                        <option key={v.vendor_id} value={v.vendor_id}>
-                          {v.vendor_name_display ?? v.vendor_name_extracted ?? v.vendor_id}
-                        </option>
-                      ))}
-                    </select>
-                  </Field>
-                </div>
-              )}
               <div className="col-span-2">
-                <Field label="Invoice #" helper="The invoice number from the vendor PDF. Used for duplicate detection — checked against vendor + invoice number combination.">
-                  <AutoSaveInput
-                    initialValue={bill.invoice_number ?? ''}
-                    onSave={v => updateBill(bill.bill_id, { invoice_number: v || null })}
-                    placeholder="e.g. INV-12345"
-                  />
+                <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
+                  <select
+                    defaultValue={bill.vendor_id ?? ''}
+                    onChange={e => updateBill(bill.bill_id, { vendor_id: e.target.value || null })}
+                    style={selectStyle}
+                  >
+                    <option value="">— Unmatched —</option>
+                    {vendors.map(v => (
+                      <option key={v.vendor_id} value={v.vendor_id}>
+                        {v.vendor_name_display ?? v.vendor_name_extracted ?? v.vendor_id}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
+              <Field label="Invoice #" helper="The invoice number from the vendor PDF. Used for duplicate detection.">
+                <AutoSaveInput
+                  initialValue={bill.invoice_number ?? ''}
+                  onSave={v => updateBill(bill.bill_id, { invoice_number: v || null })}
+                  placeholder="e.g. INV-12345"
+                />
+              </Field>
               <Field label="Invoice Date" helper="Date on the vendor invoice.">
                 <AutoSaveInput type="date" initialValue={bill.invoice_date ?? ''} onSave={v => updateBill(bill.bill_id, { invoice_date: v || null })} />
               </Field>
               <Field label="Due Date" helper="Payment due date. Can be blank.">
                 <AutoSaveInput type="date" initialValue={bill.due_date ?? ''} onSave={v => updateBill(bill.bill_id, { due_date: v || null })} />
+              </Field>
+              <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum for auto-publish.">
+                <AutoSaveInput type="number" initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
               </Field>
               <div className="col-span-2">
                 <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and optionally copied to QB Ref No field.">
@@ -565,19 +586,32 @@ export function BillReviewForm({
                 <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>
                   Document Type
                 </label>
-                <BillTypeToggle
-                  value={bill.bill_type ?? 'bill'}
-                  onChange={v => updateBill(bill.bill_id, { bill_type: v })}
-                  disabled={isPublished}
-                />
-                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-                  Credit Notes are negative-amount documents issued by vendors (refunds, adjustments).
+                <div className="flex items-center gap-5">
+                  {([
+                    { value: 'bill', label: 'Invoice / Bill' },
+                    { value: 'credit_note', label: 'Credit Note' },
+                  ] as const).map(opt => (
+                    <label
+                      key={opt.value}
+                      className="flex items-center gap-1.5"
+                      style={{ cursor: isPublished ? 'default' : 'pointer', fontSize: 13, color: 'var(--color-text-primary)', userSelect: 'none' }}
+                    >
+                      <input
+                        type="radio"
+                        name={`bill_type_${bill.bill_id}`}
+                        value={opt.value}
+                        checked={billType === opt.value}
+                        disabled={isPublished}
+                        onChange={() => { if (!isPublished) { setBillType(opt.value); updateBill(bill.bill_id, { bill_type: opt.value }) } }}
+                        style={{ accentColor: '#2DB87A', cursor: isPublished ? 'default' : 'pointer' }}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                  Credit notes are negative-amount documents issued by vendors (refunds, adjustments).
                 </p>
-              </div>
-              <div className="col-span-2">
-                <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum exactly for auto-publish.">
-                  <AutoSaveInput type="number" initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
-                </Field>
               </div>
               {lineItems.length > 0 && (
                 <div className="col-span-2">
@@ -1099,7 +1133,7 @@ export function BillReviewForm({
   const pdfPanel = (
     <div
       className="flex-1 overflow-hidden flex flex-col"
-      style={{ background: 'var(--color-background-secondary)', order: swapped ? 0 : 1 }}
+      style={{ background: 'var(--color-background-secondary)', order: swapped ? 0 : 2 }}
     >
       {pdfSignedUrl && (
         <div
@@ -1157,8 +1191,20 @@ export function BillReviewForm({
     : 'Tier 3 — Claude Opus (vision / scanned document)'
 
   return (
-    <div className="flex" style={{ height: '100%' }}>
+    <div className="flex" style={{ height: '100%', userSelect: dragRef.current ? 'none' : undefined }}>
       {formPanel}
+      <div
+        onMouseDown={handleDividerMouseDown}
+        title="Drag to resize"
+        style={{
+          width: 5, flexShrink: 0, order: 1,
+          cursor: 'col-resize',
+          background: 'var(--color-border-tertiary)',
+          transition: 'background 0.15s',
+        }}
+        onMouseEnter={e => { e.currentTarget.style.background = '#2DB87A' }}
+        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-border-tertiary)' }}
+      />
       {pdfPanel}
 
       {showReprocessModal && (
