@@ -122,9 +122,6 @@ export function BillReviewForm({
   const [reprocessComment, setReprocessComment] = useState('')
   // Bill type local state for optimistic UI
   const [billType, setBillType] = useState(bill.bill_type ?? 'bill')
-  // Resizable panes
-  const [leftWidth, setLeftWidth] = useState(600)
-  const dragRef = useRef(false)
 
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
@@ -151,25 +148,6 @@ export function BillReviewForm({
       const data = await getVendorBillHistory(bill.vendor_id, bill.bill_id)
       setHistoryBills(data)
     }
-  }
-
-  const handleDividerMouseDown = (e: React.MouseEvent) => {
-    e.preventDefault()
-    dragRef.current = true
-    const startX = e.clientX
-    const startWidth = leftWidth
-    const onMove = (e: MouseEvent) => {
-      if (!dragRef.current) return
-      const delta = swapped ? startX - e.clientX : e.clientX - startX
-      setLeftWidth(Math.max(380, Math.min(startWidth + delta, window.innerWidth - 320)))
-    }
-    const onUp = () => {
-      dragRef.current = false
-      document.removeEventListener('mousemove', onMove)
-      document.removeEventListener('mouseup', onUp)
-    }
-    document.addEventListener('mousemove', onMove)
-    document.addEventListener('mouseup', onUp)
   }
 
   const expenseAccounts = accounts.filter(a =>
@@ -262,7 +240,7 @@ export function BillReviewForm({
   const formPanel = (
     <div
       style={{
-        width: leftWidth, flexShrink: 0,
+        width: 600, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         background: 'white',
         order: swapped ? 2 : 0,
@@ -1191,20 +1169,8 @@ export function BillReviewForm({
     : 'Tier 3 — Claude Opus (vision / scanned document)'
 
   return (
-    <div className="flex" style={{ height: '100%', userSelect: dragRef.current ? 'none' : undefined }}>
+    <div className="flex" style={{ height: '100%' }}>
       {formPanel}
-      <div
-        onMouseDown={handleDividerMouseDown}
-        title="Drag to resize"
-        style={{
-          width: 5, flexShrink: 0, order: 1,
-          cursor: 'col-resize',
-          background: 'var(--color-border-tertiary)',
-          transition: 'background 0.15s',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = '#2DB87A' }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'var(--color-border-tertiary)' }}
-      />
       {pdfPanel}
 
       {showReprocessModal && (
