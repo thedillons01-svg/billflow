@@ -701,6 +701,7 @@ export function BillReviewForm({
                           onClick={async () => {
                             const pending = headerGlPending
                             setHeaderGlPending(null)
+                            setLineItems(ls => ls.map(li => ({ ...li, gl_account_id: pending.glAccountId, gl_account_source: 'manual' })))
                             for (const li of lineItems) {
                               await updateLineItem(li.line_id, { gl_account_id: pending.glAccountId, gl_account_source: 'manual' })
                             }
@@ -761,6 +762,7 @@ export function BillReviewForm({
                           onClick={async () => {
                             const pending = headerJobPending
                             setHeaderJobPending(null)
+                            setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId })))
                             for (const li of lineItems) {
                               await updateLineItem(li.line_id, { job_id: pending.jobId })
                             }
@@ -1525,6 +1527,8 @@ function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel }
   emptyLabel: string
 }) {
   const [value, setValue] = useState(initialValue)
+
+  useEffect(() => { setValue(initialValue) }, [initialValue])
 
   if (options.length === 0) {
     return <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontStyle: 'italic', padding: '0 4px' }}>{emptyLabel}</span>
