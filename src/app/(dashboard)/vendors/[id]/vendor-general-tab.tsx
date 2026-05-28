@@ -5,11 +5,13 @@ import { updateVendor } from './actions'
 
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
 type QBClass = { qb_class_id: string; name: string | null }
+type QBVendor = { qb_vendor_id: string; name: string | null }
 
 type Vendor = {
   vendor_id: string
   vendor_name_extracted: string
   vendor_name_display: string | null
+  qb_vendor_id: string | null
   is_visible: boolean
   auto_publish_enabled: boolean
   hold_for_job_match: boolean
@@ -26,12 +28,13 @@ type Vendor = {
 }
 
 export function VendorGeneralTab({
-  vendor, accounts, classes, classTrackingEnabled,
+  vendor, accounts, classes, classTrackingEnabled, qbVendors,
 }: {
   vendor: Vendor
   accounts: Account[]
   classes: QBClass[]
   classTrackingEnabled: boolean
+  qbVendors: QBVendor[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
@@ -39,6 +42,7 @@ export function VendorGeneralTab({
   const [form, setForm] = useState({
     vendor_name_extracted: vendor.vendor_name_extracted,
     vendor_name_display:   vendor.vendor_name_display ?? '',
+    qb_vendor_id:          vendor.qb_vendor_id ?? '',
     is_visible:            vendor.is_visible,
     auto_publish_enabled:  vendor.auto_publish_enabled,
     hold_for_job_match:    vendor.hold_for_job_match,
@@ -54,9 +58,12 @@ export function VendorGeneralTab({
 
   const handleSave = () => {
     startTransition(async () => {
+      const selectedQbVendor = qbVendors.find(v => v.qb_vendor_id === form.qb_vendor_id)
       await updateVendor(vendor.vendor_id, {
         vendor_name_extracted:      form.vendor_name_extracted || null,
         vendor_name_display:        form.vendor_name_display || null,
+        qb_vendor_id:               form.qb_vendor_id || null,
+        qb_vendor_name:             selectedQbVendor?.name ?? null,
         is_visible:                 form.is_visible,
         auto_publish_enabled:       form.auto_publish_enabled,
         hold_for_job_match:         form.hold_for_job_match,
@@ -131,15 +138,35 @@ export function VendorGeneralTab({
           />
         </Field>
         <Field
-          label="Display name (QB vendor name)"
-          helper="The vendor name as it appears in QuickBooks. Bills are pushed to QB using this name."
+          label="QuickBooks vendor"
+          helper={qbVendors.length === 0 ? "No QB vendors synced yet — connect QuickBooks and run a sync to populate this list." : "Select the matching vendor from your QuickBooks vendor list. This links the vendor for bill publishing and sets the display name."}
         >
-          <input
-            value={form.vendor_name_display}
-            onChange={e => set('vendor_name_display', e.target.value)}
-            placeholder="Same as OCR name"
-            style={inputStyle}
-          />
+          {qbVendors.length === 0 ? (
+            <input
+              value={form.vendor_name_display}
+              onChange={e => set('vendor_name_display', e.target.value)}
+              placeholder="QB vendor name"
+              style={inputStyle}
+            />
+          ) : (
+            <select
+              value={form.qb_vendor_id}
+              onChange={e => {
+                const selected = qbVendors.find(v => v.qb_vendor_id === e.target.value)
+                setForm(f => ({
+                  ...f,
+                  qb_vendor_id: e.target.value,
+                  vendor_name_display: selected?.name ?? '',
+                }))
+              }}
+              style={inputStyle}
+            >
+              <option value="">— Not linked to a QB vendor —</option>
+              {qbVendors.map(v => (
+                <option key={v.qb_vendor_id} value={v.qb_vendor_id}>{v.name}</option>
+              ))}
+            </select>
+          )}
         </Field>
       </Section>
 

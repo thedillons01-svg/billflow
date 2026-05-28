@@ -26,7 +26,7 @@ export default async function VendorDetailPage({
   if (!vendor) notFound()
 
   // QB accounts for GL account and payment account dropdowns
-  const [{ data: accounts }, { data: classes }, { data: companyCfg }] = await Promise.all([
+  const [{ data: accounts }, { data: classes }, { data: companyCfg }, { data: qbVendors }] = await Promise.all([
     supabase
       .from('qb_accounts_cache')
       .select('qb_account_id, name, account_type')
@@ -42,6 +42,11 @@ export default async function VendorDetailPage({
       .from('companies')
       .select('class_tracking_enabled')
       .single(),
+    supabase
+      .from('qb_vendors_cache')
+      .select('qb_vendor_id, name')
+      .eq('company_id', vendor.company_id)
+      .order('name'),
   ])
 
   const expenseAccounts = (accounts ?? []).filter(a =>
@@ -155,6 +160,7 @@ export default async function VendorDetailPage({
             accounts={accounts ?? []}
             classes={classes ?? []}
             classTrackingEnabled={companyCfg?.class_tracking_enabled ?? false}
+            qbVendors={qbVendors ?? []}
           />
         )}
         {tab === 'line-items' && (
