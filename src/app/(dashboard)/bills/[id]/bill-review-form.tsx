@@ -319,6 +319,7 @@ export function BillReviewForm({
             )}
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+
             {bill.vendor_id && (
               <div style={{ position: 'relative' }} ref={historyRef}>
                 <button
@@ -407,6 +408,40 @@ export function BillReviewForm({
             }}>
               {badge.label}
             </span>
+          </div>
+        </div>
+        {/* Second header row: hold reason + document type */}
+        <div className="flex items-center justify-between gap-3" style={{ marginTop: 6 }}>
+          <div style={{ minWidth: 0 }}>
+            {bill.autopublish_hold_reason && bill.autopublish_hold_reason !== 'No vendor record linked to this bill.' && localStatus !== 'pending_job_match' && (
+              <p style={{ fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <i className="ti ti-info-circle" style={{ fontSize: 11, flexShrink: 0 }} />
+                {bill.autopublish_hold_reason}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-3" style={{ flexShrink: 0 }}>
+            {([
+              { value: 'bill', label: 'Invoice / Bill' },
+              { value: 'credit_note', label: 'Credit Note' },
+            ] as const).map(opt => (
+              <label
+                key={opt.value}
+                className="flex items-center gap-1"
+                style={{ cursor: isPublished ? 'default' : 'pointer', fontSize: 11, color: billType === opt.value ? 'var(--color-text-primary)' : 'var(--color-text-secondary)', userSelect: 'none' }}
+              >
+                <input
+                  type="radio"
+                  name={`bill_type_${bill.bill_id}`}
+                  value={opt.value}
+                  checked={billType === opt.value}
+                  disabled={isPublished}
+                  onChange={() => { if (!isPublished) { setBillType(opt.value); updateBill(bill.bill_id, { bill_type: opt.value }) } }}
+                  style={{ accentColor: '#2DB87A', cursor: isPublished ? 'default' : 'pointer' }}
+                />
+                {opt.label}
+              </label>
+            ))}
           </div>
         </div>
       </div>
@@ -521,11 +556,6 @@ export function BillReviewForm({
               </button>
             </div>
           )}
-          {bill.autopublish_hold_reason && bill.autopublish_hold_reason !== 'No vendor record linked to this bill.' && localStatus !== 'pending_job_match' && (
-            <div style={{ background: '#FEF3C7', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#92400E' }}>
-              {bill.autopublish_hold_reason}
-            </div>
-          )}
           {localStatus === 'sync_error' && bill.qb_sync_error && (
             <div style={{ background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#991B1B' }}>
               <strong>QuickBooks sync failed: </strong>{bill.qb_sync_error}
@@ -635,37 +665,6 @@ export function BillReviewForm({
                 <Field label="Memo / Description" helper="Pre-populates the QB bill memo field. Defaults to vendor name if blank.">
                   <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
                 </Field>
-              </div>
-              <div className="col-span-2">
-                <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 6 }}>
-                  Document Type
-                </label>
-                <div className="flex items-center gap-5">
-                  {([
-                    { value: 'bill', label: 'Invoice / Bill' },
-                    { value: 'credit_note', label: 'Credit Note' },
-                  ] as const).map(opt => (
-                    <label
-                      key={opt.value}
-                      className="flex items-center gap-1.5"
-                      style={{ cursor: isPublished ? 'default' : 'pointer', fontSize: 13, color: 'var(--color-text-primary)', userSelect: 'none' }}
-                    >
-                      <input
-                        type="radio"
-                        name={`bill_type_${bill.bill_id}`}
-                        value={opt.value}
-                        checked={billType === opt.value}
-                        disabled={isPublished}
-                        onChange={() => { if (!isPublished) { setBillType(opt.value); updateBill(bill.bill_id, { bill_type: opt.value }) } }}
-                        style={{ accentColor: '#2DB87A', cursor: isPublished ? 'default' : 'pointer' }}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
-                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                  Credit notes are negative-amount documents issued by vendors (refunds, adjustments).
-                </p>
               </div>
               {lineItems.length > 0 && (
                 <div className="col-span-2">
