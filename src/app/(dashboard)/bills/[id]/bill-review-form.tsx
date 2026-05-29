@@ -634,12 +634,12 @@ export function BillReviewForm({
                         onClick={() => {
                           setVendorCreateError(null)
                           startTransition(async () => {
-                            try {
-                              const newId = await createVendorFromBill(bill.bill_id, bill.company_id, bill.vendor_name_raw!)
-                              setLocalVendorId(newId)
+                            const result = await createVendorFromBill(bill.bill_id, bill.company_id, bill.vendor_name_raw!)
+                            if ('error' in result) {
+                              setVendorCreateError(result.error)
+                            } else {
+                              setLocalVendorId(result.vendorId)
                               router.refresh()
-                            } catch (err) {
-                              setVendorCreateError(err instanceof Error ? err.message : 'Failed to create vendor')
                             }
                           })
                         }}

@@ -176,11 +176,11 @@ export function VendorGeneralTab({
                 onClick={() => {
                   setQbCreateError(null)
                   startTransition(async () => {
-                    try {
-                      const result = await createVendorInQB(vendor.vendor_id)
+                    const result = await createVendorInQB(vendor.vendor_id)
+                    if ('error' in result) {
+                      setQbCreateError(result.error)
+                    } else {
                       setForm(f => ({ ...f, qb_vendor_id: result.qbVendorId, vendor_name_display: result.qbVendorName }))
-                    } catch (e) {
-                      setQbCreateError(e instanceof Error ? e.message : 'Failed to create vendor in QuickBooks')
                     }
                   })
                 }}

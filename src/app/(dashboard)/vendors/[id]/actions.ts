@@ -12,23 +12,48 @@ export async function updateVendor(vendorId: string, updates: Record<string, unk
   revalidatePath('/vendors')
 }
 
-export async function createVendorInQB(vendorId: string) {
+export async function createVendorInQB(
+  vendorId: string
+): Promise<{ qbVendorId: string; qbVendorName: string } | { error: string }> {
   const supabase = await createClient()
   const { data: vendor } = await supabase
     .from('vendors')
     .select('company_id, vendor_name_display, vendor_name_extracted')
     .eq('vendor_id', vendorId)
     .single()
-  if (!vendor) throw new Error('Vendor not found')
+  if (!vendor) return { error: 'Vendor not found' }
 
   const displayName = (vendor.vendor_name_display ?? vendor.vendor_name_extracted ?? '').trim()
-  if (!displayName) throw new Error('Vendor has no name to use in QuickBooks')
+  if (!displayName) return { error: 'Vendor has no name to use in QuickBooks' }
 
-  const { qbPost } = await getQBClient(vendor.company_id)
-  const result = await qbPost('vendor', { DisplayName: displayName })
-  const qbVendorId: string = result.Vendor?.Id
-  const qbVendorName: string = result.Vendor?.DisplayName ?? displayName
-  if (!qbVendorId) throw new Error('QuickBooks did not return a vendor ID')
+  let qbVendorId: string
+  let qbVendorName: string = displayName
+
+  try {
+    const { qbPost } = await getQBClient(vendor.company_id)
+    try {
+      const result = await qbPost('vendor', { DisplayName: displayName })
+      qbVendorId = result.Vendor?.Id
+      qbVendorName = result.Vendor?.DisplayName ?? displayName
+      if (!qbVendorId) return { error: 'QuickBooks did not return a vendor ID' }
+    } catch (e) {
+      // QB error 6240 = duplicate name — extract existing vendor ID and link to it
+      const msg = e instanceof Error ? e.message : ''
+      const dupMatch = msg.match(/"code":"6240"[\s\S]*?Id=(\d+)/)
+      if (dupMatch) {
+        qbVendorId = dupMatch[1]
+      } else {
+        throw e
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    return {
+      error: msg.includes('not connected')
+        ? 'QuickBooks is not connected. Connect QuickBooks in Settings before creating vendors.'
+        : `Could not create vendor in QuickBooks: ${msg || 'unknown error'}`,
+    }
+  }
 
   await supabase.from('vendors').update({
     qb_vendor_id: qbVendorId,
@@ -36,13 +61,11 @@ export async function createVendorInQB(vendorId: string) {
     vendor_name_display: qbVendorName,
   }).eq('vendor_id', vendorId)
 
-  // Add to cache so the QB vendor dropdown shows it immediately
-  await supabase.from('qb_vendors_cache').insert({
-    company_id: vendor.company_id,
-    qb_vendor_id: qbVendorId,
-    name: qbVendorName,
-    cached_at: new Date().toISOString(),
-  }).throwOnError()
+  // Upsert so re-linking an existing QB vendor doesn't fail on duplicate cache entry
+  await supabase.from('qb_vendors_cache').upsert(
+    { company_id: vendor.company_id, qb_vendor_id: qbVendorId, name: qbVendorName, cached_at: new Date().toISOString() },
+    { onConflict: 'qb_vendor_id' }
+  )
 
   revalidatePath(`/vendors/${vendorId}`)
   revalidatePath('/vendors')

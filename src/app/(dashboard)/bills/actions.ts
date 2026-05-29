@@ -122,24 +122,40 @@ export async function processAnyway(billId: string) {
   revalidatePath('/activity')
 }
 
-export async function createVendorFromBill(billId: string, companyId: string, vendorNameExtracted: string) {
+export async function createVendorFromBill(
+  billId: string,
+  companyId: string,
+  vendorNameExtracted: string
+): Promise<{ vendorId: string } | { error: string }> {
   const supabase = await createClient()
 
-  // QB must be connected — a vendor without a QB link cannot publish bills
   let qbVendorId: string
-  let qbVendorName: string
+  let qbVendorName: string = vendorNameExtracted
+
   try {
     const { qbPost } = await getQBClient(companyId)
-    const result = await qbPost('vendor', { DisplayName: vendorNameExtracted })
-    qbVendorId = result.Vendor?.Id
-    qbVendorName = result.Vendor?.DisplayName ?? vendorNameExtracted
-    if (!qbVendorId) throw new Error('QuickBooks did not return a vendor ID')
+    try {
+      const result = await qbPost('vendor', { DisplayName: vendorNameExtracted })
+      qbVendorId = result.Vendor?.Id
+      qbVendorName = result.Vendor?.DisplayName ?? vendorNameExtracted
+      if (!qbVendorId) return { error: 'QuickBooks did not return a vendor ID' }
+    } catch (e) {
+      // QB error 6240 = duplicate name — vendor already exists, extract its ID
+      const msg = e instanceof Error ? e.message : ''
+      const dupMatch = msg.match(/"code":"6240"[\s\S]*?Id=(\d+)/)
+      if (dupMatch) {
+        qbVendorId = dupMatch[1]
+      } else {
+        throw e
+      }
+    }
   } catch (e) {
-    throw new Error(
-      e instanceof Error && e.message.includes('not connected')
+    const msg = e instanceof Error ? e.message : ''
+    return {
+      error: msg.includes('not connected')
         ? 'QuickBooks is not connected. Connect QuickBooks in Settings before creating vendors.'
-        : `Could not create vendor in QuickBooks: ${e instanceof Error ? e.message : 'unknown error'}`
-    )
+        : `Could not create vendor in QuickBooks: ${msg || 'unknown error'}`,
+    }
   }
 
   const { data: vendor, error: vendorError } = await supabase
@@ -160,18 +176,18 @@ export async function createVendorFromBill(billId: string, companyId: string, ve
     })
     .select('vendor_id')
     .single()
-  if (vendorError) throw new Error(vendorError.message)
+  if (vendorError) return { error: vendorError.message }
 
   const { error: billError } = await supabase
     .from('bills')
     .update({ vendor_id: vendor.vendor_id, autopublish_hold_reason: null })
     .eq('bill_id', billId)
-  if (billError) throw new Error(billError.message)
+  if (billError) return { error: billError.message }
 
   revalidatePath('/bills')
   revalidatePath(`/bills/${billId}`)
   revalidatePath('/vendors')
-  return vendor.vendor_id
+  return { vendorId: vendor.vendor_id }
 }
 
 export async function getVendorBillHistory(vendorId: string, excludeBillId: string) {
