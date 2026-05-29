@@ -303,6 +303,7 @@ export function BillReviewForm({
       style={{
         width: formWidth, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
+        height: '100%', minHeight: 0, overflow: 'hidden',
         background: 'white',
         order: swapped ? 2 : 0,
       }}
