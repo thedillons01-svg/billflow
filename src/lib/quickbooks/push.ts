@@ -83,8 +83,6 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       ...(li.description ? { Description: li.description } : {}),
       AccountBasedExpenseLineDetail: {
         AccountRef: { value: li.gl_account_id! },
-        ...(li.quantity != null ? { Qty: li.quantity } : {}),
-        ...(li.unit_cost != null ? { UnitPrice: li.unit_cost } : {}),
         ...(li.job_id ? { CustomerRef: { value: li.job_id } } : {}),
         ...(li.class_id ? { ClassRef: { value: li.class_id } } : {}),
       },
