@@ -31,6 +31,7 @@ type Bill = {
   vendor_id: string | null
   vendor_name_raw: string | null
   vendor_name_display: string | null
+  vendor_qb_linked: boolean | null
   invoice_number: string | null
   invoice_date: string | null
   due_date: string | null
@@ -613,6 +614,15 @@ export function BillReviewForm({
                     <p style={{ marginTop: 5, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 4 }}>
                       <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />
                       No vendor record linked — required to publish to QuickBooks.
+                    </p>
+                  )}
+                  {localVendorId !== '' && bill.vendor_qb_linked === false && (
+                    <p style={{ marginTop: 5, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />
+                      Vendor has no QuickBooks link — bills cannot be published.{' '}
+                      <a href={`/vendors/${localVendorId}?tab=general`} target="_blank" rel="noopener noreferrer" style={{ color: '#92400E', fontWeight: 500 }}>
+                        Fix in vendor settings
+                      </a>
                     </p>
                   )}
                   {localVendorId === '' && bill.vendor_name_raw && (

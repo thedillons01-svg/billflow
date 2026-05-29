@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getQBClient } from '@/lib/quickbooks/client'
 
 export async function updateVendor(vendorId: string, updates: Record<string, unknown>) {
   const supabase = await createClient()
@@ -9,6 +10,43 @@ export async function updateVendor(vendorId: string, updates: Record<string, unk
   if (error) throw new Error(error.message)
   revalidatePath(`/vendors/${vendorId}`)
   revalidatePath('/vendors')
+}
+
+export async function createVendorInQB(vendorId: string) {
+  const supabase = await createClient()
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('company_id, vendor_name_display, vendor_name_extracted')
+    .eq('vendor_id', vendorId)
+    .single()
+  if (!vendor) throw new Error('Vendor not found')
+
+  const displayName = (vendor.vendor_name_display ?? vendor.vendor_name_extracted ?? '').trim()
+  if (!displayName) throw new Error('Vendor has no name to use in QuickBooks')
+
+  const { qbPost } = await getQBClient(vendor.company_id)
+  const result = await qbPost('vendor', { DisplayName: displayName })
+  const qbVendorId: string = result.Vendor?.Id
+  const qbVendorName: string = result.Vendor?.DisplayName ?? displayName
+  if (!qbVendorId) throw new Error('QuickBooks did not return a vendor ID')
+
+  await supabase.from('vendors').update({
+    qb_vendor_id: qbVendorId,
+    qb_vendor_name: qbVendorName,
+    vendor_name_display: qbVendorName,
+  }).eq('vendor_id', vendorId)
+
+  // Add to cache so the QB vendor dropdown shows it immediately
+  await supabase.from('qb_vendors_cache').insert({
+    company_id: vendor.company_id,
+    qb_vendor_id: qbVendorId,
+    name: qbVendorName,
+    cached_at: new Date().toISOString(),
+  }).throwOnError()
+
+  revalidatePath(`/vendors/${vendorId}`)
+  revalidatePath('/vendors')
+  return { qbVendorId, qbVendorName }
 }
 
 export async function deleteMapping(id: string) {

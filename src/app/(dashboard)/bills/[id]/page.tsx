@@ -34,7 +34,7 @@ export default async function BillDetailPage({
     company_id: string
     vendor_id: string | null
     bill_line_items: { sort_order: number }[]
-    vendors: { auto_publish_enabled: boolean; invoices_processed: number } | null
+    vendors: { vendor_name_display: string | null; qb_vendor_id: string | null; auto_publish_enabled: boolean; invoices_processed: number } | null
     [key: string]: unknown
   }
   const lineItems = [...(bill.bill_line_items ?? [])].sort(
@@ -86,7 +86,8 @@ export default async function BillDetailPage({
       <BillReviewForm
         bill={{
           ...(bill as unknown as Parameters<typeof BillReviewForm>[0]['bill']),
-          vendor_name_display: (bill.vendors as unknown as { vendor_name_display: string | null } | null)?.vendor_name_display ?? null,
+          vendor_name_display: bill.vendors?.vendor_name_display ?? null,
+          vendor_qb_linked: bill.vendor_id ? !!bill.vendors?.qb_vendor_id : null,
         }}
         lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
         accounts={(accounts ?? []) as Parameters<typeof BillReviewForm>[0]['accounts']}

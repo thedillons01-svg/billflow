@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { updateVendor } from './actions'
+import { updateVendor, createVendorInQB } from './actions'
 
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
 type QBClass = { qb_class_id: string; name: string | null }
@@ -38,6 +38,7 @@ export function VendorGeneralTab({
 }) {
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
+  const [qbCreateError, setQbCreateError] = useState<string | null>(null)
 
   const [form, setForm] = useState({
     vendor_name_extracted: vendor.vendor_name_extracted,
@@ -166,6 +167,36 @@ export function VendorGeneralTab({
                 <option key={v.qb_vendor_id} value={v.qb_vendor_id}>{v.name}</option>
               ))}
             </select>
+          )}
+          {!form.qb_vendor_id && (
+            <div style={{ marginTop: 6 }}>
+              <button
+                type="button"
+                disabled={isPending}
+                onClick={() => {
+                  setQbCreateError(null)
+                  startTransition(async () => {
+                    try {
+                      const result = await createVendorInQB(vendor.vendor_id)
+                      setForm(f => ({ ...f, qb_vendor_id: result.qbVendorId, vendor_name_display: result.qbVendorName }))
+                    } catch (e) {
+                      setQbCreateError(e instanceof Error ? e.message : 'Failed to create vendor in QuickBooks')
+                    }
+                  })
+                }}
+                style={{
+                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                  fontSize: 12, color: '#2DB87A', display: 'flex', alignItems: 'center', gap: 4,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                <i className="ti ti-brand-quickbooks" style={{ fontSize: 13 }} />
+                {isPending ? 'Creating in QuickBooks…' : `Create "${form.vendor_name_display || vendor.vendor_name_extracted}" in QuickBooks`}
+              </button>
+              {qbCreateError && (
+                <p style={{ fontSize: 11, color: '#991B1B', marginTop: 4 }}>{qbCreateError}</p>
+              )}
+            </div>
           )}
         </Field>
       </Section>
