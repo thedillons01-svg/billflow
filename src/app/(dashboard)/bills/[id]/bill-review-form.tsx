@@ -226,9 +226,11 @@ export function BillReviewForm({
   const handleMarkReady = () => {
     startTransition(async () => {
       await setBillStatus(bill.bill_id, 'ready')
-      setLocalStatus('ready')
+      router.push('/bills')
     })
   }
+
+  const handleCancel = () => router.push('/bills')
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -1242,19 +1244,31 @@ export function BillReviewForm({
           {publishError && (
             <span style={{ fontSize: 11, color: '#991B1B' }}>{publishError}</span>
           )}
+          <button
+            onClick={handleCancel}
+            disabled={isPending}
+            style={{
+              background: 'white', color: 'var(--color-text-secondary)',
+              border: '0.5px solid var(--color-border-secondary)',
+              borderRadius: 6, padding: '7px 16px',
+              fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            Cancel
+          </button>
           {canMarkReady && (
             <button
               onClick={handleMarkReady}
               disabled={isPending}
               style={{
-                background: 'white', color: 'var(--color-text-primary)',
-                border: '0.5px solid var(--color-border-secondary)',
+                background: '#2DB87A', color: 'white',
+                border: 'none',
                 borderRadius: 6, padding: '7px 16px',
-                fontSize: 13, cursor: 'pointer',
+                fontSize: 13, fontWeight: 500, cursor: 'pointer',
                 opacity: isPending ? 0.6 : 1,
               }}
             >
-              {isPending ? 'Saving…' : 'Mark as Ready'}
+              {isPending ? 'Saving…' : 'Save'}
             </button>
           )}
           {canPublish && (
