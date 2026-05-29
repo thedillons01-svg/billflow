@@ -124,6 +124,21 @@ export default async function SettingsPage({
 
           {/* ── QuickBooks ─────────────────────────────────────────────── */}
           <Card title="QuickBooks Online" subtitle="Connect to sync vendors, jobs, and push bills automatically.">
+            {(() => {
+              const staleHours = 4
+              const isStale = isQBConnected && company?.qb_last_sync
+                ? (Date.now() - new Date(company.qb_last_sync).getTime()) > staleHours * 60 * 60 * 1000
+                : isQBConnected && !company?.qb_last_sync
+              return isStale ? (
+                <div className="flex items-start gap-2 mb-4 px-3 py-2" style={{ background: '#FFFBEB', border: '1px solid #FCD34D', borderRadius: 6 }}>
+                  <i className="ti ti-alert-triangle" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                  <p style={{ fontSize: 12, color: '#92400E' }}>
+                    QuickBooks data is more than {staleHours} hours old — vendor and job lists may be out of date.
+                    Run <strong>Sync Now</strong> to refresh.
+                  </p>
+                </div>
+              ) : null
+            })()}
             <div className="flex items-center justify-between gap-4">
               {isQBConnected ? (
                 <>
@@ -134,11 +149,11 @@ export default async function SettingsPage({
                       {company?.qb_realm_id && (
                         <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Company ID: {company.qb_realm_id}</p>
                       )}
-                      {company?.qb_last_sync && (
-                        <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                          Last synced: {new Date(company.qb_last_sync).toLocaleString()}
-                        </p>
-                      )}
+                      <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                        {company?.qb_last_sync
+                          ? `Last synced: ${new Date(company.qb_last_sync).toLocaleString()}`
+                          : 'Never synced — click Sync Now to populate vendor and job lists.'}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
