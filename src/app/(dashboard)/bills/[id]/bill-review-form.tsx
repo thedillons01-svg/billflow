@@ -135,6 +135,7 @@ export function BillReviewForm({
   const [reprocessComment, setReprocessComment] = useState('')
   // Bill type local state for optimistic UI
   const [billType, setBillType] = useState(bill.bill_type ?? 'bill')
+  const [vendorCreateError, setVendorCreateError] = useState<string | null>(null)
 
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
@@ -626,27 +627,40 @@ export function BillReviewForm({
                     </p>
                   )}
                   {localVendorId === '' && bill.vendor_name_raw && (
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        startTransition(async () => {
-                          const newId = await createVendorFromBill(bill.bill_id, bill.company_id, bill.vendor_name_raw!)
-                          setLocalVendorId(newId)
-                          router.refresh()
-                        })
-                      }}
-                      style={{
-                        marginTop: 6,
-                        background: 'none', border: 'none', padding: 0,
-                        fontSize: 12, color: '#2DB87A', cursor: 'pointer',
-                        display: 'flex', alignItems: 'center', gap: 4,
-                        opacity: isPending ? 0.6 : 1,
-                      }}
-                    >
-                      <i className="ti ti-plus" style={{ fontSize: 12 }} />
-                      {isPending ? 'Creating…' : `Create "${bill.vendor_name_raw}" as new vendor`}
-                    </button>
+                    <>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          setVendorCreateError(null)
+                          startTransition(async () => {
+                            try {
+                              const newId = await createVendorFromBill(bill.bill_id, bill.company_id, bill.vendor_name_raw!)
+                              setLocalVendorId(newId)
+                              router.refresh()
+                            } catch (err) {
+                              setVendorCreateError(err instanceof Error ? err.message : 'Failed to create vendor')
+                            }
+                          })
+                        }}
+                        style={{
+                          marginTop: 6,
+                          background: 'none', border: 'none', padding: 0,
+                          fontSize: 12, color: '#2DB87A', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          opacity: isPending ? 0.6 : 1,
+                        }}
+                      >
+                        <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                        {isPending ? 'Creating…' : `Create "${bill.vendor_name_raw}" as new vendor`}
+                      </button>
+                      {vendorCreateError && (
+                        <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <i className="ti ti-circle-x" style={{ fontSize: 12 }} />
+                          {vendorCreateError}
+                        </p>
+                      )}
+                    </>
                   )}
                 </Field>
               </div>

@@ -125,16 +125,21 @@ export async function processAnyway(billId: string) {
 export async function createVendorFromBill(billId: string, companyId: string, vendorNameExtracted: string) {
   const supabase = await createClient()
 
-  // Try to create the vendor in QuickBooks first. Falls back gracefully if QB isn't connected.
-  let qbVendorId: string | null = null
-  let qbVendorName: string | null = null
+  // QB must be connected — a vendor without a QB link cannot publish bills
+  let qbVendorId: string
+  let qbVendorName: string
   try {
     const { qbPost } = await getQBClient(companyId)
     const result = await qbPost('vendor', { DisplayName: vendorNameExtracted })
-    qbVendorId = result.Vendor?.Id ?? null
-    qbVendorName = result.Vendor?.DisplayName ?? null
-  } catch {
-    // QB not connected or call failed — Purchasomatic record will be created without QB link
+    qbVendorId = result.Vendor?.Id
+    qbVendorName = result.Vendor?.DisplayName ?? vendorNameExtracted
+    if (!qbVendorId) throw new Error('QuickBooks did not return a vendor ID')
+  } catch (e) {
+    throw new Error(
+      e instanceof Error && e.message.includes('not connected')
+        ? 'QuickBooks is not connected. Connect QuickBooks in Settings before creating vendors.'
+        : `Could not create vendor in QuickBooks: ${e instanceof Error ? e.message : 'unknown error'}`
+    )
   }
 
   const { data: vendor, error: vendorError } = await supabase
@@ -142,7 +147,7 @@ export async function createVendorFromBill(billId: string, companyId: string, ve
     .insert({
       company_id: companyId,
       vendor_name_extracted: vendorNameExtracted,
-      vendor_name_display: qbVendorName ?? vendorNameExtracted,
+      vendor_name_display: qbVendorName,
       qb_vendor_id: qbVendorId,
       qb_vendor_name: qbVendorName,
       is_visible: true,
