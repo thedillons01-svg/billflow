@@ -184,6 +184,12 @@ export async function createVendorFromBill(
     .eq('bill_id', billId)
   if (billError) return { error: billError.message }
 
+  // Keep cache in sync so the QB vendor dropdown shows the new vendor immediately
+  await supabase.from('qb_vendors_cache').upsert(
+    { company_id: companyId, qb_vendor_id: qbVendorId, name: qbVendorName, cached_at: new Date().toISOString() },
+    { onConflict: 'qb_vendor_id' }
+  )
+
   revalidatePath('/bills')
   revalidatePath(`/bills/${billId}`)
   revalidatePath('/vendors')
