@@ -64,7 +64,7 @@ export async function createVendorInQB(
   // Upsert so re-linking an existing QB vendor doesn't fail on duplicate cache entry
   await supabase.from('qb_vendors_cache').upsert(
     { company_id: vendor.company_id, qb_vendor_id: qbVendorId, name: qbVendorName, cached_at: new Date().toISOString() },
-    { onConflict: 'qb_vendor_id' }
+    { onConflict: 'company_id,qb_vendor_id' }
   )
 
   revalidatePath(`/vendors/${vendorId}`)
