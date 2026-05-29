@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { notFound } from 'next/navigation'
 import { BillReviewForm } from './bill-review-form'
 
@@ -75,7 +76,8 @@ export default async function BillDetailPage({
 
   let pdfSignedUrl: string | null = null
   if (bill.pdf_url) {
-    const { data: signed } = await supabase.storage
+    const serviceClient = createServiceClient()
+    const { data: signed } = await serviceClient.storage
       .from('bill-pdfs')
       .createSignedUrl(bill.pdf_url as string, 3600)
     pdfSignedUrl = signed?.signedUrl ?? null
