@@ -223,6 +223,21 @@ export function BillReviewForm({
     })
   }
 
+  const [savedFeedback, setSavedFeedback] = useState(false)
+
+  const handleSave = () => {
+    startTransition(async () => {
+      // Explicitly flush all state-tracked fields; AutoSaveInput fields are already saved on blur
+      await updateBill(bill.bill_id, {
+        vendor_id: localVendorId || null,
+        bill_type: billType,
+        mark_as_paid: markAsPaid,
+      })
+      setSavedFeedback(true)
+      setTimeout(() => setSavedFeedback(false), 1500)
+    })
+  }
+
   const handleMarkReady = () => {
     startTransition(async () => {
       await setBillStatus(bill.bill_id, 'ready')
@@ -1244,9 +1259,11 @@ export function BillReviewForm({
           {publishError && (
             <span style={{ fontSize: 11, color: '#991B1B' }}>{publishError}</span>
           )}
+          {savedFeedback && (
+            <span style={{ fontSize: 11, color: '#065F46' }}>Saved ✓</span>
+          )}
           <button
             onClick={handleCancel}
-            disabled={isPending}
             style={{
               background: 'white', color: 'var(--color-text-secondary)',
               border: '0.5px solid var(--color-border-secondary)',
@@ -1256,6 +1273,21 @@ export function BillReviewForm({
           >
             Cancel
           </button>
+          {!isPublished && (
+            <button
+              onClick={handleSave}
+              disabled={isPending}
+              style={{
+                background: 'white', color: 'var(--color-text-primary)',
+                border: '0.5px solid var(--color-border-secondary)',
+                borderRadius: 6, padding: '7px 16px',
+                fontSize: 13, cursor: 'pointer',
+                opacity: isPending ? 0.6 : 1,
+              }}
+            >
+              {isPending ? 'Saving…' : 'Save'}
+            </button>
+          )}
           {canMarkReady && (
             <button
               onClick={handleMarkReady}
@@ -1268,7 +1300,7 @@ export function BillReviewForm({
                 opacity: isPending ? 0.6 : 1,
               }}
             >
-              {isPending ? 'Saving…' : 'Save'}
+              {isPending ? 'Saving…' : 'Mark as Ready'}
             </button>
           )}
           {canPublish && (
