@@ -91,6 +91,7 @@ export function BillReviewForm({
   const [localVendorId, setLocalVendorId] = useState(bill.vendor_id ?? '')
   const [swapped, setSwapped] = useState(false)
   const [isPending, startTransition] = useTransition()
+  const [isReprocessing, setIsReprocessing] = useState(false)
   const [publishError, setPublishError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState(initialLineItems)
   const [markAsPaid, setMarkAsPaid] = useState(bill.mark_as_paid ?? false)
@@ -275,10 +276,11 @@ export function BillReviewForm({
     await updateBill(bill.bill_id, { mark_as_paid: v })
   }
 
-  const handleReprocessSubmit = (comment: string) => {
+  const handleReprocessSubmit = async (comment: string) => {
     setShowReprocessModal(false)
     setReprocessComment('')
-    startTransition(async () => {
+    setIsReprocessing(true)
+    try {
       const res = await fetch(`/api/bills/${bill.bill_id}/reprocess`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -286,15 +288,17 @@ export function BillReviewForm({
       })
       if (res.ok) {
         const data = await res.json()
-        if (data.bill?.status)    setLocalStatus(data.bill.status)
-        if (data.bill?.vendor_id !== undefined) setLocalVendorId(data.bill.vendor_id ?? '')
-        if (data.lineItems)       setLineItems(data.lineItems)
+        if (data.bill?.status !== undefined)     setLocalStatus(data.bill.status)
+        if (data.bill?.vendor_id !== undefined)  setLocalVendorId(data.bill.vendor_id ?? '')
+        if (Array.isArray(data.lineItems))       setLineItems(data.lineItems)
         router.refresh()
       } else {
-        const json = await res.json()
+        const json = await res.json().catch(() => ({}))
         setPublishError(json.error ?? 'Reprocess failed')
       }
-    })
+    } finally {
+      setIsReprocessing(false)
+    }
   }
 
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.draft
@@ -1530,13 +1534,16 @@ export function BillReviewForm({
               </button>
               <button
                 onClick={() => handleReprocessSubmit(reprocessComment)}
+                disabled={isReprocessing}
                 style={{
                   background: '#2DB87A', color: 'white',
                   border: 'none', borderRadius: 6, padding: '7px 16px',
-                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                  fontSize: 13, fontWeight: 500,
+                  cursor: isReprocessing ? 'not-allowed' : 'pointer',
+                  opacity: isReprocessing ? 0.6 : 1,
                 }}
               >
-                Reprocess
+                {isReprocessing ? 'Reprocessing…' : 'Reprocess'}
               </button>
             </div>
           </div>
