@@ -32,9 +32,32 @@ export function UploadButton() {
           if (n === 0 && data.errorDetails?.length > 0) {
             setStatus(`Upload failed: ${data.errorDetails[0]}`)
           } else {
-            setStatus(`${n} bill${n !== 1 ? 's' : ''} queued for processing`)
+            setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
             router.refresh()
-            setTimeout(() => setStatus(null), 4000)
+            // Poll until all uploaded bills leave draft status (OCR complete)
+            const ids: string[] = data.ids ?? []
+            if (ids.length > 0) {
+              const deadline = Date.now() + 45_000
+              const poll = async () => {
+                if (Date.now() > deadline) {
+                  setStatus(null)
+                  return
+                }
+                const r = await fetch(`/api/bills/poll-status?ids=${ids.join(',')}`)
+                const d = await r.json()
+                const statuses: Record<string, string> = d.statuses ?? {}
+                const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
+                router.refresh()
+                if (allDone) {
+                  setStatus(null)
+                } else {
+                  setTimeout(poll, 2500)
+                }
+              }
+              setTimeout(poll, 2500)
+            } else {
+              setTimeout(() => setStatus(null), 4000)
+            }
           }
         }
       } catch {
