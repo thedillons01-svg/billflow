@@ -5,7 +5,6 @@ import { extractTier3 } from './tier3'
 import type { ExtractionResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
-import { getQBClient } from '@/lib/quickbooks/client'
 
 // ---------------------------------------------------------------------------
 // Service-role Supabase client (bypasses RLS)
@@ -193,44 +192,20 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         .limit(1)
         .single()
 
-      let qbVendorId: string | null = qbMatch?.qb_vendor_id ?? null
-      let qbVendorName: string | null = qbMatch?.name ?? null
-
-      // No cache match — try to create the vendor in QB so the record is always linked
-      if (!qbVendorId) {
-        try {
-          const { qbPost } = await getQBClient(bill.company_id)
-          const r = await qbPost('vendor', { DisplayName: result.vendor_name_raw })
-          qbVendorId = r.Vendor?.Id ?? null
-          qbVendorName = r.Vendor?.DisplayName ?? result.vendor_name_raw
-          if (qbVendorId) {
-            await supabase.from('qb_vendors_cache').upsert(
-              { company_id: bill.company_id, qb_vendor_id: qbVendorId, name: qbVendorName, cached_at: new Date().toISOString() },
-              { onConflict: 'company_id,qb_vendor_id' }
-            )
-          }
-        } catch (e) {
-          // QB not connected or call failed — leave vendor unmatched so user can create it manually
-          console.warn(`[ocr] Could not auto-create vendor in QB for bill ${billId}: ${e instanceof Error ? e.message : e}`)
-        }
-      }
-
-      // Only create the Purchasomatic vendor record if we have a QB link
-      if (!qbVendorId) {
-        console.log(`[ocr] Skipping vendor record creation for bill ${billId} — no QB link available`)
-      } else {
+      if (qbMatch) {
+        // Cache match found — create vendor record with QB link
         const { data: created } = await supabase
           .from('vendors')
           .insert({
             company_id:               bill.company_id,
             vendor_name_extracted:    result.vendor_name_raw,
-            vendor_name_display:      qbVendorName ?? result.vendor_name_raw,
-            qb_vendor_id:             qbVendorId,
-            qb_vendor_name:           qbVendorName,
-            qb_default_gl_account_id: qbMatch?.default_expense_account_id ?? null,
-            gl_account_source:        qbMatch?.default_expense_account_id ? 'qb_default' : 'not_set',
-            qb_payment_terms:         qbMatch?.payment_terms ?? null,
-            payment_terms_source:     qbMatch?.payment_terms ? 'qb_default' : 'not_set',
+            vendor_name_display:      qbMatch.name,
+            qb_vendor_id:             qbMatch.qb_vendor_id,
+            qb_vendor_name:           qbMatch.name,
+            qb_default_gl_account_id: qbMatch.default_expense_account_id ?? null,
+            gl_account_source:        qbMatch.default_expense_account_id ? 'qb_default' : 'not_set',
+            qb_payment_terms:         qbMatch.payment_terms ?? null,
+            payment_terms_source:     qbMatch.payment_terms ? 'qb_default' : 'not_set',
             copy_po_to_qb_reference:  true,
             is_visible:               true,
             auto_publish_enabled:     false,
@@ -248,6 +223,9 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
           vendorHoldForJobMatch = created.hold_for_job_match ?? false
           await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
         }
+      } else {
+        // No QB cache match — leave bill unmatched so user creates vendor manually via the bill screen
+        console.log(`[ocr] No QB cache match for "${result.vendor_name_raw}" (${billId}) — leaving unmatched for manual vendor creation`)
       }
     }
   }
