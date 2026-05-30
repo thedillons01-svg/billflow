@@ -261,13 +261,13 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     const lineItemRows = result.line_items.map((li) => {
       const desc = li.description ?? ''
       let glAccountId: string | null = null
-      let glSource: string | null = null
+      let glSource: 'stored_mapping' | 'rule' | 'qb_default' | 'not_set' = 'not_set'
 
       // 1. Check stored mappings (exact description match)
       const mapping = mappings.find(m => m.description_text.toLowerCase() === desc.toLowerCase())
       if (mapping) {
         glAccountId = mapping.gl_account_id
-        glSource = 'mapping'
+        glSource = 'stored_mapping'
       }
 
       // 2. Check rules (override mappings)
