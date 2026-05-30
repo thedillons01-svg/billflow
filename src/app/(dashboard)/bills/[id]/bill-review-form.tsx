@@ -1349,7 +1349,7 @@ export function BillReviewForm({
                 opacity: isPending ? 0.6 : 1,
               }}
             >
-              {isPending ? 'Publishing…' : localStatus === 'sync_error' ? 'Retry Push to QB' : 'Publish to QuickBooks'}
+              {localStatus === 'sync_error' ? 'Retry Push to QB' : 'Publish to QuickBooks'}
             </button>
           )}
         </div>
