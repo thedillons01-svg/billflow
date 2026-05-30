@@ -147,17 +147,25 @@ function extractVendorName(text: string): string | null {
   return null
 }
 
+// pdf-parse collapses table column whitespace even on visually-spaced PDFs.
+// Normalise before matching: insert a space between a non-digit and the
+// quantity digit(s) that precede $, and between adjacent dollar amounts.
+function normalizeLineItemText(text: string): string {
+  return text
+    .replace(/(\D)(\d+(?:\.\d+)?)\s*\$/g, '$1 $2 $')  // description/qty boundary
+    .replace(/([\d,]+\.\d{2})\$/g, '$1 $')              // unit_price/total boundary
+}
+
 function extractLineItems(text: string): LineItem[] {
-  // pdf-parse often concatenates table columns with no spaces, e.g.:
-  //   "Copeland Compressor, 3-ton1$892.00$892.00"
-  // Require $ signs for price fields so we can anchor without needing spaces.
-  const lineItemRe = /^(.+?)(\d+(?:\.\d+)?)\s*\$([\d,]+\.\d{2})\s*\$([\d,]+\.\d{2})\s*$/gm
-  const simpleRe   = /^(.+?)\s*\$([\d,]+\.\d{2})\s*$/gm
+  const normalized = normalizeLineItemText(text)
+
+  const lineItemRe = /^(.+?)\s+(\d+(?:\.\d+)?)\s+\$([\d,]+\.\d{2})\s+\$([\d,]+\.\d{2})\s*$/gm
+  const simpleRe   = /^(.+?)\s+\$([\d,]+\.\d{2})\s*$/gm
 
   const items: LineItem[] = []
 
   let match: RegExpExecArray | null
-  while ((match = lineItemRe.exec(text)) !== null) {
+  while ((match = lineItemRe.exec(normalized)) !== null) {
     items.push({
       description: match[1].trim(),
       quantity:    parseFloat(match[2]),
@@ -168,7 +176,7 @@ function extractLineItems(text: string): LineItem[] {
   }
 
   if (items.length === 0) {
-    while ((match = simpleRe.exec(text)) !== null) {
+    while ((match = simpleRe.exec(normalized)) !== null) {
       const desc = match[1].trim()
       if (isSummaryLine(desc)) continue
       items.push({

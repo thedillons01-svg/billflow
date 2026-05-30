@@ -542,7 +542,8 @@ async function runTieredExtraction(
     forceTier === 2 ||
     tier1.invoice_number === null ||
     tier1.invoice_date === null ||
-    tier1.total === null
+    tier1.total === null ||
+    tier1.line_items.length === 0
   ) {
     console.log(forceTier === 2 ? '[ocr] Forced Tier 2 (Claude Haiku)' : '[ocr] Tier 1 incomplete → Tier 2 (Claude Haiku)')
     const tier2 = await extractTier2(tier1.rawText, userComment)
