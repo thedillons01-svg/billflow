@@ -285,7 +285,7 @@ export function BillReviewForm({
         body: JSON.stringify({ comment: comment.trim() || undefined }),
       })
       if (res.ok) {
-        router.refresh()
+        window.location.reload()
       } else {
         const json = await res.json()
         setPublishError(json.error ?? 'Reprocess failed')
