@@ -33,9 +33,6 @@ export function BillRow({ bill }: { bill: Bill }) {
         <div className="text-sm font-medium text-gray-900">
           {bill.vendor_name_raw ?? '—'}
         </div>
-        {bill.autopublish_hold_reason && (
-          <div className="mt-0.5 text-xs text-amber-600">{bill.autopublish_hold_reason}</div>
-        )}
       </td>
       <td className="px-5 py-3.5 font-mono text-sm text-gray-500">
         {bill.invoice_number ?? '—'}

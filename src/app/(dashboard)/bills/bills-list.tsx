@@ -269,9 +269,6 @@ export function BillsList({
                   )}
                 </div>
               )}
-              {bill.autopublish_hold_reason && !isEditingVendorHere && (
-                <p style={{ fontSize: 11, color: '#D97706' }}>{bill.autopublish_hold_reason}</p>
-              )}
             </div>
 
             <Link href={`/bills/${bill.bill_id}`} style={{ textDecoration: 'none' }}>
