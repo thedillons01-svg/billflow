@@ -196,6 +196,65 @@ export async function createVendorFromBill(
   return { vendorId: vendor.vendor_id }
 }
 
+export async function addVendorToQB(
+  vendorId: string,
+  companyId: string,
+): Promise<{ error?: string }> {
+  const supabase = await createClient()
+
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('vendor_name_display, vendor_name_extracted')
+    .eq('vendor_id', vendorId)
+    .single()
+
+  if (!vendor) return { error: 'Vendor not found' }
+
+  const displayName = vendor.vendor_name_display ?? vendor.vendor_name_extracted ?? 'Unknown Vendor'
+
+  let qbVendorId: string
+  let qbVendorName: string = displayName
+
+  try {
+    const { qbPost } = await getQBClient(companyId)
+    try {
+      const result = await qbPost('vendor', { DisplayName: displayName })
+      qbVendorId = result.Vendor?.Id
+      qbVendorName = result.Vendor?.DisplayName ?? displayName
+      if (!qbVendorId) return { error: 'QuickBooks did not return a vendor ID' }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : ''
+      const dupMatch = msg.match(/"code":"6240"[\s\S]*?Id=(\d+)/)
+      if (dupMatch) {
+        qbVendorId = dupMatch[1]
+      } else {
+        throw e
+      }
+    }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    return {
+      error: msg.includes('not connected')
+        ? 'QuickBooks is not connected. Connect QuickBooks in Settings first.'
+        : `Could not add vendor to QuickBooks: ${msg || 'unknown error'}`,
+    }
+  }
+
+  await supabase.from('vendors').update({
+    qb_vendor_id: qbVendorId,
+    qb_vendor_name: qbVendorName,
+  }).eq('vendor_id', vendorId)
+
+  await supabase.from('qb_vendors_cache').upsert(
+    { company_id: companyId, qb_vendor_id: qbVendorId, name: qbVendorName, cached_at: new Date().toISOString() },
+    { onConflict: 'company_id,qb_vendor_id' }
+  )
+
+  revalidatePath('/bills')
+  revalidatePath('/vendors')
+  return {}
+}
+
 export async function getVendorBillHistory(vendorId: string, excludeBillId: string) {
   const supabase = await createClient()
   const { data } = await supabase

@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback } from 'react'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill } from '../actions'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -136,6 +136,8 @@ export function BillReviewForm({
   // Bill type local state for optimistic UI
   const [billType, setBillType] = useState(bill.bill_type ?? 'bill')
   const [vendorCreateError, setVendorCreateError] = useState<string | null>(null)
+  const [localVendorQbLinked, setLocalVendorQbLinked] = useState(bill.vendor_qb_linked)
+  const [qbAddError, setQbAddError] = useState<string | null>(null)
 
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
@@ -635,14 +637,45 @@ export function BillReviewForm({
                       No vendor record linked — required to publish to QuickBooks.
                     </p>
                   )}
-                  {localVendorId !== '' && bill.vendor_qb_linked === false && (
-                    <p style={{ marginTop: 5, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />
-                      Vendor has no QuickBooks link — bills cannot be published.{' '}
-                      <a href={`/vendors/${localVendorId}?tab=general`} target="_blank" rel="noopener noreferrer" style={{ color: '#92400E', fontWeight: 500 }}>
-                        Fix in vendor settings
-                      </a>
-                    </p>
+                  {localVendorId !== '' && localVendorQbLinked === false && (
+                    <>
+                      <p style={{ marginTop: 5, fontSize: 11, color: '#92400E', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />
+                        Vendor has no QuickBooks link — bills cannot be published.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={isPending}
+                        onClick={() => {
+                          setQbAddError(null)
+                          startTransition(async () => {
+                            const result = await addVendorToQB(localVendorId, bill.company_id)
+                            if (result.error) {
+                              setQbAddError(result.error)
+                            } else {
+                              setLocalVendorQbLinked(true)
+                              router.refresh()
+                            }
+                          })
+                        }}
+                        style={{
+                          marginTop: 6,
+                          background: 'none', border: 'none', padding: 0,
+                          fontSize: 12, color: '#2DB87A', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', gap: 4,
+                          opacity: isPending ? 0.6 : 1,
+                        }}
+                      >
+                        <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                        {isPending ? 'Adding to QuickBooks…' : 'Add to QuickBooks'}
+                      </button>
+                      {qbAddError && (
+                        <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <i className="ti ti-circle-x" style={{ fontSize: 12 }} />
+                          {qbAddError}
+                        </p>
+                      )}
+                    </>
                   )}
                   {localVendorId === '' && bill.vendor_name_raw && (
                     <>

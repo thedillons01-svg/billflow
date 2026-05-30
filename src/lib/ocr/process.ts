@@ -5,6 +5,7 @@ import { extractTier3 } from './tier3'
 import type { ExtractionResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
+import { getQBClient } from '@/lib/quickbooks/client'
 
 // ---------------------------------------------------------------------------
 // Service-role Supabase client (bypasses RLS)
@@ -183,7 +184,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
 
       await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
     } else {
-      // New vendor — try to match from QB cache first, then create a vendor record
+      // New vendor — try to match from QB cache first
       const { data: qbMatch } = await supabase
         .from('qb_vendors_cache')
         .select('qb_vendor_id, name, default_expense_account_id, payment_terms')
@@ -192,34 +193,61 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         .limit(1)
         .single()
 
-      const { data: created } = await supabase
-        .from('vendors')
-        .insert({
-          company_id:               bill.company_id,
-          vendor_name_extracted:    result.vendor_name_raw,
-          vendor_name_display:      qbMatch?.name ?? result.vendor_name_raw,
-          qb_vendor_id:             qbMatch?.qb_vendor_id ?? null,
-          qb_vendor_name:           qbMatch?.name ?? null,
-          qb_default_gl_account_id: qbMatch?.default_expense_account_id ?? null,
-          gl_account_source:        qbMatch?.default_expense_account_id ? 'qb_default' : 'not_set',
-          qb_payment_terms:         qbMatch?.payment_terms ?? null,
-          payment_terms_source:     qbMatch?.payment_terms ? 'qb_default' : 'not_set',
-          copy_po_to_qb_reference:  true,
-          is_visible:               true,
-          auto_publish_enabled:     false,
-          hold_for_job_match:       false,
-          invoices_processed:       isDuplicate ? 0 : 1,
-          last_invoice_date:        result.invoice_date ?? null,
-        })
-        .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match')
-        .single()
+      let qbVendorId: string | null = qbMatch?.qb_vendor_id ?? null
+      let qbVendorName: string | null = qbMatch?.name ?? null
 
-      if (created) {
-        vendorId = created.vendor_id
-        vendorDefaultGlAccountId = created.billflow_gl_account_id ?? created.qb_default_gl_account_id ?? null
-        vendorDefaultClassId = created.billflow_class_id ?? null
-        vendorHoldForJobMatch = created.hold_for_job_match ?? false
-        await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+      // No cache match — try to create the vendor in QB so the record is always linked
+      if (!qbVendorId) {
+        try {
+          const { qbPost } = await getQBClient(bill.company_id)
+          const r = await qbPost('vendor', { DisplayName: result.vendor_name_raw })
+          qbVendorId = r.Vendor?.Id ?? null
+          qbVendorName = r.Vendor?.DisplayName ?? result.vendor_name_raw
+          if (qbVendorId) {
+            await supabase.from('qb_vendors_cache').upsert(
+              { company_id: bill.company_id, qb_vendor_id: qbVendorId, name: qbVendorName, cached_at: new Date().toISOString() },
+              { onConflict: 'company_id,qb_vendor_id' }
+            )
+          }
+        } catch (e) {
+          // QB not connected or call failed — leave vendor unmatched so user can create it manually
+          console.warn(`[ocr] Could not auto-create vendor in QB for bill ${billId}: ${e instanceof Error ? e.message : e}`)
+        }
+      }
+
+      // Only create the Purchasomatic vendor record if we have a QB link
+      if (!qbVendorId) {
+        console.log(`[ocr] Skipping vendor record creation for bill ${billId} — no QB link available`)
+      } else {
+        const { data: created } = await supabase
+          .from('vendors')
+          .insert({
+            company_id:               bill.company_id,
+            vendor_name_extracted:    result.vendor_name_raw,
+            vendor_name_display:      qbVendorName ?? result.vendor_name_raw,
+            qb_vendor_id:             qbVendorId,
+            qb_vendor_name:           qbVendorName,
+            qb_default_gl_account_id: qbMatch?.default_expense_account_id ?? null,
+            gl_account_source:        qbMatch?.default_expense_account_id ? 'qb_default' : 'not_set',
+            qb_payment_terms:         qbMatch?.payment_terms ?? null,
+            payment_terms_source:     qbMatch?.payment_terms ? 'qb_default' : 'not_set',
+            copy_po_to_qb_reference:  true,
+            is_visible:               true,
+            auto_publish_enabled:     false,
+            hold_for_job_match:       false,
+            invoices_processed:       isDuplicate ? 0 : 1,
+            last_invoice_date:        result.invoice_date ?? null,
+          })
+          .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match')
+          .single()
+
+        if (created) {
+          vendorId = created.vendor_id
+          vendorDefaultGlAccountId = created.billflow_gl_account_id ?? created.qb_default_gl_account_id ?? null
+          vendorDefaultClassId = created.billflow_class_id ?? null
+          vendorHoldForJobMatch = created.hold_for_job_match ?? false
+          await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+        }
       }
     }
   }

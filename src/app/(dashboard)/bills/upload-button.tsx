@@ -2,6 +2,7 @@
 
 import { useRef, useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 
 export function UploadButton() {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -34,27 +35,41 @@ export function UploadButton() {
           } else {
             setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
             router.refresh()
-            // Poll until all uploaded bills leave draft status (OCR complete)
+
             const ids: string[] = data.ids ?? []
             if (ids.length > 0) {
-              const deadline = Date.now() + 45_000
-              const poll = async () => {
-                if (Date.now() > deadline) {
-                  setStatus(null)
-                  return
-                }
-                const r = await fetch(`/api/bills/poll-status?ids=${ids.join(',')}`)
-                const d = await r.json()
-                const statuses: Record<string, string> = d.statuses ?? {}
-                const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
+              const supabase = createClient()
+              const pending = new Set(ids)
+              let cleaned = false
+
+              const cleanup = (channel: ReturnType<typeof supabase.channel>, timer: ReturnType<typeof setTimeout>) => {
+                if (cleaned) return
+                cleaned = true
+                clearTimeout(timer)
+                supabase.removeChannel(channel)
                 router.refresh()
-                if (allDone) {
-                  setStatus(null)
-                } else {
-                  setTimeout(poll, 2500)
-                }
+                setStatus(null)
               }
-              setTimeout(poll, 2500)
+
+              const channel = supabase.channel('bill-processing')
+
+              const fallback = setTimeout(() => cleanup(channel, fallback), 45_000)
+
+              channel
+                .on(
+                  'postgres_changes',
+                  { event: 'UPDATE', schema: 'public', table: 'bills' },
+                  (payload) => {
+                    const row = payload.new as { bill_id: string; status: string }
+                    if (pending.has(row.bill_id) && row.status !== 'draft') {
+                      pending.delete(row.bill_id)
+                    }
+                    if (pending.size === 0) {
+                      cleanup(channel, fallback)
+                    }
+                  }
+                )
+                .subscribe()
             } else {
               setTimeout(() => setStatus(null), 4000)
             }
@@ -76,7 +91,6 @@ export function UploadButton() {
     e.target.value = ''
   }
 
-  // Window-level drag-and-drop: show full-page overlay on any PDF drag
   useEffect(() => {
     function onDragEnter(e: DragEvent) {
       if (!e.dataTransfer?.types.includes('Files')) return
@@ -115,7 +129,6 @@ export function UploadButton() {
 
   return (
     <>
-      {/* Drag overlay */}
       {dragging && (
         <div
           style={{
