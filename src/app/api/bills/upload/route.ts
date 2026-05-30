@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { randomUUID, createHash } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
@@ -113,9 +113,7 @@ export async function POST(request: NextRequest) {
       })
 
       if (!isFingerprintDuplicate) {
-        try { await processBill(docId) } catch (err) {
-          console.error(`[upload] processBill threw (${docId}):`, err)
-        }
+        after(processBill(docId).catch(err => console.error(`[upload] processBill threw (${docId}):`, err)))
       } else {
         console.warn(`[upload] Fingerprint duplicate held (${docId}), matches ${originalDocId}`)
       }
