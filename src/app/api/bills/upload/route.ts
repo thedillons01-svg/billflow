@@ -36,10 +36,12 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient()
   const created: string[] = []
   const errors: string[] = []
+  const errorDetails: string[] = []
 
   for (const file of files) {
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
       errors.push(file.name)
+      errorDetails.push(`${file.name}: not a PDF (type: ${file.type})`)
       continue
     }
 
@@ -79,8 +81,10 @@ export async function POST(request: NextRequest) {
         .upload(storagePath, pdfBytes, { contentType: 'application/pdf', upsert: false })
 
       if (uploadErr) {
-        console.error(`[upload] Storage upload failed (${docId}):`, uploadErr.message)
+        const msg = `${file.name}: storage upload failed — ${uploadErr.message}`
+        console.error(`[upload] ${msg}`)
         errors.push(file.name)
+        errorDetails.push(msg)
         continue
       }
 
@@ -95,8 +99,11 @@ export async function POST(request: NextRequest) {
       })
 
       if (insertErr) {
+        const msg = `${file.name}: DB insert failed — ${insertErr.message}`
+        console.error(`[upload] ${msg}`)
         await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
         errors.push(file.name)
+        errorDetails.push(msg)
         continue
       }
 
@@ -122,5 +129,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({ created: created.length, errors: errors.length, ids: created })
+  return NextResponse.json({ created: created.length, errors: errors.length, ids: created, errorDetails })
 }

@@ -29,9 +29,13 @@ export function UploadButton() {
           setStatus(`Error: ${data.error ?? 'Upload failed'}`)
         } else {
           const n = data.created
-          setStatus(`${n} bill${n !== 1 ? 's' : ''} queued for processing`)
-          router.refresh()
-          setTimeout(() => setStatus(null), 4000)
+          if (n === 0 && data.errorDetails?.length > 0) {
+            setStatus(`Upload failed: ${data.errorDetails[0]}`)
+          } else {
+            setStatus(`${n} bill${n !== 1 ? 's' : ''} queued for processing`)
+            router.refresh()
+            setTimeout(() => setStatus(null), 4000)
+          }
         }
       } catch {
         setStatus('Upload failed — please try again')
