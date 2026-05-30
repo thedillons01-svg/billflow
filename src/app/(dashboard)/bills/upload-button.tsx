@@ -2,7 +2,6 @@
 
 import { useRef, useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 
 export function UploadButton() {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -38,38 +37,24 @@ export function UploadButton() {
 
             const ids: string[] = data.ids ?? []
             if (ids.length > 0) {
-              const supabase = createClient()
-              const pending = new Set(ids)
-              let cleaned = false
-
-              const cleanup = (channel: ReturnType<typeof supabase.channel>, timer: ReturnType<typeof setTimeout>) => {
-                if (cleaned) return
-                cleaned = true
-                clearTimeout(timer)
-                supabase.removeChannel(channel)
+              const deadline = Date.now() + 45_000
+              const poll = async () => {
+                if (Date.now() > deadline) {
+                  setStatus(null)
+                  return
+                }
+                const r = await fetch(`/api/bills/poll-status?ids=${ids.join(',')}`)
+                const d = await r.json()
+                const statuses: Record<string, string> = d.statuses ?? {}
+                const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
                 router.refresh()
-                setStatus(null)
+                if (allDone) {
+                  setStatus(null)
+                } else {
+                  setTimeout(poll, 2500)
+                }
               }
-
-              const channel = supabase.channel('bill-processing')
-
-              const fallback = setTimeout(() => cleanup(channel, fallback), 45_000)
-
-              channel
-                .on(
-                  'postgres_changes',
-                  { event: 'UPDATE', schema: 'public', table: 'bills' },
-                  (payload) => {
-                    const row = payload.new as { bill_id: string; status: string }
-                    if (pending.has(row.bill_id) && row.status !== 'draft') {
-                      pending.delete(row.bill_id)
-                    }
-                    if (pending.size === 0) {
-                      cleanup(channel, fallback)
-                    }
-                  }
-                )
-                .subscribe()
+              setTimeout(poll, 2500)
             } else {
               setTimeout(() => setStatus(null), 4000)
             }
