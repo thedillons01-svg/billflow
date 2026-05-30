@@ -81,16 +81,16 @@ export async function POST(
     )
   }
 
-  // Read after state for email diff
+  // Read after state for email diff + response payload
   const { data: billAfter } = await service
     .from('bills')
-    .select('vendor_name_raw, invoice_number, total, ocr_tier, invoice_date, line_items_total')
+    .select('vendor_name_raw, invoice_number, total, ocr_tier, invoice_date, line_items_total, status, vendor_id')
     .eq('bill_id', billId)
     .single()
 
   const { data: lineItemsAfter } = await service
     .from('bill_line_items')
-    .select('description, extended_cost')
+    .select('line_id, description, quantity, unit_cost, extended_cost, gl_account_id, job_id, class_id, sort_order, is_tax_line, gl_account_source')
     .eq('bill_id', billId)
     .order('sort_order')
 
@@ -201,5 +201,9 @@ export async function POST(
     }).catch(err => console.error('[reprocess] Admin email failed:', err))
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({
+    ok: true,
+    bill: billAfter,
+    lineItems: lineItemsAfter ?? [],
+  })
 }

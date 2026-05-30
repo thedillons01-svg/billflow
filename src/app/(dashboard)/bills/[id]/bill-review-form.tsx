@@ -285,7 +285,11 @@ export function BillReviewForm({
         body: JSON.stringify({ comment: comment.trim() || undefined }),
       })
       if (res.ok) {
-        window.location.reload()
+        const data = await res.json()
+        if (data.bill?.status)    setLocalStatus(data.bill.status)
+        if (data.bill?.vendor_id !== undefined) setLocalVendorId(data.bill.vendor_id ?? '')
+        if (data.lineItems)       setLineItems(data.lineItems)
+        router.refresh()
       } else {
         const json = await res.json()
         setPublishError(json.error ?? 'Reprocess failed')
