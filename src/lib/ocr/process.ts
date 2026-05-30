@@ -514,6 +514,13 @@ function evaluateRule(
 // Tiered extraction logic
 // ---------------------------------------------------------------------------
 
+function lineItemsMatchTotal(result: TierResult): boolean {
+  if (result.total === null || result.line_items.length === 0) return false
+  if (result.line_items.some(li => li.total === null)) return false
+  const sum = result.line_items.reduce((s, li) => s + (li.total ?? 0), 0)
+  return Math.abs(sum - result.total) <= 0.01
+}
+
 async function runTieredExtraction(
   pdfBuffer: Buffer,
   opts?: { forceTier?: 2 | 3; userComment?: string }
@@ -537,16 +544,26 @@ async function runTieredExtraction(
     return { ...tier3, tier: 3 }
   }
 
-  // Forced Tier 2 (1st reprocess) or Tier 1 incomplete → Claude Haiku
-  if (
+  // Tier 1 incomplete or line items don't balance → Claude Haiku
+  const tier1Incomplete =
     forceTier === 2 ||
     tier1.invoice_number === null ||
     tier1.invoice_date === null ||
     tier1.total === null ||
-    tier1.line_items.length === 0
-  ) {
-    console.log(forceTier === 2 ? '[ocr] Forced Tier 2 (Claude Haiku)' : '[ocr] Tier 1 incomplete → Tier 2 (Claude Haiku)')
+    !lineItemsMatchTotal(tier1)
+
+  if (tier1Incomplete) {
+    const reason = forceTier === 2 ? 'Forced Tier 2' : 'Tier 1 incomplete'
+    console.log(`[ocr] ${reason} → Tier 2 (Claude Haiku)`)
     const tier2 = await extractTier2(tier1.rawText, userComment)
+
+    // If Tier 2 also doesn't balance, escalate to Tier 3
+    if (!lineItemsMatchTotal(tier2)) {
+      console.log('[ocr] Tier 2 line items do not match total → Tier 3 (vision)')
+      const tier3 = await extractTier3(pdfBuffer, userComment)
+      return { ...tier3, tier: 3 }
+    }
+
     return { ...tier2, tier: 2, raw_text: tier1.rawText }
   }
 
