@@ -62,9 +62,12 @@ export function hasTextLayer(text: string): boolean {
 // ---------------------------------------------------------------------------
 
 function extractInvoiceNumber(text: string): string | null {
+  // Require an explicit delimiter (#, no., number, or :) so we don't pick up
+  // address numbers that appear after a bare "INVOICE" heading.
   const patterns = [
-    /invoice\s*(?:#|no\.?|number)?\s*[:–-]?\s*([A-Z0-9\-]+)/i,
-    /inv\s*(?:#|no\.?)?\s*[:–-]?\s*([A-Z0-9\-]+)/i,
+    /invoice\s*(?:#|no\.?|number)\s*[:–-]?\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
+    /invoice\s*[:–]\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
+    /inv\s*(?:#|no\.?)\s*[:–-]?\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
     /(?:^|\n)\s*#\s*([A-Z0-9\-]{4,20})/m,
   ]
   return firstMatch(text, patterns)
@@ -145,9 +148,11 @@ function extractVendorName(text: string): string | null {
 }
 
 function extractLineItems(text: string): LineItem[] {
-  // Best-effort: look for lines that have a dollar amount at the end
-  const lineItemRe = /^(.+?)\s+(\d+(?:\.\d+)?)\s+\$?([\d,]+\.\d{2})\s+\$?([\d,]+\.\d{2})\s*$/gm
-  const simpleRe   = /^(.+?)\s+\$?([\d,]+\.\d{2})\s*$/gm
+  // pdf-parse often concatenates table columns with no spaces, e.g.:
+  //   "Copeland Compressor, 3-ton1$892.00$892.00"
+  // Require $ signs for price fields so we can anchor without needing spaces.
+  const lineItemRe = /^(.+?)(\d+(?:\.\d+)?)\s*\$([\d,]+\.\d{2})\s*\$([\d,]+\.\d{2})\s*$/gm
+  const simpleRe   = /^(.+?)\s*\$([\d,]+\.\d{2})\s*$/gm
 
   const items: LineItem[] = []
 

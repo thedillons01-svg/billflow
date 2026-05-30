@@ -8,6 +8,8 @@ import type { TierResult } from './types'
 
 const SYSTEM_PROMPT = `You are an invoice data extraction engine. You receive raw text extracted from a vendor invoice PDF and return structured JSON.
 
+IMPORTANT: The text is extracted from a PDF by a parser that often concatenates table columns with no spaces. For example, a line item row may appear as "Copper pipe 10ft5$48.75$243.75" meaning description="Copper pipe 10ft", qty=5, unit_price=48.75, total=243.75. Parse accordingly — the qty is the number immediately before the first dollar sign, and the two dollar amounts that follow are unit price and line total.
+
 Extract the following fields from the invoice text:
 - vendor_name: The vendor/supplier company name
 - invoice_number: The invoice or document number
@@ -62,7 +64,7 @@ export async function extractTier2(rawText: string, userComment?: string): Promi
     : `Extract invoice data from this text:\n\n${rawText}`
 
   const response = await client.messages.create({
-    model: 'claude-haiku-4-5',
+    model: 'claude-haiku-4-5-20251001',
     max_tokens: 2048,
     system: [
       {
