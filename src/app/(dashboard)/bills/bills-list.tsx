@@ -16,6 +16,7 @@ type Bill = {
   status: string
   autopublish_hold_reason: string | null
   mark_as_paid: boolean | null
+  bill_line_items?: { gl_account_id: string | null }[]
 }
 
 type Account = {
@@ -48,6 +49,7 @@ export function BillsList({
   const [editingVendor, setEditingVendor] = useState<string | null>(null)
   const [vendorDraft, setVendorDraft] = useState('')
   const [editingGl, setEditingGl] = useState<string | null>(null)
+  const [glOverrides, setGlOverrides] = useState<Record<string, string>>({})
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
 
   const allSelected = bills.length > 0 && selected.size === bills.length
@@ -114,13 +116,13 @@ export function BillsList({
   }
 
   async function saveGlEdit(billId: string, glAccountId: string) {
-    // Apply to all line items on this bill via server action
     const res = await fetch('/api/bills/apply-gl', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ billId, glAccountId }),
     })
     if (res.ok) {
+      setGlOverrides(prev => ({ ...prev, [billId]: glAccountId }))
       setEditingGl(null)
       router.refresh()
     }
@@ -288,43 +290,55 @@ export function BillsList({
             </Link>
 
             {/* GL account — inline dropdown */}
-            <div onClick={e => e.stopPropagation()}>
-              {isEditingGlHere ? (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setEditingGl(null)} />
-                  <select
-                    autoFocus
-                    defaultValue=""
-                    className="relative z-50"
-                    onKeyDown={e => { if (e.key === 'Escape') setEditingGl(null) }}
-                    onChange={e => { if (e.target.value) saveGlEdit(bill.bill_id, e.target.value) }}
-                    style={{
-                      fontSize: 11, border: '1px solid #2DB87A', borderRadius: 4,
-                      padding: '2px 4px', width: '100%', cursor: 'pointer',
-                    }}
-                  >
-                    <option value="">Apply GL to all lines…</option>
-                    {accounts.map(a => (
-                      <option key={a.qb_account_id} value={a.qb_account_id}>
-                        {a.name ?? a.qb_account_id}
-                      </option>
-                    ))}
-                  </select>
-                </>
-              ) : (
-                <button
-                  onClick={() => setEditingGl(bill.bill_id)}
-                  style={{
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    fontSize: 11, color: 'var(--color-text-tertiary)',
-                    textAlign: 'left', padding: 0,
-                  }}
-                  title="Click to apply a GL account to all lines on this bill"
-                >
-                  {isInbox ? 'Set GL…' : '—'}
-                </button>
-              )}
-            </div>
+            {(() => {
+              const overrideId = glOverrides[bill.bill_id]
+              const lineGlIds = (bill.bill_line_items ?? []).map(li => li.gl_account_id).filter(Boolean) as string[]
+              const effectiveGlId = overrideId ?? (
+                lineGlIds.length > 0 && lineGlIds.every(id => id === lineGlIds[0]) ? lineGlIds[0] : null
+              )
+              const glName = effectiveGlId ? (accounts.find(a => a.qb_account_id === effectiveGlId)?.name ?? effectiveGlId) : null
+              const isMixed = !overrideId && lineGlIds.length > 0 && !lineGlIds.every(id => id === lineGlIds[0])
+
+              return (
+                <div onClick={e => e.stopPropagation()}>
+                  {isEditingGlHere ? (
+                    <>
+                      <div className="fixed inset-0 z-40" onClick={() => setEditingGl(null)} />
+                      <select
+                        autoFocus
+                        defaultValue={effectiveGlId ?? ''}
+                        className="relative z-50"
+                        onKeyDown={e => { if (e.key === 'Escape') setEditingGl(null) }}
+                        onChange={e => { if (e.target.value) saveGlEdit(bill.bill_id, e.target.value) }}
+                        style={{
+                          fontSize: 11, border: '1px solid #2DB87A', borderRadius: 4,
+                          padding: '2px 4px', width: '100%', cursor: 'pointer',
+                        }}
+                      >
+                        <option value="">— Select GL account —</option>
+                        {accounts.map(a => (
+                          <option key={a.qb_account_id} value={a.qb_account_id}>
+                            {a.name ?? a.qb_account_id}
+                          </option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => setEditingGl(bill.bill_id)}
+                      style={{
+                        background: 'none', border: 'none', cursor: 'pointer',
+                        fontSize: 11, textAlign: 'left', padding: 0,
+                        color: glName ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+                      }}
+                      title="Click to apply a GL account to all lines"
+                    >
+                      {isMixed ? 'Mixed' : glName ?? 'Set GL…'}
+                    </button>
+                  )}
+                </div>
+              )
+            })()}
 
             {/* Paid indicator */}
             <div title={bill.mark_as_paid ? 'Mark as Paid is on' : undefined}>
