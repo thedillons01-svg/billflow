@@ -120,10 +120,13 @@ export async function syncJobs(companyId: string) {
   const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
 
-  const jobs = await qbFetchAll<QBCustomer>(
+  // Fetch all active customers — filter in code because QBO Online often sets
+  // ParentRef instead of Job=true for sub-customers (jobs)
+  const allCustomers = await qbFetchAll<QBCustomer>(
     'Customer',
-    'SELECT * FROM Customer WHERE Job = true AND Active = true'
+    'SELECT * FROM Customer WHERE Active = true'
   )
+  const jobs = allCustomers.filter(c => c.Job === true || c.ParentRef != null)
   if (jobs.length === 0) return
 
   await supabase.from('qb_jobs_cache').delete().eq('company_id', companyId)
@@ -174,6 +177,60 @@ export async function syncClasses(companyId: string) {
     { onConflict: 'company_id,qb_class_id', ignoreDuplicates: false }
   )
   if (error) throw new Error(`Classes cache upsert failed: ${error.message}`)
+}
+
+// Refresh the jobs cache from QB only if it's stale (> maxAgeMinutes old).
+// Called as a fallback during invoice processing when a job isn't found in cache.
+// Using upsert (not delete+insert) so concurrent calls from simultaneous invoices are safe.
+export async function syncJobsIfStale(companyId: string, maxAgeMinutes = 5): Promise<void> {
+  const supabase = createServiceClient()
+
+  const { data: latest } = await supabase
+    .from('qb_jobs_cache')
+    .select('cached_at')
+    .eq('company_id', companyId)
+    .order('cached_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (latest?.cached_at) {
+    const ageMs = Date.now() - new Date(latest.cached_at).getTime()
+    if (ageMs < maxAgeMinutes * 60 * 1000) return
+  }
+
+  try {
+    const { qbFetchAll } = await getQBClient(companyId)
+    const allCustomers = await qbFetchAll<QBCustomer>(
+      'Customer',
+      'SELECT * FROM Customer WHERE Active = true'
+    )
+    const jobs = allCustomers.filter(c => c.Job === true || c.ParentRef != null)
+    if (jobs.length === 0) return
+
+    const now = new Date().toISOString()
+    const rows = jobs.map(j => {
+      const parts = j.FullyQualifiedName.split(':')
+      const customerName = parts.length > 1 ? parts.slice(0, -1).join(':') : (j.ParentRef?.name ?? '')
+      const jobName = parts[parts.length - 1]
+      const jobNumberMatch = jobName.match(/\b(\d+)\b/)
+      return {
+        company_id:    companyId,
+        qb_job_id:     j.Id,
+        job_name:      jobName,
+        job_number:    jobNumberMatch?.[1] ?? null,
+        customer_name: customerName,
+        customer_id:   j.ParentRef?.value ?? null,
+        cached_at:     now,
+      }
+    })
+
+    await supabase.from('qb_jobs_cache').upsert(rows, {
+      onConflict: 'company_id,qb_job_id',
+      ignoreDuplicates: false,
+    })
+  } catch {
+    // Non-fatal — bill stays in pending_job_match for manual assignment
+  }
 }
 
 export async function syncAll(companyId: string) {

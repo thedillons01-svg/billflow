@@ -4,6 +4,7 @@ import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
 import type { ExtractionResult, TierResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
+import { syncJobsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 
 // ---------------------------------------------------------------------------
@@ -414,10 +415,35 @@ export async function tryMatchJob(
 
   if (!jobs || jobs.length === 0) return false
 
-  const match = jobs.find(j =>
-    j.job_number?.trim().toLowerCase() === normalised ||
-    j.job_name?.trim().toLowerCase() === normalised
-  )
+  let match = jobs.find(j => {
+    const num  = j.job_number?.trim().toLowerCase()
+    const name = j.job_name?.trim().toLowerCase()
+    // Exact match on job number or name
+    if (num === normalised || name === normalised) return true
+    // PO reference contains the job number (e.g. "52256 Install" contains "52256")
+    if (num && num.length >= 4 && normalised.includes(num)) return true
+    // Job name contains the PO reference or vice versa
+    if (name && (normalised.includes(name) || name.includes(normalised))) return true
+    return false
+  })
+
+  // Cache miss — refresh from QB if stale (rate-limited to once per 5 min to prevent
+  // stampede when multiple invoices process simultaneously), then retry once
+  if (!match) {
+    await syncJobsIfStale(companyId)
+    const { data: freshJobs } = await supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id, job_number, job_name')
+      .eq('company_id', companyId)
+    match = (freshJobs ?? []).find(j => {
+      const num  = j.job_number?.trim().toLowerCase()
+      const name = j.job_name?.trim().toLowerCase()
+      if (num === normalised || name === normalised) return true
+      if (num && num.length >= 4 && normalised.includes(num)) return true
+      if (name && (normalised.includes(name) || name.includes(normalised))) return true
+      return false
+    }) ?? undefined
+  }
 
   if (!match) return false
 
