@@ -20,6 +20,7 @@ type Vendor = {
   default_payment_account_id: string | null
   default_payment_method: string | null
   billflow_gl_account_id: string | null
+  qb_default_gl_account_id: string | null
   billflow_class_id: string | null
   copy_po_to_qb_reference: boolean
   invoices_processed: number
@@ -73,7 +74,7 @@ export function VendorGeneralTab({
         default_payment_account_id: form.default_payment_account_id || null,
         default_payment_method:     form.default_payment_method || null,
         billflow_gl_account_id:     form.billflow_gl_account_id || null,
-        gl_account_source:          form.billflow_gl_account_id ? 'billflow_override' : 'not_set',
+        gl_account_source:          form.billflow_gl_account_id ? 'billflow_override' : vendor.qb_default_gl_account_id ? 'qb_default' : 'not_set',
         billflow_class_id:          form.billflow_class_id || null,
         class_source:               form.billflow_class_id ? 'Purchasomatic_override' : 'not_set',
         copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
@@ -204,8 +205,13 @@ export function VendorGeneralTab({
       {/* GL Account */}
       <Section title="Default GL Account">
         <Field
-          label="GL account (Purchasomatic override)"
-          helper="The expense account all line items from this vendor default to. Overrides the QuickBooks vendor default. Source badge on bill review screen shows 'Purchasomatic' when this is set."
+          label="GL account"
+          helper={(() => {
+            const qbDefault = accounts.find(a => a.qb_account_id === vendor.qb_default_gl_account_id)
+            if (qbDefault) return `QB vendor default: ${qbDefault.name}. Select an account below to override it, or leave blank to use the QB default.`
+            if (vendor.qb_default_gl_account_id) return `QB vendor default account ID: ${vendor.qb_default_gl_account_id} (not in synced accounts). Select an account below to override.`
+            return 'No default expense account is set on this vendor in QuickBooks. Select an account here so line items have a GL account when invoices are processed.'
+          })()}
         >
           <select value={form.billflow_gl_account_id} onChange={e => set('billflow_gl_account_id', e.target.value)} style={inputStyle}>
             <option value="">— Use QB vendor default —</option>
@@ -213,6 +219,12 @@ export function VendorGeneralTab({
               <option key={a.qb_account_id} value={a.qb_account_id}>{a.name}</option>
             ))}
           </select>
+          {!vendor.qb_default_gl_account_id && !form.billflow_gl_account_id && (
+            <p style={{ fontSize: 11, color: '#D97706', marginTop: 4, display: 'flex', alignItems: 'center', gap: 3 }}>
+              <i className="ti ti-alert-triangle" style={{ fontSize: 11 }} />
+              No GL account will be applied — set one above or add a default to this vendor in QuickBooks and re-sync.
+            </p>
+          )}
         </Field>
         {classTrackingEnabled && (
           <Field
