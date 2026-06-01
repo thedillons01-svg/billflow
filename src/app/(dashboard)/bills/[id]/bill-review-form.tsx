@@ -88,6 +88,7 @@ export function BillReviewForm({
 }) {
   const router = useRouter()
   const [stablePdfUrl] = useState(pdfSignedUrl)
+  const [liveJobs, setLiveJobs] = useState<Job[]>(jobs)
   const [localStatus, setLocalStatus] = useState(bill.status)
   const [localVendorId, setLocalVendorId] = useState(bill.vendor_id ?? '')
   const [swapped, setSwapped] = useState(false)
@@ -176,6 +177,14 @@ export function BillReviewForm({
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }, [swapped, formWidth])
+
+  // Fetch live jobs from QB on mount — replaces stale cache with current QB data
+  useEffect(() => {
+    fetch('/api/quickbooks/jobs')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data?.jobs) setLiveJobs(data.jobs) })
+      .catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (!showHistory) return
@@ -844,13 +853,13 @@ export function BillReviewForm({
                           ? (lineItems[0].job_id ?? '')
                           : ''
                       }
-                      options={jobs.map(j => ({
+                      options={liveJobs.map(j => ({
                         value: j.qb_job_id,
                         label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
                       }))}
                       onSave={async (v) => {
                         if (!v) return
-                        const job = jobs.find(j => j.qb_job_id === v)
+                        const job = liveJobs.find(j => j.qb_job_id === v)
                         const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
                         if (lineItems.length > 1) {
                           setHeaderJobPending({ jobId: v, jobLabel: label })
@@ -974,7 +983,7 @@ export function BillReviewForm({
                         onSave={async (v) => {
                           await updateLineItem(item.line_id, { job_id: v || null })
                           if (v && lineItems.length > 1) {
-                            const job = jobs.find(j => j.qb_job_id === v)
+                            const job = liveJobs.find(j => j.qb_job_id === v)
                             const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
                             setJobApplyPrompt({ jobId: v, jobLabel: label })
                           }
