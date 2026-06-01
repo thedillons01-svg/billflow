@@ -922,9 +922,9 @@ export function BillReviewForm({
                     { label: 'Qty',         align: 'right', pl: 0 },
                     { label: 'Unit',        align: 'right', pl: 0 },
                     { label: 'Amount',      align: 'right', pl: 0 },
-                    { label: 'GL Account',  align: 'left',  pl: 12 },
-                    ...(jobCostingEnabled ? [{ label: 'Job', align: 'left', pl: 12 }] : []),
-                    ...(classTrackingEnabled ? [{ label: 'Class', align: 'left', pl: 12 }] : []),
+                    { label: 'GL Account',  align: 'left',  pl: 16 },
+                    ...(jobCostingEnabled ? [{ label: 'Job', align: 'left', pl: 16 }] : []),
+                    ...(classTrackingEnabled ? [{ label: 'Class', align: 'left', pl: 16 }] : []),
                     { label: '', align: 'left', pl: 0 },
                   ] as { label: string; align: 'left' | 'right'; pl: number }[]).map((h, idx) => (
                     <span key={idx} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', textAlign: h.align, paddingLeft: h.pl }}>{h.label}</span>
