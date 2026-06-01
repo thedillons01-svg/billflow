@@ -912,8 +912,8 @@ export function BillReviewForm({
             ) : (
               <div style={{ border: '0.5px solid var(--color-border-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
                 <div className="grid" style={{ gridTemplateColumns: [
-                      '2.2fr 0.4fr 0.5fr 0.75fr 8px 2fr',
-                      jobCostingEnabled ? ' 1.3fr' : '',
+                      '2.2fr 0.4fr 0.5fr 0.75fr 1.4fr',
+                      jobCostingEnabled ? ' 1.8fr' : '',
                       classTrackingEnabled ? ' 1fr' : '',
                       ' 20px',
                     ].join(''), background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
@@ -922,7 +922,6 @@ export function BillReviewForm({
                     { label: 'Qty', align: 'right' },
                     { label: 'Unit', align: 'right' },
                     { label: 'Amount', align: 'right' },
-                    { label: '', align: 'left' },
                     { label: 'GL Account', align: 'left' },
                     ...(jobCostingEnabled ? [{ label: 'Job', align: 'left' }] : []),
                     ...(classTrackingEnabled ? [{ label: 'Class', align: 'left' }] : []),
@@ -937,8 +936,8 @@ export function BillReviewForm({
                     className="grid items-center"
                     style={{
                       gridTemplateColumns: [
-                      '2.2fr 0.4fr 0.5fr 0.75fr 8px 2fr',
-                      jobCostingEnabled ? ' 1.3fr' : '',
+                      '2.2fr 0.4fr 0.5fr 0.75fr 1.4fr',
+                      jobCostingEnabled ? ' 1.8fr' : '',
                       classTrackingEnabled ? ' 1fr' : '',
                       ' 20px',
                     ].join(''),
@@ -951,29 +950,25 @@ export function BillReviewForm({
                     <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={v => updateLineItem(item.line_id, { quantity: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={v => updateLineItem(item.line_id, { unit_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" currency />
-                    {/* Spacer column */}
-                    <div />
-                    <div className="flex items-center gap-1">
-                      <SourceDot source={item.gl_account_source ?? ''} />
-                      <InlineSelect
-                        initialValue={item.gl_account_id ?? ''}
-                        options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
-                        onSave={async (v) => {
-                          await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
-                          if (v && item.description && bill.vendor_id) {
-                            const account = expenseAccounts.find(a => a.qb_account_id === v)
-                            setRememberPrompt({
-                              lineId: item.line_id,
-                              description: item.description,
-                              glAccountId: v,
-                              accountName: account?.name ?? v,
-                            })
-                          }
-                        }}
-                        placeholder="GL account…"
-                        emptyLabel="Connect QB"
-                      />
-                    </div>
+                    <InlineSelect
+                      initialValue={item.gl_account_id ?? ''}
+                      options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
+                      title={item.gl_account_source ? SOURCE_BADGE[item.gl_account_source]?.label : undefined}
+                      onSave={async (v) => {
+                        await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
+                        if (v && item.description && bill.vendor_id) {
+                          const account = expenseAccounts.find(a => a.qb_account_id === v)
+                          setRememberPrompt({
+                            lineId: item.line_id,
+                            description: item.description,
+                            glAccountId: v,
+                            accountName: account?.name ?? v,
+                          })
+                        }
+                      }}
+                      placeholder="GL account…"
+                      emptyLabel="Connect QB"
+                    />
                     {jobCostingEnabled && (
                       <InlineSelect
                         initialValue={item.job_id ?? ''}
@@ -1683,12 +1678,13 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: { i
   )
 }
 
-function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel }: {
+function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel, title }: {
   initialValue: string
   options: { value: string; label: string }[]
   onSave: (v: string) => Promise<void>
   placeholder: string
   emptyLabel: string
+  title?: string
 }) {
   const [value, setValue] = useState(initialValue)
 
@@ -1707,6 +1703,7 @@ function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel }
     <select
       value={value}
       onChange={e => handleChange(e.target.value)}
+      title={title}
       style={{
         width: '100%', border: '0.5px solid transparent', borderRadius: 4,
         padding: '3px 4px', fontSize: 12, background: 'transparent',
