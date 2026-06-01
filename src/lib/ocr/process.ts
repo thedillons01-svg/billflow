@@ -51,7 +51,7 @@ async function markOcrError(supabase: SupabaseClient, billId: string, error: str
 // processBill — entry point called after a bill record is created
 // ---------------------------------------------------------------------------
 
-export async function processBill(billId: string, opts?: { skipCredits?: boolean; userComment?: string; forceTier?: 2 | 3 }): Promise<void> {
+export async function processBill(billId: string, opts?: { skipCredits?: boolean; userComment?: string; forceTier?: 2 | 3; skipJobMatch?: boolean }): Promise<void> {
   const supabase = getServiceClient()
 
   // 1. Load the bill record
@@ -317,8 +317,9 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
-  // 6.2 Job matching — always attempt if PO reference present; only hold if hold_for_job_match is on
-  if (!isDuplicate && result.vendor_po_reference) {
+  // 6.2 Job matching — always attempt if PO reference present; only hold if hold_for_job_match is on.
+  // skipJobMatch is set by the reprocess route when a job was already manually assigned.
+  if (!isDuplicate && result.vendor_po_reference && !opts?.skipJobMatch) {
     const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, result.vendor_po_reference)
     if (!jobMatched && vendorHoldForJobMatch) {
       await supabase.from('bills')

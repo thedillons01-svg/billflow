@@ -17,8 +17,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     .single()
 
   if (!bill) return NextResponse.json({ error: 'Bill not found' }, { status: 404 })
-  if (bill.status !== 'pending_job_match') {
-    return NextResponse.json({ error: 'Bill is not in pending_job_match status' }, { status: 400 })
+  if (bill.status === 'published') {
+    return NextResponse.json({ error: 'Cannot match a published bill' }, { status: 400 })
   }
 
   // First sync jobs from QB to get latest

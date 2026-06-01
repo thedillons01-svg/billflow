@@ -53,6 +53,20 @@ export async function POST(
     .eq('bill_id', billId)
     .order('sort_order')
 
+  // Capture existing job assignments before reprocessing — if jobs were already manually set,
+  // preserve them instead of running auto-match (which could overwrite intentional assignments)
+  const { data: existingLines } = await service
+    .from('bill_line_items')
+    .select('job_id')
+    .eq('bill_id', billId)
+
+  const existingJobIds = (existingLines ?? []).map(l => l.job_id).filter(Boolean) as string[]
+  const previousJobId = existingJobIds.length > 0
+    ? existingJobIds.sort((a, b) =>
+        existingJobIds.filter(x => x === b).length - existingJobIds.filter(x => x === a).length
+      )[0]
+    : null
+
   // Increment reprocess count and reset to draft
   await service
     .from('bills')
@@ -73,12 +87,19 @@ export async function POST(
   })
 
   try {
-    await processBill(billId, { skipCredits: true, forceTier, userComment })
+    await processBill(billId, { skipCredits: true, forceTier, userComment, skipJobMatch: !!previousJobId })
   } catch (err) {
     return NextResponse.json(
       { error: `Reprocess failed: ${err instanceof Error ? err.message : String(err)}` },
       { status: 500 }
     )
+  }
+
+  // Restore previous job assignments if a job was already set before reprocessing
+  if (previousJobId) {
+    await service.from('bill_line_items')
+      .update({ job_id: previousJobId })
+      .eq('bill_id', billId)
   }
 
   // Read after state for email diff + response payload
