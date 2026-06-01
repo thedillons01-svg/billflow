@@ -912,22 +912,23 @@ export function BillReviewForm({
             ) : (
               <div style={{ border: '0.5px solid var(--color-border-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
                 <div className="grid" style={{ gridTemplateColumns: [
-                      '3fr 0.6fr 0.8fr 0.9fr 1.4fr',
-                      jobCostingEnabled ? ' 1.2fr' : '',
+                      '2.2fr 0.4fr 0.5fr 0.75fr 8px 2fr',
+                      jobCostingEnabled ? ' 1.3fr' : '',
                       classTrackingEnabled ? ' 1fr' : '',
-                      ' 24px',
+                      ' 20px',
                     ].join(''), background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
                   {([
                     { label: 'Description', align: 'left' },
                     { label: 'Qty', align: 'right' },
                     { label: 'Unit', align: 'right' },
                     { label: 'Amount', align: 'right' },
+                    { label: '', align: 'left' },
                     { label: 'GL Account', align: 'left' },
                     ...(jobCostingEnabled ? [{ label: 'Job', align: 'left' }] : []),
                     ...(classTrackingEnabled ? [{ label: 'Class', align: 'left' }] : []),
                     { label: '', align: 'left' },
-                  ] as { label: string; align: 'left' | 'right' }[]).map(h => (
-                    <span key={h.label} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', textAlign: h.align }}>{h.label}</span>
+                  ] as { label: string; align: 'left' | 'right' }[]).map((h, idx) => (
+                    <span key={idx} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', textAlign: h.align }}>{h.label}</span>
                   ))}
                 </div>
                 {lineItems.map((item, i) => (
@@ -936,21 +937,24 @@ export function BillReviewForm({
                     className="grid items-center"
                     style={{
                       gridTemplateColumns: [
-                      '3fr 0.6fr 0.8fr 0.9fr 1.4fr',
-                      jobCostingEnabled ? ' 1.2fr' : '',
+                      '2.2fr 0.4fr 0.5fr 0.75fr 8px 2fr',
+                      jobCostingEnabled ? ' 1.3fr' : '',
                       classTrackingEnabled ? ' 1fr' : '',
-                      ' 24px',
+                      ' 20px',
                     ].join(''),
                       borderBottom: i < lineItems.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
-                      padding: '4px 8px',
+                      padding: '2px 8px',
                       background: item.is_tax_line ? '#FFFBEB' : 'white',
                     }}
                   >
                     <InlineInput initialValue={item.description ?? ''} onSave={v => updateLineItem(item.line_id, { description: v || null })} placeholder="Description" />
                     <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={v => updateLineItem(item.line_id, { quantity: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={v => updateLineItem(item.line_id, { unit_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
-                    <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
-                    <div>
+                    <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" currency />
+                    {/* Spacer column */}
+                    <div />
+                    <div className="flex items-center gap-1">
+                      <SourceDot source={item.gl_account_source ?? ''} />
                       <InlineSelect
                         initialValue={item.gl_account_id ?? ''}
                         options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
@@ -969,9 +973,6 @@ export function BillReviewForm({
                         placeholder="GL account…"
                         emptyLabel="Connect QB"
                       />
-                      {item.gl_account_source && (
-                        <SourceBadge source={item.gl_account_source} />
-                      )}
                     </div>
                     {jobCostingEnabled && (
                       <InlineSelect
@@ -1648,18 +1649,28 @@ function AutoSaveInput({
 
 // ── Inline table inputs ────────────────────────────────────────────────────────
 
-function InlineInput({ initialValue, onSave, placeholder, align }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right' }) {
+function InlineInput({ initialValue, onSave, placeholder, align, currency }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right'; currency?: boolean }) {
   const [value, setValue] = useState(initialValue)
+  const [focused, setFocused] = useState(false)
   useEffect(() => { setValue(initialValue) }, [initialValue])
 
   const handleBlur = async () => {
+    setFocused(false)
     try { await onSave(value) } catch { /* silent */ }
   }
 
+  const displayValue = currency && !focused && value !== ''
+    ? `$${parseFloat(value || '0').toFixed(2)}`
+    : value
+
   return (
     <input
-      value={value}
-      onChange={e => setValue(e.target.value)}
+      value={displayValue}
+      onChange={e => {
+        const raw = currency ? e.target.value.replace(/^\$/, '') : e.target.value
+        setValue(raw)
+      }}
+      onFocus={() => setFocused(true)}
       onBlur={handleBlur}
       placeholder={placeholder}
       style={{
@@ -1726,21 +1737,18 @@ const SOURCE_BADGE: Record<string, { label: string; bg: string; color: string }>
   mapping:            { label: 'Learned',  bg: '#D1FAE5', color: '#065F46' },
 }
 
-function SourceBadge({ source }: { source: string }) {
+function SourceDot({ source }: { source: string }) {
   const cfg = SOURCE_BADGE[source]
   if (!cfg) return null
   return (
     <span
+      title={cfg.label}
       style={{
-        display: 'inline-block', marginTop: 2,
-        background: cfg.bg, color: cfg.color,
-        borderRadius: 3, padding: '1px 5px',
-        fontSize: 9, fontWeight: 600, letterSpacing: '0.03em',
-        textTransform: 'uppercase',
+        display: 'inline-block', flexShrink: 0,
+        width: 7, height: 7, borderRadius: '50%',
+        background: cfg.color, cursor: 'default',
       }}
-    >
-      {cfg.label}
-    </span>
+    />
   )
 }
 
