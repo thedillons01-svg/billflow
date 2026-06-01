@@ -168,8 +168,8 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       vendorDefaultClassId = vendor.billflow_class_id ?? null
       vendorHoldForJobMatch = vendor.hold_for_job_match ?? false
 
-      // Increment invoices_processed for non-duplicate bills
-      if (!isDuplicate) {
+      // Increment invoices_processed for new bills only (not reprocesses or duplicates)
+      if (!isDuplicate && !opts?.skipCredits) {
         const { data: vCurrent } = await supabase
           .from('vendors')
           .select('invoices_processed')

@@ -87,6 +87,7 @@ export function BillReviewForm({
   pdfSignedUrl?: string | null
 }) {
   const router = useRouter()
+  const [stablePdfUrl] = useState(pdfSignedUrl)
   const [localStatus, setLocalStatus] = useState(bill.status)
   const [localVendorId, setLocalVendorId] = useState(bill.vendor_id ?? '')
   const [swapped, setSwapped] = useState(false)
@@ -1366,9 +1367,9 @@ export function BillReviewForm({
   )
 
   const handleDownload = async () => {
-    if (!pdfSignedUrl) return
+    if (!stablePdfUrl) return
     try {
-      const res = await fetch(pdfSignedUrl)
+      const res = await fetch(stablePdfUrl)
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -1388,7 +1389,7 @@ export function BillReviewForm({
       className="flex-1 overflow-hidden flex flex-col"
       style={{ background: 'var(--color-background-secondary)', order: swapped ? 0 : 2 }}
     >
-      {pdfSignedUrl && (
+      {stablePdfUrl && (
         <div
           className="flex-none flex justify-end"
           style={{
@@ -1414,9 +1415,9 @@ export function BillReviewForm({
         </div>
       )}
       <div className="flex-1 overflow-hidden">
-        {pdfSignedUrl ? (
+        {stablePdfUrl ? (
           <iframe
-            src={`${pdfSignedUrl}#navpanes=0`}
+            src={`${stablePdfUrl}#navpanes=0`}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="Invoice PDF"
           />
@@ -1599,6 +1600,7 @@ function AutoSaveInput({
   const [value, setValue] = useState(initialValue)
   const [state, setState] = useState<SaveState>('idle')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => { setValue(initialValue) }, [initialValue])
 
   const handleBlur = async () => {
     if (timerRef.current) clearTimeout(timerRef.current)
@@ -1639,6 +1641,7 @@ function AutoSaveInput({
 
 function InlineInput({ initialValue, onSave, placeholder, align }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right' }) {
   const [value, setValue] = useState(initialValue)
+  useEffect(() => { setValue(initialValue) }, [initialValue])
 
   const handleBlur = async () => {
     try { await onSave(value) } catch { /* silent */ }

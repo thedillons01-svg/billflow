@@ -290,23 +290,27 @@ export function BillsList({
             {/* GL account — inline dropdown */}
             <div onClick={e => e.stopPropagation()}>
               {isEditingGlHere ? (
-                <select
-                  autoFocus
-                  defaultValue=""
-                  onBlur={() => setEditingGl(null)}
-                  onChange={e => { if (e.target.value) saveGlEdit(bill.bill_id, e.target.value) }}
-                  style={{
-                    fontSize: 11, border: '1px solid #2DB87A', borderRadius: 4,
-                    padding: '2px 4px', width: '100%', cursor: 'pointer',
-                  }}
-                >
-                  <option value="">Apply GL to all lines…</option>
-                  {accounts.map(a => (
-                    <option key={a.qb_account_id} value={a.qb_account_id}>
-                      {a.name ?? a.qb_account_id}
-                    </option>
-                  ))}
-                </select>
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setEditingGl(null)} />
+                  <select
+                    autoFocus
+                    defaultValue=""
+                    className="relative z-50"
+                    onKeyDown={e => { if (e.key === 'Escape') setEditingGl(null) }}
+                    onChange={e => { if (e.target.value) saveGlEdit(bill.bill_id, e.target.value) }}
+                    style={{
+                      fontSize: 11, border: '1px solid #2DB87A', borderRadius: 4,
+                      padding: '2px 4px', width: '100%', cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">Apply GL to all lines…</option>
+                    {accounts.map(a => (
+                      <option key={a.qb_account_id} value={a.qb_account_id}>
+                        {a.name ?? a.qb_account_id}
+                      </option>
+                    ))}
+                  </select>
+                </>
               ) : (
                 <button
                   onClick={() => setEditingGl(bill.bill_id)}

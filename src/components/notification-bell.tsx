@@ -59,7 +59,7 @@ export function NotificationBell({
             onClick={() => setOpen(false)}
           />
           <div
-            className="absolute right-0 top-8 z-50 overflow-hidden rounded-[6px] bg-white shadow-lg"
+            className="absolute left-0 bottom-8 z-50 overflow-hidden rounded-[6px] bg-white shadow-lg"
             style={{
               width: 320,
               border: '0.5px solid var(--color-border-tertiary)',
