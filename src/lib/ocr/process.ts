@@ -400,13 +400,46 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
 // Job matching — match bill to QB job by PO reference field
 // ---------------------------------------------------------------------------
 
+// Build a set of candidate strings from a PO reference to try matching against job records.
+// Handles prefix stripping ("Job #52256" → "52256") and multiple references ("52256 and 52258").
+function extractJobCandidates(poReference: string): string[] {
+  const raw = poReference.trim().toLowerCase()
+  const candidates = new Set<string>([raw])
+
+  // Strip common prefixes used by techs and FSMs when writing PO/job references
+  const stripped = raw
+    .replace(/^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|#\s*)/, '')
+    .trim()
+  if (stripped && stripped !== raw) candidates.add(stripped)
+
+  // Extract every sequence of 4+ digits — handles "52256 Install", "Job 52256 and 52258", etc.
+  const numbers = raw.match(/\b\d{4,}\b/g) ?? []
+  for (const n of numbers) candidates.add(n)
+
+  return [...candidates].filter(Boolean)
+}
+
+function jobMatchesCandidates(
+  job: { qb_job_id: string; job_number: string | null; job_name: string | null },
+  candidates: string[]
+): boolean {
+  const num  = job.job_number?.trim().toLowerCase()
+  const name = job.job_name?.trim().toLowerCase()
+  for (const c of candidates) {
+    if (num === c || name === c) return true
+    if (num && num.length >= 4 && c.includes(num)) return true
+    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
+  }
+  return false
+}
+
 export async function tryMatchJob(
   supabase: SupabaseClient,
   billId: string,
   companyId: string,
   poReference: string,
 ): Promise<boolean> {
-  const normalised = poReference.trim().toLowerCase()
+  const candidates = extractJobCandidates(poReference)
 
   const { data: jobs } = await supabase
     .from('qb_jobs_cache')
@@ -415,17 +448,7 @@ export async function tryMatchJob(
 
   if (!jobs || jobs.length === 0) return false
 
-  let match = jobs.find(j => {
-    const num  = j.job_number?.trim().toLowerCase()
-    const name = j.job_name?.trim().toLowerCase()
-    // Exact match on job number or name
-    if (num === normalised || name === normalised) return true
-    // PO reference contains the job number (e.g. "52256 Install" contains "52256")
-    if (num && num.length >= 4 && normalised.includes(num)) return true
-    // Job name contains the PO reference or vice versa
-    if (name && (normalised.includes(name) || name.includes(normalised))) return true
-    return false
-  })
+  let match = jobs.find(j => jobMatchesCandidates(j, candidates))
 
   // Cache miss — refresh from QB if stale (rate-limited to once per 5 min to prevent
   // stampede when multiple invoices process simultaneously), then retry once
@@ -435,14 +458,7 @@ export async function tryMatchJob(
       .from('qb_jobs_cache')
       .select('qb_job_id, job_number, job_name')
       .eq('company_id', companyId)
-    match = (freshJobs ?? []).find(j => {
-      const num  = j.job_number?.trim().toLowerCase()
-      const name = j.job_name?.trim().toLowerCase()
-      if (num === normalised || name === normalised) return true
-      if (num && num.length >= 4 && normalised.includes(num)) return true
-      if (name && (normalised.includes(name) || name.includes(normalised))) return true
-      return false
-    }) ?? undefined
+    match = (freshJobs ?? []).find(j => jobMatchesCandidates(j, candidates))
   }
 
   if (!match) return false
