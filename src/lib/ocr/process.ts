@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { extractTier1, hasTextLayer } from './tier1'
 import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
-import type { ExtractionResult } from './types'
+import type { ExtractionResult, TierResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 
