@@ -317,10 +317,10 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
-  // 6.2 Job matching — if vendor has hold_for_job_match and no job is matched, hold bill
-  if (!isDuplicate && vendorHoldForJobMatch && result.vendor_po_reference) {
+  // 6.2 Job matching — always attempt if PO reference present; only hold if hold_for_job_match is on
+  if (!isDuplicate && result.vendor_po_reference) {
     const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, result.vendor_po_reference)
-    if (!jobMatched) {
+    if (!jobMatched && vendorHoldForJobMatch) {
       await supabase.from('bills')
         .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — PO reference: ${result.vendor_po_reference}` })
         .eq('bill_id', billId)
