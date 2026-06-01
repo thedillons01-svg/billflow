@@ -918,16 +918,16 @@ export function BillReviewForm({
                       ' 20px',
                     ].join(''), background: 'var(--color-background-secondary)', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '6px 8px' }}>
                   {([
-                    { label: 'Description', align: 'left' },
-                    { label: 'Qty', align: 'right' },
-                    { label: 'Unit', align: 'right' },
-                    { label: 'Amount', align: 'right' },
-                    { label: 'GL Account', align: 'left' },
-                    ...(jobCostingEnabled ? [{ label: 'Job', align: 'left' }] : []),
-                    ...(classTrackingEnabled ? [{ label: 'Class', align: 'left' }] : []),
-                    { label: '', align: 'left' },
-                  ] as { label: string; align: 'left' | 'right' }[]).map((h, idx) => (
-                    <span key={idx} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', textAlign: h.align }}>{h.label}</span>
+                    { label: 'Description', align: 'left',  pl: 4 },
+                    { label: 'Qty',         align: 'right', pl: 0 },
+                    { label: 'Unit',        align: 'right', pl: 0 },
+                    { label: 'Amount',      align: 'right', pl: 0 },
+                    { label: 'GL Account',  align: 'left',  pl: 12 },
+                    ...(jobCostingEnabled ? [{ label: 'Job', align: 'left', pl: 12 }] : []),
+                    ...(classTrackingEnabled ? [{ label: 'Class', align: 'left', pl: 12 }] : []),
+                    { label: '', align: 'left', pl: 0 },
+                  ] as { label: string; align: 'left' | 'right'; pl: number }[]).map((h, idx) => (
+                    <span key={idx} style={{ fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', textAlign: h.align, paddingLeft: h.pl }}>{h.label}</span>
                   ))}
                 </div>
                 {lineItems.map((item, i) => (
@@ -950,43 +950,47 @@ export function BillReviewForm({
                     <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={v => updateLineItem(item.line_id, { quantity: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={v => updateLineItem(item.line_id, { unit_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" currency />
-                    <InlineSelect
-                      initialValue={item.gl_account_id ?? ''}
-                      options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
-                      title={item.gl_account_source ? SOURCE_BADGE[item.gl_account_source]?.label : undefined}
-                      onSave={async (v) => {
-                        await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
-                        if (v && item.description && bill.vendor_id) {
-                          const account = expenseAccounts.find(a => a.qb_account_id === v)
-                          setRememberPrompt({
-                            lineId: item.line_id,
-                            description: item.description,
-                            glAccountId: v,
-                            accountName: account?.name ?? v,
-                          })
-                        }
-                      }}
-                      placeholder="GL account…"
-                      emptyLabel="Connect QB"
-                    />
-                    {jobCostingEnabled && (
+                    <div style={{ paddingLeft: 8 }}>
                       <InlineSelect
-                        initialValue={item.job_id ?? ''}
-                        options={jobs.map(j => ({
-                          value: j.qb_job_id,
-                          label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
-                        }))}
+                        initialValue={item.gl_account_id ?? ''}
+                        options={expenseAccounts.map(a => ({ value: a.qb_account_id, label: a.name ?? a.qb_account_id }))}
+                        title={item.gl_account_source ? SOURCE_BADGE[item.gl_account_source]?.label : undefined}
                         onSave={async (v) => {
-                          await updateLineItem(item.line_id, { job_id: v || null })
-                          if (v && lineItems.length > 1) {
-                            const job = liveJobs.find(j => j.qb_job_id === v)
-                            const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
-                            setJobApplyPrompt({ jobId: v, jobLabel: label })
+                          await updateLineItem(item.line_id, { gl_account_id: v || null, gl_account_source: 'manual' })
+                          if (v && item.description && bill.vendor_id) {
+                            const account = expenseAccounts.find(a => a.qb_account_id === v)
+                            setRememberPrompt({
+                              lineId: item.line_id,
+                              description: item.description,
+                              glAccountId: v,
+                              accountName: account?.name ?? v,
+                            })
                           }
                         }}
-                        placeholder="Job…"
-                        emptyLabel="—"
+                        placeholder="GL account…"
+                        emptyLabel="Connect QB"
                       />
+                    </div>
+                    {jobCostingEnabled && (
+                      <div style={{ paddingLeft: 8 }}>
+                        <InlineSelect
+                          initialValue={item.job_id ?? ''}
+                          options={liveJobs.map(j => ({
+                            value: j.qb_job_id,
+                            label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+                          }))}
+                          onSave={async (v) => {
+                            await updateLineItem(item.line_id, { job_id: v || null })
+                            if (v && lineItems.length > 1) {
+                              const job = liveJobs.find(j => j.qb_job_id === v)
+                              const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
+                              setJobApplyPrompt({ jobId: v, jobLabel: label })
+                            }
+                          }}
+                          placeholder="Job…"
+                          emptyLabel="—"
+                        />
+                      </div>
                     )}
                     {classTrackingEnabled && (
                       <InlineSelect
