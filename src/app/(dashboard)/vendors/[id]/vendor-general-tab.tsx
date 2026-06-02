@@ -6,6 +6,7 @@ import { updateVendor, createVendorInQB } from './actions'
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
 type QBClass = { qb_class_id: string; name: string | null }
 type QBVendor = { qb_vendor_id: string; name: string | null }
+type QBTerm  = { qb_term_id: string; name: string; due_days: number | null; type: string }
 
 type Vendor = {
   vendor_id: string
@@ -32,13 +33,14 @@ type Vendor = {
 }
 
 export function VendorGeneralTab({
-  vendor, accounts, classes, classTrackingEnabled, qbVendors,
+  vendor, accounts, classes, classTrackingEnabled, qbVendors, qbTerms = [],
 }: {
   vendor: Vendor
   accounts: Account[]
   classes: QBClass[]
   classTrackingEnabled: boolean
   qbVendors: QBVendor[]
+  qbTerms?: QBTerm[]
 }) {
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
@@ -248,15 +250,28 @@ export function VendorGeneralTab({
         <Field
           label="Payment terms"
           helper={vendor.qb_payment_terms
-            ? `QB vendor default: ${vendor.qb_payment_terms}. Enter terms below to override, or leave blank to use the QB default. Used to calculate due dates when not printed on the invoice.`
-            : 'No payment terms set on this vendor in QuickBooks. Enter terms here (e.g. Net 30) to enable automatic due date calculation.'}
+            ? `QB vendor default: ${vendor.qb_payment_terms}. Select terms below to override, or leave blank to use the QB default. Used to calculate due dates when not printed on the invoice.`
+            : qbTerms.length > 0
+              ? 'No default terms set on this vendor in QuickBooks. Select terms to enable automatic due date calculation.'
+              : 'No payment terms synced from QuickBooks yet. Run Sync Now in Settings to load your terms list.'}
         >
-          <input
+          <select
             value={form.billflow_payment_terms}
             onChange={e => set('billflow_payment_terms', e.target.value)}
-            placeholder={vendor.qb_payment_terms ? `QB default: ${vendor.qb_payment_terms}` : 'e.g. Net 30'}
             style={inputStyle}
-          />
+          >
+            <option value="">
+              {vendor.qb_payment_terms ? `— Use QB default (${vendor.qb_payment_terms}) —` : '— No default terms —'}
+            </option>
+            {qbTerms.filter(t => t.type === 'STANDARD' && t.due_days !== null).map(t => (
+              <option key={t.qb_term_id} value={t.name}>
+                {t.name}{t.due_days != null ? ` (${t.due_days} days)` : ''}
+              </option>
+            ))}
+            {qbTerms.filter(t => t.type !== 'STANDARD').map(t => (
+              <option key={t.qb_term_id} value={t.name}>{t.name}</option>
+            ))}
+          </select>
         </Field>
         <Field
           label="Default memo / description"

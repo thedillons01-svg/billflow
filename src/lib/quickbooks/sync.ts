@@ -33,6 +33,14 @@ type QBClass = {
   Active: boolean
 }
 
+type QBTerm = {
+  Id: string
+  Name: string
+  DueDays?: number
+  Type: string
+  Active: boolean
+}
+
 export async function syncAccounts(companyId: string) {
   const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
@@ -149,7 +157,10 @@ export async function syncVendorsIfStale(companyId: string, maxAgeMinutes = 30):
   }
 
   try {
-    await syncVendors(companyId)
+    await Promise.all([
+      syncVendors(companyId),
+      syncTerms(companyId),
+    ])
   } catch {
     // Non-fatal — processing continues with cached data
   }
@@ -327,12 +338,39 @@ export async function syncJobsIfStale(companyId: string, maxAgeMinutes = 5): Pro
   }
 }
 
+export async function syncTerms(companyId: string) {
+  const supabase = createServiceClient()
+  const { qbFetchAll } = await getQBClient(companyId)
+
+  let terms: QBTerm[]
+  try {
+    terms = await qbFetchAll<QBTerm>('Term', 'SELECT * FROM Term WHERE Active = true')
+  } catch {
+    return
+  }
+  if (terms.length === 0) return
+
+  const { error } = await supabase.from('qb_terms_cache').upsert(
+    terms.map(t => ({
+      company_id: companyId,
+      qb_term_id: t.Id,
+      name:       t.Name,
+      due_days:   t.Type === 'STANDARD' ? (t.DueDays ?? null) : null,
+      type:       t.Type,
+      cached_at:  new Date().toISOString(),
+    })),
+    { onConflict: 'company_id,qb_term_id', ignoreDuplicates: false }
+  )
+  if (error) throw new Error(`Terms cache upsert failed: ${error.message}`)
+}
+
 export async function syncAll(companyId: string) {
   await Promise.all([
     syncAccounts(companyId),
     syncVendors(companyId),
     syncJobs(companyId),
     syncClasses(companyId).catch(() => {}),
+    syncTerms(companyId).catch(() => {}),
   ])
 
   const supabase = createServiceClient()

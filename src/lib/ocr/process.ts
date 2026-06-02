@@ -337,7 +337,14 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     if (dueDateSetting === 'same_as_invoice_date') {
       calculatedDueDate = result.invoice_date
     } else if (dueDateSetting === 'from_payment_terms' && vendorEffectiveTerms) {
-      const days = parsePaymentTermDays(vendorEffectiveTerms)
+      // Look up due_days from QB terms cache — exact match, no text parsing
+      const { data: termRecord } = await supabase
+        .from('qb_terms_cache')
+        .select('due_days')
+        .eq('company_id', bill.company_id)
+        .ilike('name', vendorEffectiveTerms)
+        .single()
+      const days = termRecord?.due_days ?? parsePaymentTermDays(vendorEffectiveTerms)
       if (days !== null) {
         const d = new Date(result.invoice_date + 'T12:00:00')
         d.setDate(d.getDate() + days)
