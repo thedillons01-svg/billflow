@@ -1,5 +1,6 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, updateCompanySettings, updateCapturePrefix, updateCompanyDetails } from './actions'
+import { SyncButton } from './sync-button'
 import { CopyAddress } from './copy-address'
 import { DirtyForm, SaveButton } from '@/components/dirty-form'
 
@@ -147,7 +148,7 @@ export default async function SettingsPage({
                   </div>
                   <div className="flex items-center gap-2">
                     <form action={async () => { 'use server'; if (company) await triggerQBSync(company.company_id) }}>
-                      <BtnSecondary>Sync Now</BtnSecondary>
+                      <SyncButton />
                     </form>
                     <form action={async () => { 'use server'; if (company) await disconnectQuickBooks(company.company_id) }}>
                       <BtnSecondary>Disconnect</BtnSecondary>
