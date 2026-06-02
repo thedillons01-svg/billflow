@@ -21,6 +21,9 @@ type Vendor = {
   default_payment_method: string | null
   billflow_gl_account_id: string | null
   qb_default_gl_account_id: string | null
+  qb_payment_terms: string | null
+  billflow_payment_terms: string | null
+  payment_terms_source: string | null
   billflow_class_id: string | null
   copy_po_to_qb_reference: boolean
   invoices_processed: number
@@ -53,6 +56,7 @@ export function VendorGeneralTab({
     default_payment_account_id: vendor.default_payment_account_id ?? '',
     default_payment_method: vendor.default_payment_method ?? '',
     billflow_gl_account_id: vendor.billflow_gl_account_id ?? '',
+    billflow_payment_terms: vendor.billflow_payment_terms ?? '',
     billflow_class_id: vendor.billflow_class_id ?? '',
     copy_po_to_qb_reference: vendor.copy_po_to_qb_reference,
     default_due_date: vendor.default_due_date ?? 'not_set',
@@ -75,6 +79,8 @@ export function VendorGeneralTab({
         default_payment_method:     form.default_payment_method || null,
         billflow_gl_account_id:     form.billflow_gl_account_id || null,
         gl_account_source:          form.billflow_gl_account_id ? 'billflow_override' : vendor.qb_default_gl_account_id ? 'qb_default' : 'not_set',
+        billflow_payment_terms:     form.billflow_payment_terms || null,
+        payment_terms_source:       form.billflow_payment_terms ? 'billflow_override' : vendor.qb_payment_terms ? 'qb_default' : 'not_set',
         billflow_class_id:          form.billflow_class_id || null,
         class_source:               form.billflow_class_id ? 'Purchasomatic_override' : 'not_set',
         copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
@@ -239,6 +245,19 @@ export function VendorGeneralTab({
             </select>
           </Field>
         )}
+        <Field
+          label="Payment terms"
+          helper={vendor.qb_payment_terms
+            ? `QB vendor default: ${vendor.qb_payment_terms}. Enter terms below to override, or leave blank to use the QB default. Used to calculate due dates when not printed on the invoice.`
+            : 'No payment terms set on this vendor in QuickBooks. Enter terms here (e.g. Net 30) to enable automatic due date calculation.'}
+        >
+          <input
+            value={form.billflow_payment_terms}
+            onChange={e => set('billflow_payment_terms', e.target.value)}
+            placeholder={vendor.qb_payment_terms ? `QB default: ${vendor.qb_payment_terms}` : 'e.g. Net 30'}
+            style={inputStyle}
+          />
+        </Field>
         <Field
           label="Default memo / description"
           helper="Pre-populates the QB bill memo field for all invoices from this vendor. Useful for adding job cost codes or notes automatically."

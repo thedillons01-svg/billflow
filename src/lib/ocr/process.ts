@@ -157,10 +157,12 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   let vendorDefaultGlAccountId: string | null = null
   let vendorDefaultClassId: string | null = null
   let vendorHoldForJobMatch = false
+  let vendorEffectiveTerms: string | null = null
+  let vendorDefaultDueDateSetting: string | null = null
   if (result.vendor_name_raw) {
     const { data: vendor } = await supabase
       .from('vendors')
-      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match')
+      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match, default_due_date, qb_payment_terms, billflow_payment_terms')
       .eq('company_id', bill.company_id)
       .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
       .limit(1)
@@ -172,6 +174,8 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
       vendorDefaultClassId = vendor.billflow_class_id ?? null
       vendorHoldForJobMatch = vendor.hold_for_job_match ?? false
+      vendorEffectiveTerms = (vendor.billflow_payment_terms ?? vendor.qb_payment_terms) as string | null
+      vendorDefaultDueDateSetting = vendor.default_due_date as string | null
 
       // Increment invoices_processed for new bills only (not reprocesses or duplicates)
       if (!isDuplicate && !opts?.skipCredits) {
@@ -316,6 +320,38 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     }
   }
 
+  // 5.5 Due date calculation — if OCR didn't find a due date, derive it from terms/settings
+  if (!result.due_date && result.invoice_date) {
+    // Resolve effective setting: vendor overrides company
+    let dueDateSetting = vendorDefaultDueDateSetting
+    if (!dueDateSetting || dueDateSetting === 'not_set') {
+      const { data: co } = await supabase
+        .from('companies')
+        .select('default_due_date')
+        .eq('company_id', bill.company_id)
+        .single()
+      dueDateSetting = co?.default_due_date ?? 'not_required'
+    }
+
+    let calculatedDueDate: string | null = null
+    if (dueDateSetting === 'same_as_invoice_date') {
+      calculatedDueDate = result.invoice_date
+    } else if (dueDateSetting === 'from_payment_terms' && vendorEffectiveTerms) {
+      const days = parsePaymentTermDays(vendorEffectiveTerms)
+      if (days !== null) {
+        const d = new Date(result.invoice_date + 'T12:00:00')
+        d.setDate(d.getDate() + days)
+        calculatedDueDate = d.toISOString().split('T')[0]
+      }
+    }
+
+    if (calculatedDueDate) {
+      await supabase.from('bills')
+        .update({ due_date: calculatedDueDate })
+        .eq('bill_id', billId)
+    }
+  }
+
   // 6. PO matching — if OCR found a vendor_po_reference, try to link to an open PO
   if (result.vendor_po_reference) {
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
@@ -436,6 +472,14 @@ function jobMatchesCandidates(
     if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
   }
   return false
+}
+
+// Extract number of days from a payment terms string — "Net 30" → 30, "Due on Receipt" → 0
+function parsePaymentTermDays(terms: string): number | null {
+  const net = terms.match(/\bnet\s*(\d+)\b/i)
+  if (net) return parseInt(net[1])
+  if (/due\s+on\s+receipt|immediate/i.test(terms)) return 0
+  return null
 }
 
 export async function tryMatchJob(
