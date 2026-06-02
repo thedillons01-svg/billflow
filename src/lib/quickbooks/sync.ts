@@ -103,7 +103,7 @@ export async function syncVendors(companyId: string) {
     { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: true }
   )
 
-  // Update QB-derived fields on existing vendors (preserves all Purchasomatic overrides)
+  // Update QB-derived value fields on existing vendors (preserves all Purchasomatic overrides)
   for (const v of vendors) {
     await supabase.from('vendors')
       .update({
@@ -114,6 +114,20 @@ export async function syncVendors(companyId: string) {
       .eq('company_id', companyId)
       .eq('qb_vendor_id', v.Id)
   }
+
+  // Conditionally update source flags — never touch 'billflow_override' or 'Purchasomatic_override'
+  // GL: not_set → qb_default when QB now provides a value
+  await supabase.from('vendors').update({ gl_account_source: 'qb_default' })
+    .eq('company_id', companyId).not('qb_default_gl_account_id', 'is', null).eq('gl_account_source', 'not_set')
+  // GL: qb_default → not_set when QB removed the value
+  await supabase.from('vendors').update({ gl_account_source: 'not_set' })
+    .eq('company_id', companyId).is('qb_default_gl_account_id', null).eq('gl_account_source', 'qb_default')
+  // Payment terms: not_set → qb_default
+  await supabase.from('vendors').update({ payment_terms_source: 'qb_default' })
+    .eq('company_id', companyId).not('qb_payment_terms', 'is', null).eq('payment_terms_source', 'not_set')
+  // Payment terms: qb_default → not_set
+  await supabase.from('vendors').update({ payment_terms_source: 'not_set' })
+    .eq('company_id', companyId).is('qb_payment_terms', null).eq('payment_terms_source', 'qb_default')
 }
 
 // Refresh all vendors from QB if cache is stale. Rate-limited to prevent stampede
@@ -164,14 +178,33 @@ export async function syncSingleVendorFromQB(companyId: string, qbVendorId: stri
       cached_at:                  now,
     }, { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: false })
 
+    const qbGl    = v.DefaultExpenseAccountRef?.value ?? null
+    const qbTerms = v.SalesTermRef?.name ?? null
+
     await supabase.from('vendors')
       .update({
         qb_vendor_name:           v.DisplayName,
-        qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
-        qb_payment_terms:         v.SalesTermRef?.name ?? null,
+        qb_default_gl_account_id: qbGl,
+        qb_payment_terms:         qbTerms,
       })
       .eq('company_id', companyId)
       .eq('qb_vendor_id', v.Id)
+
+    // Conditionally update source flags — never overwrite 'billflow_override'
+    if (qbGl) {
+      await supabase.from('vendors').update({ gl_account_source: 'qb_default' })
+        .eq('company_id', companyId).eq('qb_vendor_id', v.Id).eq('gl_account_source', 'not_set')
+    } else {
+      await supabase.from('vendors').update({ gl_account_source: 'not_set' })
+        .eq('company_id', companyId).eq('qb_vendor_id', v.Id).eq('gl_account_source', 'qb_default')
+    }
+    if (qbTerms) {
+      await supabase.from('vendors').update({ payment_terms_source: 'qb_default' })
+        .eq('company_id', companyId).eq('qb_vendor_id', v.Id).eq('payment_terms_source', 'not_set')
+    } else {
+      await supabase.from('vendors').update({ payment_terms_source: 'not_set' })
+        .eq('company_id', companyId).eq('qb_vendor_id', v.Id).eq('payment_terms_source', 'qb_default')
+    }
   } catch {
     // Non-fatal
   }
