@@ -67,43 +67,43 @@ export async function syncVendors(companyId: string) {
   )
   if (vendors.length === 0) return
 
-  // Update cache (replace all)
-  await supabase.from('qb_vendors_cache').delete().eq('company_id', companyId)
-  const { error } = await supabase.from('qb_vendors_cache').insert(
+  const now = new Date().toISOString()
+
+  // Upsert cache (safe for concurrent calls — no delete+insert race)
+  const { error } = await supabase.from('qb_vendors_cache').upsert(
     vendors.map(v => ({
-      company_id: companyId,
-      qb_vendor_id: v.Id,
-      name: v.DisplayName,
+      company_id:                 companyId,
+      qb_vendor_id:               v.Id,
+      name:                       v.DisplayName,
       default_expense_account_id: v.DefaultExpenseAccountRef?.value ?? null,
-      payment_terms: v.SalesTermRef?.name ?? null,
-      cached_at: new Date().toISOString(),
-    }))
+      payment_terms:              v.SalesTermRef?.name ?? null,
+      cached_at:                  now,
+    })),
+    { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: false }
   )
-  if (error) throw new Error(`Vendors cache insert failed: ${error.message}`)
+  if (error) throw new Error(`Vendors cache upsert failed: ${error.message}`)
 
-  // Upsert into vendors table — insert new QB vendors, skip existing (Purchasomatic settings preserved)
-  const insertRows = vendors.map(v => ({
-    company_id:              companyId,
-    qb_vendor_id:            v.Id,
-    qb_vendor_name:          v.DisplayName,
-    vendor_name_display:     v.DisplayName,
-    qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
-    gl_account_source:       v.DefaultExpenseAccountRef?.value ? 'qb_default' : 'not_set',
-    qb_payment_terms:        v.SalesTermRef?.name ?? null,
-    payment_terms_source:    v.SalesTermRef?.name ? 'qb_default' : 'not_set',
-    copy_po_to_qb_reference: true,
-    is_visible:              true,
-    auto_publish_enabled:    false,
-    hold_for_job_match:      false,
-    invoices_processed:      0,
-  }))
-  // ignoreDuplicates: true = INSERT ... ON CONFLICT DO NOTHING (preserves existing Purchasomatic settings)
-  await supabase.from('vendors').upsert(insertRows, {
-    onConflict: 'company_id,qb_vendor_id',
-    ignoreDuplicates: true,
-  })
+  // Insert new QB vendors (ignoreDuplicates preserves existing Purchasomatic settings)
+  await supabase.from('vendors').upsert(
+    vendors.map(v => ({
+      company_id:               companyId,
+      qb_vendor_id:             v.Id,
+      qb_vendor_name:           v.DisplayName,
+      vendor_name_display:      v.DisplayName,
+      qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
+      gl_account_source:        v.DefaultExpenseAccountRef?.value ? 'qb_default' : 'not_set',
+      qb_payment_terms:         v.SalesTermRef?.name ?? null,
+      payment_terms_source:     v.SalesTermRef?.name ? 'qb_default' : 'not_set',
+      copy_po_to_qb_reference:  true,
+      is_visible:               true,
+      auto_publish_enabled:     false,
+      hold_for_job_match:       false,
+      invoices_processed:       0,
+    })),
+    { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: true }
+  )
 
-  // For existing vendors, update only the QB-derived fields (name, GL, payment terms)
+  // Update QB-derived fields on existing vendors (preserves all Purchasomatic overrides)
   for (const v of vendors) {
     await supabase.from('vendors')
       .update({
@@ -113,6 +113,67 @@ export async function syncVendors(companyId: string) {
       })
       .eq('company_id', companyId)
       .eq('qb_vendor_id', v.Id)
+  }
+}
+
+// Refresh all vendors from QB if cache is stale. Rate-limited to prevent stampede
+// when multiple invoices process simultaneously. Called during initial invoice processing.
+export async function syncVendorsIfStale(companyId: string, maxAgeMinutes = 30): Promise<void> {
+  const supabase = createServiceClient()
+
+  const { data: latest } = await supabase
+    .from('qb_vendors_cache')
+    .select('cached_at')
+    .eq('company_id', companyId)
+    .order('cached_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (latest?.cached_at) {
+    const ageMs = Date.now() - new Date(latest.cached_at).getTime()
+    if (ageMs < maxAgeMinutes * 60 * 1000) return
+  }
+
+  try {
+    await syncVendors(companyId)
+  } catch {
+    // Non-fatal — processing continues with cached data
+  }
+}
+
+// Refresh a single vendor from QB. Always runs — used before reprocess so changes
+// made in QB (e.g. setting a default expense account) are picked up immediately.
+export async function syncSingleVendorFromQB(companyId: string, qbVendorId: string): Promise<void> {
+  const supabase = createServiceClient()
+  try {
+    const { qbFetchAll } = await getQBClient(companyId)
+    const vendors = await qbFetchAll<QBVendor>(
+      'Vendor',
+      `SELECT * FROM Vendor WHERE Id = '${qbVendorId}'`
+    )
+    if (vendors.length === 0) return
+    const v = vendors[0]
+    const now = new Date().toISOString()
+
+    await supabase.from('qb_vendors_cache').upsert({
+      company_id:                 companyId,
+      qb_vendor_id:               v.Id,
+      name:                       v.DisplayName,
+      default_expense_account_id: v.DefaultExpenseAccountRef?.value ?? null,
+      payment_terms:              v.SalesTermRef?.name ?? null,
+      cached_at:                  now,
+    }, { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: false })
+
+    await supabase.from('vendors')
+      .update({
+        qb_vendor_name:           v.DisplayName,
+        qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
+        qb_payment_terms:         v.SalesTermRef?.name ?? null,
+      })
+      .eq('company_id', companyId)
+      .eq('qb_vendor_id', v.Id)
+  } catch {
+    // Non-fatal
   }
 }
 

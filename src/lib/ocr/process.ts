@@ -4,7 +4,7 @@ import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
 import type { ExtractionResult, TierResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
-import { syncJobsIfStale } from '@/lib/quickbooks/sync'
+import { syncJobsIfStale, syncVendorsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 
 // ---------------------------------------------------------------------------
@@ -147,6 +147,10 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       billId,
     })
   }
+
+  // 5. Refresh vendor cache from QB if stale (rate-limited to once per 30 min per company)
+  // Ensures newly created vendors and updated GL defaults are available for matching.
+  await syncVendorsIfStale(bill.company_id)
 
   // 5a. Vendor matching — find vendor by extracted name, link to bill
   let vendorId: string | null = null

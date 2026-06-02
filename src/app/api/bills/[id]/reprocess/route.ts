@@ -3,6 +3,7 @@ import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { processBill } from '@/lib/ocr/process'
+import { syncSingleVendorFromQB } from '@/lib/quickbooks/sync'
 
 export const maxDuration = 60
 
@@ -25,7 +26,7 @@ export async function POST(
 
   const { data: bill } = await service
     .from('bills')
-    .select('bill_id, status, company_id, vendor_name_raw, invoice_number, total, ocr_tier, reprocess_count, invoice_date, line_items_total')
+    .select('bill_id, status, company_id, vendor_id, vendor_name_raw, invoice_number, total, ocr_tier, reprocess_count, invoice_date, line_items_total')
     .eq('bill_id', billId)
     .is('deleted_at', null)
     .single()
@@ -85,6 +86,17 @@ export async function POST(
       user_comment:    userComment ?? null,
     },
   })
+
+  // Refresh the matched vendor from QB before reprocessing — picks up any changes
+  // made in QB since last sync (e.g. setting a default expense account)
+  const { data: vendorLink } = await service
+    .from('vendors')
+    .select('qb_vendor_id')
+    .eq('vendor_id', bill.vendor_id ?? '')
+    .single()
+  if (vendorLink?.qb_vendor_id) {
+    await syncSingleVendorFromQB(bill.company_id, vendorLink.qb_vendor_id)
+  }
 
   try {
     await processBill(billId, { skipCredits: true, forceTier, userComment, skipJobMatch: !!previousJobId })
