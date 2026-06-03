@@ -4,7 +4,7 @@ import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
 import type { ExtractionResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
-import { syncVendorsIfStale } from '@/lib/quickbooks/sync'
+import { syncVendorsIfStale, syncJobsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 
 function getServiceClient() {
@@ -75,7 +75,7 @@ export async function processPO(poId: string): Promise<void> {
     })
     .eq('po_id', poId)
 
-  // Refresh vendor cache from QB if stale — ensures newly synced vendors are available
+  // Refresh vendor cache from QB if stale
   await syncVendorsIfStale(po.company_id)
 
   // Vendor matching — find existing vendor or create from QB cache match
@@ -101,7 +101,6 @@ export async function processPO(poId: string): Promise<void> {
         .single()
 
       if (qbMatch) {
-        // Cache match found — create vendor record with QB link
         const { data: created } = await supabase
           .from('vendors')
           .insert({
@@ -127,10 +126,15 @@ export async function processPO(poId: string): Promise<void> {
           await supabase.from('purchase_orders').update({ vendor_id: created.vendor_id }).eq('po_id', poId)
         }
       } else {
-        // No QB cache match — leave PO unmatched for manual vendor assignment
         console.log(`[ocr-po] No QB cache match for "${result.vendor_name_raw}" (${poId}) — leaving unmatched`)
       }
     }
+  }
+
+  // Job matching — try vendor_po_reference first, supplement with job_name_extracted
+  const jobMatchRef = result.vendor_po_reference ?? result.job_name_extracted
+  if (jobMatchRef) {
+    await tryMatchJobForPO(supabase, poId, po.company_id, jobMatchRef, result.job_name_extracted ?? undefined)
   }
 
   // Insert PO line items
@@ -182,6 +186,78 @@ export async function processPO(poId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Job matching — same fuzzy logic as bill processing, but updates PO header
+// ---------------------------------------------------------------------------
+
+function extractJobCandidates(poReference: string): string[] {
+  const raw = poReference.trim().toLowerCase()
+  const candidates = new Set<string>([raw])
+
+  const stripped = raw
+    .replace(/^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|#\s*)/, '')
+    .trim()
+  if (stripped && stripped !== raw) candidates.add(stripped)
+
+  const numbers = raw.match(/\b\d{4,}\b/g) ?? []
+  for (const n of numbers) candidates.add(n)
+
+  return [...candidates].filter(Boolean)
+}
+
+function jobMatchesCandidates(
+  job: { qb_job_id: string; job_number: string | null; job_name: string | null },
+  candidates: string[]
+): boolean {
+  const num  = job.job_number?.trim().toLowerCase()
+  const name = job.job_name?.trim().toLowerCase()
+  for (const c of candidates) {
+    if (num === c || name === c) return true
+    if (num && num.length >= 4 && c.includes(num)) return true
+    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
+  }
+  return false
+}
+
+async function tryMatchJobForPO(
+  supabase: SupabaseClient,
+  poId: string,
+  companyId: string,
+  poReference: string,
+  jobNameExtracted?: string,
+): Promise<void> {
+  const candidates = [
+    ...extractJobCandidates(poReference),
+    ...(jobNameExtracted ? extractJobCandidates(jobNameExtracted) : []),
+  ]
+
+  const { data: jobs } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id, job_number, job_name')
+    .eq('company_id', companyId)
+
+  let match = (jobs ?? []).find(j => jobMatchesCandidates(j, candidates))
+
+  // Cache miss — refresh from QB then retry once
+  if (!match) {
+    await syncJobsIfStale(companyId)
+    const { data: freshJobs } = await supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id, job_number, job_name')
+      .eq('company_id', companyId)
+    match = (freshJobs ?? []).find(j => jobMatchesCandidates(j, candidates))
+  }
+
+  if (!match) return
+
+  await supabase
+    .from('purchase_orders')
+    .update({ job_id: match.qb_job_id })
+    .eq('po_id', poId)
+
+  console.log(`[ocr-po] PO ${poId} job-matched to ${match.qb_job_id}`)
+}
+
+// ---------------------------------------------------------------------------
 // Tiered extraction — Tier 1 → Tier 2 → Tier 3 with PO-specific logic
 // ---------------------------------------------------------------------------
 
@@ -221,7 +297,7 @@ async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: Extract
 }
 
 // ---------------------------------------------------------------------------
-// PO line item insertion
+// PO line item insertion — no GL account on PO lines
 // ---------------------------------------------------------------------------
 
 type LineItem = {

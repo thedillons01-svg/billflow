@@ -16,6 +16,7 @@ Extract the following fields from the invoice text:
 - invoice_date: Invoice date in ISO 8601 format (YYYY-MM-DD). Convert from any input format.
 - due_date: Payment due date in ISO 8601 format (YYYY-MM-DD). Null if not present.
 - vendor_po_reference: The customer PO number, job number, reference number, or work order number that the vendor printed on the invoice. This is the contractor's own PO or job reference, not the vendor's order number.
+- job_name: The value of any field explicitly labeled "Job", "Job Name", "Job #", "Project", or "Work Order Name" on the document. This is the job or project name/number as printed — distinct from the PO reference. Null if no such labeled field exists.
 - total: The invoice total (numeric, no currency symbols or commas)
 - subtotal: The subtotal before tax (numeric). Null if not present.
 - tax_amount: Total tax charged (numeric). Null if not present.
@@ -130,6 +131,7 @@ function toTierResult(data: Record<string, unknown>): TierResult {
     invoice_date:         toString(data.invoice_date),
     due_date:             toString(data.due_date),
     vendor_po_reference:  toString(data.vendor_po_reference),
+    job_name_extracted:   toString(data.job_name),
     total:                toNumber(data.total),
     subtotal:             toNumber(data.subtotal),
     tax_amount:           toNumber(data.tax_amount),

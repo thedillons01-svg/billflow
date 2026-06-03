@@ -10,8 +10,8 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
     .select(`
       po_id, po_number, order_date, expected_delivery_date, job_id,
       vendor_id,
-      vendors!purchase_orders_vendor_id_fkey(qb_vendor_id),
-      po_line_items(line_id, description, quantity_ordered, unit_cost, extended_cost, gl_account_id, sort_order)
+      vendors!purchase_orders_vendor_id_fkey(qb_vendor_id, billflow_gl_account_id, qb_default_gl_account_id),
+      po_line_items(line_id, description, quantity_ordered, unit_cost, extended_cost, sort_order)
     `)
     .eq('po_id', poId)
     .eq('company_id', companyId)
@@ -19,8 +19,22 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
 
   if (!po) throw new Error('PO not found')
 
-  const vendor = (po as Record<string, unknown>).vendors as { qb_vendor_id: string | null } | null
+  const vendor = (po as Record<string, unknown>).vendors as {
+    qb_vendor_id: string | null
+    billflow_gl_account_id: string | null
+    qb_default_gl_account_id: string | null
+  } | null
   if (!vendor?.qb_vendor_id) throw new Error('Vendor not linked to QuickBooks.')
+
+  // POs don't affect the GL — the vendor's default expense account is used only as the
+  // AccountRef the QBO API requires. Users never set GL accounts on individual PO lines.
+  const vendorGl = vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
+  if (!vendorGl) {
+    throw new Error(
+      'Cannot push to QuickBooks: no default GL account set on this vendor. ' +
+      'Set a default expense account on the vendor record in Purchasomatic and try again.'
+    )
+  }
 
   const lines = ((po as Record<string, unknown>).po_line_items as {
     line_id: string
@@ -28,26 +42,30 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
     quantity_ordered: number | null
     unit_cost: number | null
     extended_cost: number | null
-    gl_account_id: string | null
     sort_order: number
   }[]).sort((a, b) => a.sort_order - b.sort_order)
+
+  if (lines.length === 0) {
+    throw new Error('Cannot push to QuickBooks: this PO has no line items.')
+  }
 
   try {
     const { qbPost } = await getQBClient(companyId)
 
-    const qboLines = lines
-      .filter(l => l.gl_account_id && l.extended_cost != null)
-      .map(l => ({
+    const qboLines = lines.map(l => {
+      const amount = l.extended_cost ?? ((l.quantity_ordered ?? 1) * (l.unit_cost ?? 0))
+      return {
         DetailType: 'AccountBasedExpenseLineDetail',
-        Amount: l.extended_cost!,
+        Amount: Math.max(0, amount),
         ...(l.description ? { Description: l.description } : {}),
         AccountBasedExpenseLineDetail: {
-          AccountRef: { value: l.gl_account_id! },
-          Qty: l.quantity_ordered ?? 1,
-          UnitPrice: l.unit_cost ?? undefined,
+          AccountRef: { value: vendorGl },
+          ...(l.quantity_ordered != null ? { Qty: l.quantity_ordered } : {}),
+          ...(l.unit_cost != null ? { UnitPrice: l.unit_cost } : {}),
           ...(po.job_id ? { CustomerRef: { value: po.job_id } } : {}),
         },
-      }))
+      }
+    })
 
     const payload: Record<string, unknown> = {
       Line: qboLines,

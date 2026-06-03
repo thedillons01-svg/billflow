@@ -160,11 +160,14 @@ export function BillReviewForm({
   const historyRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
   const [formWidth, setFormWidth] = useState(720)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     const startX = e.clientX
     const startWidth = formRef.current?.offsetWidth ?? formWidth
+
+    setIsDragging(true)
 
     const onMove = (ev: MouseEvent) => {
       if (!formRef.current) return
@@ -178,6 +181,7 @@ export function BillReviewForm({
       document.removeEventListener('mouseup', onUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+      setIsDragging(false)
       const delta = swapped ? startX - ev.clientX : ev.clientX - startX
       setFormWidth(Math.min(900, Math.max(320, startWidth + delta)))
     }
@@ -1486,6 +1490,9 @@ export function BillReviewForm({
 
   return (
     <div className="flex" style={{ height: '100%' }}>
+      {isDragging && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, cursor: 'col-resize' }} />
+      )}
       {formPanel}
       {dragHandle}
       {pdfPanel}

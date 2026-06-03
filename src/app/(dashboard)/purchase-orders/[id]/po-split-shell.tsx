@@ -11,11 +11,14 @@ export function POSplitShell({
 }) {
   const leftRef = useRef<HTMLDivElement>(null)
   const [leftWidth, setLeftWidth] = useState(520)
+  const [isDragging, setIsDragging] = useState(false)
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     const startX = e.clientX
     const startWidth = leftRef.current?.offsetWidth ?? leftWidth
+
+    setIsDragging(true)
 
     const onMove = (ev: MouseEvent) => {
       if (!leftRef.current) return
@@ -28,6 +31,7 @@ export function POSplitShell({
       document.removeEventListener('mouseup', onUp)
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+      setIsDragging(false)
       setLeftWidth(Math.min(860, Math.max(320, startWidth + (ev.clientX - startX))))
     }
 
@@ -38,35 +42,42 @@ export function POSplitShell({
   }, [leftWidth])
 
   return (
-    <div className="flex" style={{ height: '100%' }}>
-      {/* Left panel */}
-      <div
-        ref={leftRef}
-        style={{
-          width: leftWidth, flexShrink: 0,
-          display: 'flex', flexDirection: 'column',
-          height: '100%', minHeight: 0, overflow: 'hidden',
-          background: 'white',
-        }}
-      >
-        {left}
-      </div>
+    <div style={{ height: '100%' }}>
+      {/* Full-screen overlay during drag — prevents PDF iframe from stealing mouse events */}
+      {isDragging && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, cursor: 'col-resize' }} />
+      )}
 
-      {/* Drag handle */}
-      <div
-        onMouseDown={handleDragStart}
-        style={{
-          width: 5, flexShrink: 0, cursor: 'col-resize',
-          background: 'var(--color-border-tertiary)',
-          transition: 'background 0.15s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-border-secondary)')}
-        onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-border-tertiary)')}
-      />
+      <div className="flex" style={{ height: '100%', overflow: 'hidden' }}>
+        {/* Left panel */}
+        <div
+          ref={leftRef}
+          style={{
+            width: leftWidth, flexShrink: 0,
+            display: 'flex', flexDirection: 'column',
+            height: '100%', minHeight: 0, overflow: 'hidden',
+            background: 'white',
+          }}
+        >
+          {left}
+        </div>
 
-      {/* Right panel */}
-      <div style={{ flex: 1, minWidth: 0, height: '100%', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        {right}
+        {/* Drag handle */}
+        <div
+          onMouseDown={handleDragStart}
+          style={{
+            width: 5, flexShrink: 0, cursor: 'col-resize',
+            background: 'var(--color-border-tertiary)',
+            transition: 'background 0.15s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--color-border-secondary)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'var(--color-border-tertiary)')}
+        />
+
+        {/* Right panel */}
+        <div style={{ flex: 1, minWidth: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {right}
+        </div>
       </div>
     </div>
   )

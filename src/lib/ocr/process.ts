@@ -364,10 +364,11 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
-  // 6.2 Job matching — always attempt if PO reference present; only hold if hold_for_job_match is on.
+  // 6.2 Job matching — try vendor_po_reference first, then job_name_extracted as fallback.
   // skipJobMatch is set by the reprocess route when a job was already manually assigned.
-  if (!isDuplicate && result.vendor_po_reference && !opts?.skipJobMatch) {
-    const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, result.vendor_po_reference)
+  const jobMatchRef = result.vendor_po_reference ?? result.job_name_extracted
+  if (!isDuplicate && jobMatchRef && !opts?.skipJobMatch) {
+    const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, jobMatchRef, result.job_name_extracted ?? undefined)
     if (!jobMatched && vendorHoldForJobMatch) {
       await supabase.from('bills')
         .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — PO reference: ${result.vendor_po_reference}` })
@@ -494,8 +495,12 @@ export async function tryMatchJob(
   billId: string,
   companyId: string,
   poReference: string,
+  jobNameExtracted?: string,
 ): Promise<boolean> {
-  const candidates = extractJobCandidates(poReference)
+  const candidates = [
+    ...extractJobCandidates(poReference),
+    ...(jobNameExtracted ? extractJobCandidates(jobNameExtracted) : []),
+  ]
 
   const { data: jobs } = await supabase
     .from('qb_jobs_cache')

@@ -17,7 +17,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     console.warn(`[ocr] Tier 1 pdf-parse failed: ${err instanceof Error ? err.message : String(err)} — routing to Tier 3`)
     return {
       vendor_name_raw: null, invoice_number: null, invoice_date: null, due_date: null,
-      vendor_po_reference: null, total: null, subtotal: null, tax_amount: null,
+      vendor_po_reference: null, job_name_extracted: null, total: null, subtotal: null, tax_amount: null,
       line_items: [], confidence: 0, raw_text: '', rawText: '',
     }
   }
@@ -27,6 +27,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
   const invoice_date       = extractInvoiceDate(text)
   const due_date           = extractDueDate(text)
   const vendor_po_reference = extractPONumber(text)
+  const job_name_extracted  = extractJobName(text)
   const total              = extractTotal(text)
   const subtotal           = extractSubtotal(text)
   const tax_amount         = extractTax(text)
@@ -43,6 +44,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     invoice_date,
     due_date,
     vendor_po_reference,
+    job_name_extracted,
     total,
     subtotal,
     tax_amount,
@@ -102,6 +104,17 @@ function extractPONumber(text: string): string | null {
     /customer\s+po\s*[:–-]?\s*([A-Z0-9\-]+)/i,
   ]
   return firstMatch(text, patterns)
+}
+
+function extractJobName(text: string): string | null {
+  const patterns = [
+    /(?:job\s+name|job\s+title)\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    /\bjob\s+(?:#|no\.?|number)\s*[:–-]?\s*([A-Z0-9\-]+)/i,
+    /\bproject\s+(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
+    /\bwork\s+order\s+(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
+  ]
+  const val = firstMatch(text, patterns)
+  return val ? val.trim().slice(0, 100) : null
 }
 
 function extractTotal(text: string): number | null {

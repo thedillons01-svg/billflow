@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { useRef, useState, useTransition } from 'react'
+import { useRef, useState, useTransition, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 export function PoUploadButton() {
@@ -9,7 +9,7 @@ export function PoUploadButton() {
   const [status, setStatus] = useState<string | null>(null)
   const router = useRouter()
 
-  function upload(files: FileList | File[]) {
+  const upload = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files)
     if (arr.length === 0) return
 
@@ -26,15 +26,35 @@ export function PoUploadButton() {
         } else if (data.created === 0 && data.errorDetails?.length > 0) {
           setStatus(`Upload failed: ${data.errorDetails[0]}`)
         } else {
-          setStatus(`Processing ${data.created} PO${data.created !== 1 ? 's' : ''}…`)
+          const n = data.created
+          setStatus(`Processing ${n} PO${n !== 1 ? 's' : ''}…`)
           router.refresh()
-          setTimeout(() => setStatus(null), 4000)
+
+          const ids: string[] = data.ids ?? []
+          if (ids.length > 0) {
+            const deadline = Date.now() + 45_000
+            const poll = async () => {
+              if (Date.now() > deadline) { setStatus(null); return }
+              const r = await fetch(`/api/pos/poll-status?ids=${ids.join(',')}`)
+              const d = await r.json()
+              const ready: string[] = d.ready ?? []
+              router.refresh()
+              if (ready.length >= ids.length) {
+                setStatus(null)
+              } else {
+                setTimeout(poll, 2500)
+              }
+            }
+            setTimeout(poll, 2500)
+          } else {
+            setTimeout(() => setStatus(null), 4000)
+          }
         }
       } catch {
         setStatus('Upload failed — please try again')
       }
     })
-  }
+  }, [router])
 
   return (
     <div className="flex items-center gap-3">
