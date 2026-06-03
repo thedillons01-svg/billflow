@@ -1,4 +1,4 @@
-import { Resend } from 'resend'
+﻿import { Resend } from 'resend'
 import { createClient } from '@supabase/supabase-js'
 
 function getServiceClient() {

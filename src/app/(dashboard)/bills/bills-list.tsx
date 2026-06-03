@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -154,7 +154,7 @@ export function BillsList({
           </div>
           <button
             onClick={() => setSelected(new Set())}
-            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#5A8C6A' }}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#64748B' }}
           >
             Clear selection
           </button>
@@ -259,7 +259,7 @@ export function BillsList({
                   </p>
                   {bill.vendor_id && (
                     <a
-                      href={`/vendors/${bill.vendor_id}`}
+                      href={`/vendors/${bill.vendor_id}?from=bills`}
                       target="_blank"
                       rel="noopener noreferrer"
                       onClick={e => e.stopPropagation()}

@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { createContext, useContext, useState, useTransition, type ReactNode } from 'react'
+import { createContext, useContext, useState, useTransition, useEffect, type ReactNode } from 'react'
 
 type Ctx = { dirty: boolean; pending: boolean }
 const DirtyCtx = createContext<Ctx>({ dirty: false, pending: false })
@@ -14,6 +14,13 @@ export function DirtyForm({
 }) {
   const [dirty, setDirty] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  useEffect(() => {
+    if (!dirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [dirty])
 
   return (
     <DirtyCtx.Provider value={{ dirty, pending: isPending }}>

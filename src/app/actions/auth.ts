@@ -35,6 +35,16 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
   return { message: 'Check your email for a confirmation link to complete sign-up.' }
 }
 
+export async function forgotPassword(_prev: AuthState, formData: FormData): Promise<AuthState> {
+  const supabase = await createClient()
+  const email = formData.get('email') as string
+  const redirectTo = (process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000') + '/reset-password'
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+  if (error) return { error: error.message }
+  return { message: 'Check your email for a password reset link.' }
+}
+
 export async function signout(): Promise<void> {
   const supabase = await createClient()
   await supabase.auth.signOut()

@@ -35,24 +35,22 @@ export function SidebarNav({
   return (
     <aside
       className="flex-none flex flex-col"
-      style={{ width: 160, background: '#EBF5EF', borderRight: '0.5px solid #C3DEC9' }}
+      style={{ width: 168, background: 'white', borderRight: '1px solid #D0D5DD' }}
     >
       {/* Zone 1 — Logo header */}
       <div
-        className="flex-none flex items-center gap-2 px-3 py-[14px]"
-        style={{ background: '#1A3D2B' }}
+        className="flex-none flex items-center gap-2 px-3"
+        style={{ background: '#1A3D2B', height: 52, flexShrink: 0 }}
       >
         <div
           className="flex-none flex items-center justify-center rounded-[6px] text-white"
-          style={{
-            width: 26, height: 26,
-            background: '#2DB87A',
-            fontSize: 11, fontWeight: 700,
-          }}
+          style={{ width: 28, height: 28, background: '#2DB87A', fontSize: 12, fontWeight: 700 }}
         >
           P
         </div>
-        <span className="text-white font-medium" style={{ fontSize: 13 }}>Purchasomatic</span>
+        <span className="text-white" style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
+          Purchasomatic
+        </span>
       </div>
 
       {/* Zone 2 — Navigation */}
@@ -68,18 +66,15 @@ export function SidebarNav({
         {jobCostingEnabled && (
           <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">FSM Export</NavItem>
         )}
-        <div
-          className="my-2"
-          style={{ height: '0.5px', background: '#C3DEC9', marginLeft: 12, marginRight: 12 }}
-        />
+        <div className="mx-3 my-2" style={{ height: '1px', background: '#E8ECF0' }} />
         <NavItem href="/activity" active={isActive('/activity')} icon="ti-clock">Activity Log</NavItem>
         <NavItem href="/trash" active={isActive('/trash')} icon="ti-trash">Trash</NavItem>
         <NavItem href="/billing" active={isActive('/billing')} icon="ti-credit-card">Billing</NavItem>
         <NavItem href="/settings" active={isActive('/settings')} icon="ti-settings">Settings</NavItem>
       </nav>
 
-      {/* Footer — notifications bell + user email / sign out */}
-      <div style={{ borderTop: '0.5px solid #C3DEC9', padding: '10px 12px' }}>
+      {/* Footer */}
+      <div style={{ borderTop: '1px solid #E8ECF0', padding: '10px 12px' }}>
         <div className="flex items-center justify-between mb-2">
           <NotificationBell
             count={unreadCount}
@@ -91,7 +86,7 @@ export function SidebarNav({
           <button
             type="submit"
             className="w-full text-left truncate hover:underline"
-            style={{ fontSize: 10, color: '#5A8C6A' }}
+            style={{ fontSize: 12, color: '#6B7280' }}
             title="Sign out"
           >
             {userEmail ?? 'Account'}
@@ -116,18 +111,18 @@ function NavItem({
   return (
     <Link
       href={href}
-      className="flex items-center gap-2 mx-1 rounded-[4px]"
+      className="flex items-center gap-2 mx-2 rounded-[5px]"
       style={{
-        padding: '7px 11px',
-        fontSize: 12,
-        fontWeight: active ? 500 : 400,
-        color: active ? '#1A3D2B' : '#5A8C6A',
-        background: active ? '#C3DEC9' : 'transparent',
-        borderLeft: active ? '2px solid #2DB87A' : '2px solid transparent',
+        padding: '7px 10px',
+        fontSize: 13,
+        fontWeight: active ? 600 : 400,
+        color: active ? '#1A3D2B' : '#3D4856',
+        background: active ? '#E6F4ED' : 'transparent',
+        borderLeft: active ? '3px solid #2DB87A' : '3px solid transparent',
         textDecoration: 'none',
       }}
     >
-      <i className={`ti ${icon}`} style={{ fontSize: 14, lineHeight: 1 }} />
+      <i className={`ti ${icon}`} style={{ fontSize: 15, lineHeight: 1, opacity: active ? 1 : 0.7 }} />
       {children}
     </Link>
   )

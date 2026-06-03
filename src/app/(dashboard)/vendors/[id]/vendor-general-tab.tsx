@@ -1,7 +1,8 @@
-'use client'
+﻿'use client'
 
 import { useState, useTransition } from 'react'
 import { updateVendor, createVendorInQB } from './actions'
+import { useDirty } from '@/components/unsaved-guard'
 
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
 type QBClass = { qb_class_id: string; name: string | null }
@@ -45,6 +46,7 @@ export function VendorGeneralTab({
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [qbCreateError, setQbCreateError] = useState<string | null>(null)
+  const { setDirty } = useDirty()
 
   const [form, setForm] = useState({
     vendor_name_extracted: vendor.vendor_name_extracted,
@@ -88,12 +90,16 @@ export function VendorGeneralTab({
         copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
         default_due_date:           form.default_due_date,
       })
+      setDirty(false)
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
     })
   }
 
-  const set = (k: string, v: string | boolean) => setForm(f => ({ ...f, [k]: v }))
+  const set = (k: string, v: string | boolean) => {
+    setForm(f => ({ ...f, [k]: v }))
+    setDirty(true)
+  }
 
   const showAutoPublishPromo = vendor.invoices_processed >= 5 && !form.auto_publish_enabled
 

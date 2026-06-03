@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
 const CONFIDENCE_BADGE: Record<string, { bg: string; color: string; label: string }> = {

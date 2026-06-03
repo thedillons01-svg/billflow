@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { SidebarNav } from '@/components/sidebar-nav'
+import { DashboardProviders } from './providers'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 
@@ -43,16 +44,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const jobCostingEnabled = company?.job_costing_enabled ?? false
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: '#F7F9F8' }}>
-      <SidebarNav
-        userEmail={user?.email ?? null}
-        notifications={notifications}
-        unreadCount={unreadErrors}
-        jobCostingEnabled={jobCostingEnabled}
-      />
-      <main className="flex-1 overflow-auto" style={{ background: '#F7F9F8' }}>
-        {children}
-      </main>
-    </div>
+    <DashboardProviders>
+      <div className="flex h-screen overflow-hidden" style={{ background: '#F4F6F8' }}>
+        <SidebarNav
+          userEmail={user?.email ?? null}
+          notifications={notifications}
+          unreadCount={unreadErrors}
+          jobCostingEnabled={jobCostingEnabled}
+        />
+        <main className="flex-1 overflow-auto" style={{ background: '#F4F6F8' }}>
+          {children}
+        </main>
+      </div>
+    </DashboardProviders>
   )
 }

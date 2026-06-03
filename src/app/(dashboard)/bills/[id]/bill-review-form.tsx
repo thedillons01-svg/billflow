@@ -1,8 +1,9 @@
-'use client'
+﻿'use client'
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback } from 'react'
+import { useConfirm } from '@/components/confirm-dialog'
 import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
@@ -87,6 +88,7 @@ export function BillReviewForm({
   pdfSignedUrl?: string | null
 }) {
   const router = useRouter()
+  const confirm = useConfirm()
   const [stablePdfUrl] = useState(pdfSignedUrl)
   const [liveJobs, setLiveJobs] = useState<Job[]>(jobs)
   const [localStatus, setLocalStatus] = useState(bill.status)
@@ -97,6 +99,14 @@ export function BillReviewForm({
   const [publishError, setPublishError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState(initialLineItems)
   const [markAsPaid, setMarkAsPaid] = useState(bill.mark_as_paid ?? false)
+  const [isDirty, setIsDirty] = useState(false)
+
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
   // Remember prompt: tracks which line triggered it and the new GL account id
   const [promoDismissed, setPromoDismissed] = useState(false)
   const [promoEnabled, setPromoEnabled] = useState(false)
@@ -231,6 +241,7 @@ export function BillReviewForm({
         setPublishError(json.error ?? 'Publish failed')
       } else {
         setLocalStatus('published')
+        setIsDirty(false)
         router.refresh()
       }
     })
@@ -333,14 +344,19 @@ export function BillReviewForm({
         className="flex-none px-5 py-3"
         style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
       >
-        <Link
-          href="/bills"
+        <button
+          onClick={async () => {
+            if (!isDirty || await confirm('You have unsaved changes. If you leave now your changes will be lost.')) {
+              setIsDirty(false)
+              router.push('/bills')
+            }
+          }}
           className="flex items-center gap-1 mb-2"
-          style={{ fontSize: 12, color: 'var(--color-text-secondary)', textDecoration: 'none' }}
+          style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
           Back to Bills
-        </Link>
+        </button>
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-1.5 min-w-0">
             <h1 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -348,7 +364,7 @@ export function BillReviewForm({
             </h1>
             {bill.vendor_id && (
               <a
-                href={`/vendors/${bill.vendor_id}`}
+                href={`/vendors/${bill.vendor_id}?from=/bills/${bill.bill_id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 title="Open vendor record"
@@ -476,7 +492,7 @@ export function BillReviewForm({
                   value={opt.value}
                   checked={billType === opt.value}
                   disabled={isPublished}
-                  onChange={() => { if (!isPublished) { setBillType(opt.value); updateBill(bill.bill_id, { bill_type: opt.value }) } }}
+                  onChange={() => { if (!isPublished) { setBillType(opt.value); updateBill(bill.bill_id, { bill_type: opt.value }); setIsDirty(true) } }}
                   style={{ accentColor: '#2DB87A', cursor: isPublished ? 'default' : 'pointer' }}
                 />
                 {opt.label}
@@ -531,7 +547,7 @@ export function BillReviewForm({
                     onClick={() => setPromoDismissed(true)}
                     style={{
                       background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 12, color: '#5A8C6A',
+                      fontSize: 12, color: '#64748B',
                     }}
                   >
                     Not yet
@@ -636,6 +652,7 @@ export function BillReviewForm({
                     value={localVendorId}
                     onChange={e => {
                       setLocalVendorId(e.target.value)
+                      setIsDirty(true)
                       updateBill(bill.bill_id, { vendor_id: e.target.value || null })
                     }}
                     style={selectStyle}
@@ -872,7 +889,7 @@ export function BillReviewForm({
                       emptyLabel="—"
                     />
                     {headerJobPending && (
-                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EEF2FF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}>
+                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}>
                         <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#4338CA', flexShrink: 0 }} />
                         <span style={{ fontSize: 12, color: '#3730A3', flex: 1 }}>
                           Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?
@@ -1079,7 +1096,7 @@ export function BillReviewForm({
             {jobApplyPrompt && lineItems.length > 1 && (
               <div
                 className="flex items-center gap-3 mt-2 px-3 py-2"
-                style={{ background: '#EEF2FF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}
+                style={{ background: '#EBF5EF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}
               >
                 <i className="ti ti-briefcase" style={{ fontSize: 14, color: '#4338CA' }} />
                 <p style={{ fontSize: 12, color: '#3730A3', flex: 1 }}>
@@ -1503,7 +1520,7 @@ export function BillReviewForm({
             >
               <strong>Processing tier:</strong> {tierLabel}
               {reprocessCount > 0 && (
-                <span style={{ color: '#5A8C6A', marginLeft: 6 }}>
+                <span style={{ color: '#64748B', marginLeft: 6 }}>
                   (reprocess #{reprocessCount + 1})
                 </span>
               )}

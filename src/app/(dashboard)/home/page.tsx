@@ -238,7 +238,7 @@ export default async function DashboardPage() {
                     <div
                       style={{
                         width: 36, height: 36, borderRadius: 8,
-                        background: '#EEF2FF',
+                        background: '#EBF5EF',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}
                     >

@@ -12,8 +12,8 @@ type QBAccount = {
 type QBVendor = {
   Id: string
   DisplayName: string
-  DefaultExpenseAccountRef?: { value: string; name: string }
-  SalesTermRef?: { value: string; name: string }
+  DefaultExpenseAccountRef?: { value: string; name: string } // not returned by QBO Online API
+  TermRef?: { value: string } // QBO only returns value (ID), not name
   Active: boolean
 }
 
@@ -69,11 +69,14 @@ export async function syncVendors(companyId: string) {
   const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
 
-  const vendors = await qbFetchAll<QBVendor>(
-    'Vendor',
-    'SELECT * FROM Vendor WHERE Active = true'
-  )
+  const [vendors, terms] = await Promise.all([
+    qbFetchAll<QBVendor>('Vendor', 'SELECT * FROM Vendor WHERE Active = true'),
+    qbFetchAll<QBTerm>('Term', 'SELECT * FROM Term WHERE Active = true').catch(() => [] as QBTerm[]),
+  ])
   if (vendors.length === 0) return
+
+  // Build term ID → name lookup so we can resolve TermRef.value to a display name
+  const termNameById = new Map(terms.map(t => [t.Id, t.Name]))
 
   const now = new Date().toISOString()
 
@@ -84,7 +87,7 @@ export async function syncVendors(companyId: string) {
       qb_vendor_id:               v.Id,
       name:                       v.DisplayName,
       default_expense_account_id: v.DefaultExpenseAccountRef?.value ?? null,
-      payment_terms:              v.SalesTermRef?.name ?? null,
+      payment_terms:              v.TermRef?.value ? (termNameById.get(v.TermRef.value) ?? null) : null,
       cached_at:                  now,
     })),
     { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: false }
@@ -93,31 +96,34 @@ export async function syncVendors(companyId: string) {
 
   // Insert new QB vendors (ignoreDuplicates preserves existing Purchasomatic settings)
   await supabase.from('vendors').upsert(
-    vendors.map(v => ({
+    vendors.map(v => {
+      const termName = v.TermRef?.value ? (termNameById.get(v.TermRef.value) ?? null) : null
+      return {
       company_id:               companyId,
       qb_vendor_id:             v.Id,
       qb_vendor_name:           v.DisplayName,
       vendor_name_display:      v.DisplayName,
       qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
       gl_account_source:        v.DefaultExpenseAccountRef?.value ? 'qb_default' : 'not_set',
-      qb_payment_terms:         v.SalesTermRef?.name ?? null,
-      payment_terms_source:     v.SalesTermRef?.name ? 'qb_default' : 'not_set',
+      qb_payment_terms:         termName,
+      payment_terms_source:     termName ? 'qb_default' : 'not_set',
       copy_po_to_qb_reference:  true,
       is_visible:               true,
       auto_publish_enabled:     false,
       hold_for_job_match:       false,
       invoices_processed:       0,
-    })),
+    }}),
     { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: true }
   )
 
   // Update QB-derived value fields on existing vendors (preserves all Purchasomatic overrides)
   for (const v of vendors) {
+    const termName = v.TermRef?.value ? (termNameById.get(v.TermRef.value) ?? null) : null
     await supabase.from('vendors')
       .update({
         qb_vendor_name:           v.DisplayName,
         qb_default_gl_account_id: v.DefaultExpenseAccountRef?.value ?? null,
-        qb_payment_terms:         v.SalesTermRef?.name ?? null,
+        qb_payment_terms:         termName,
       })
       .eq('company_id', companyId)
       .eq('qb_vendor_id', v.Id)
@@ -136,6 +142,12 @@ export async function syncVendors(companyId: string) {
   // Payment terms: qb_default → not_set
   await supabase.from('vendors').update({ payment_terms_source: 'not_set' })
     .eq('company_id', companyId).is('qb_payment_terms', null).eq('payment_terms_source', 'qb_default')
+
+  // Infer GL account from recent QB bill history for vendors with no GL set
+  const noGlVendorIds = vendors
+    .filter(v => !v.DefaultExpenseAccountRef?.value)
+    .map(v => v.Id)
+  await inferVendorGLFromHistory(companyId, noGlVendorIds).catch(() => {})
 }
 
 // Refresh all vendors from QB if cache is stale. Rate-limited to prevent stampede
@@ -180,17 +192,22 @@ export async function syncSingleVendorFromQB(companyId: string, qbVendorId: stri
     const v = vendors[0]
     const now = new Date().toISOString()
 
+    // Look up term name by ID from cache
+    const { data: termRow } = v.TermRef?.value
+      ? await supabase.from('qb_terms_cache').select('name').eq('company_id', companyId).eq('qb_term_id', v.TermRef.value).single()
+      : { data: null }
+
     await supabase.from('qb_vendors_cache').upsert({
       company_id:                 companyId,
       qb_vendor_id:               v.Id,
       name:                       v.DisplayName,
       default_expense_account_id: v.DefaultExpenseAccountRef?.value ?? null,
-      payment_terms:              v.SalesTermRef?.name ?? null,
+      payment_terms:              termRow?.name ?? null,
       cached_at:                  now,
     }, { onConflict: 'company_id,qb_vendor_id', ignoreDuplicates: false })
 
     const qbGl    = v.DefaultExpenseAccountRef?.value ?? null
-    const qbTerms = v.SalesTermRef?.name ?? null
+    const qbTerms = termRow?.name ?? null
 
     await supabase.from('vendors')
       .update({
@@ -335,6 +352,60 @@ export async function syncJobsIfStale(companyId: string, maxAgeMinutes = 5): Pro
     })
   } catch {
     // Non-fatal — bill stays in pending_job_match for manual assignment
+  }
+}
+
+type QBBill = {
+  Id: string
+  VendorRef?: { value: string }
+  Line?: Array<{
+    DetailType?: string
+    AccountBasedExpenseLineDetail?: { AccountRef?: { value: string; name: string } }
+  }>
+}
+
+// Infer default GL account from recent QB bill history for vendors with no GL set.
+// Queries the 100 most recent bills and finds the most common AccountRef per vendor.
+async function inferVendorGLFromHistory(companyId: string, vendorIds: string[]): Promise<void> {
+  if (vendorIds.length === 0) return
+  const supabase = createServiceClient()
+  const { qbFetchAll } = await getQBClient(companyId)
+
+  let bills: QBBill[]
+  try {
+    bills = await qbFetchAll<QBBill>(
+      'Bill',
+      'SELECT * FROM Bill ORDERBY MetaData.LastUpdatedTime DESC MAXRESULTS 100'
+    )
+  } catch {
+    return
+  }
+
+  // Group account refs by vendor, count occurrences
+  const vendorAccountCounts = new Map<string, Map<string, number>>()
+  for (const bill of bills) {
+    const vendorId = bill.VendorRef?.value
+    if (!vendorId || !vendorIds.includes(vendorId)) continue
+    for (const line of bill.Line ?? []) {
+      if (line.DetailType !== 'AccountBasedExpenseLineDetail') continue
+      const accountId = line.AccountBasedExpenseLineDetail?.AccountRef?.value
+      if (!accountId) continue
+      if (!vendorAccountCounts.has(vendorId)) vendorAccountCounts.set(vendorId, new Map())
+      const counts = vendorAccountCounts.get(vendorId)!
+      counts.set(accountId, (counts.get(accountId) ?? 0) + 1)
+    }
+  }
+
+  // For each vendor, pick the most common account and update
+  for (const [qbVendorId, counts] of vendorAccountCounts) {
+    const topAccount = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0]
+    if (!topAccount) continue
+    await supabase.from('vendors')
+      .update({ qb_default_gl_account_id: topAccount, gl_account_source: 'qb_default' })
+      .eq('company_id', companyId)
+      .eq('qb_vendor_id', qbVendorId)
+      .is('qb_default_gl_account_id', null)
+      .neq('gl_account_source', 'billflow_override')
   }
 }
 

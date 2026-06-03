@@ -1,5 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { PoUploadButton } from './po-upload-button'
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   open:               { bg: '#D1FAE5', color: '#065F46', label: 'Open' },
@@ -68,6 +69,7 @@ export default async function PurchaseOrdersPage({
             PO confirmations captured via email, pushed to QuickBooks
           </p>
         </div>
+        <PoUploadButton />
       </div>
 
       {/* Tab bar */}

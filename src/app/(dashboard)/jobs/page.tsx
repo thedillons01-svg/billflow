@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import { getJobProfitability, type JobProfitabilityRow } from '@/lib/quickbooks/profitability'
 import { JobsTable } from './jobs-table'
 import Link from 'next/link'

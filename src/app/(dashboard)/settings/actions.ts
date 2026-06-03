@@ -6,6 +6,30 @@ import { syncAll } from '@/lib/quickbooks/sync'
 
 export async function disconnectQuickBooks(companyId: string) {
   const supabase = await createClient()
+
+  // Fetch refresh token before clearing so we can revoke it with Intuit
+  const { data: company } = await supabase
+    .from('companies')
+    .select('qb_refresh_token')
+    .eq('company_id', companyId)
+    .single()
+
+  // Revoke with Intuit so the next Connect forces company selection
+  if (company?.qb_refresh_token) {
+    const credentials = Buffer.from(
+      `${process.env.QBO_CLIENT_ID}:${process.env.QBO_CLIENT_SECRET}`
+    ).toString('base64')
+    await fetch('https://developer.api.intuit.com/v2/oauth2/tokens/revoke', {
+      method: 'POST',
+      headers: {
+        Authorization:  `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+        Accept:         'application/json',
+      },
+      body: new URLSearchParams({ token: company.qb_refresh_token }),
+    }).catch(() => { /* non-fatal */ })
+  }
+
   await supabase
     .from('companies')
     .update({

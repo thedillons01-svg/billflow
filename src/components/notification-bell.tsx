@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 
@@ -96,7 +96,7 @@ export function NotificationBell({
                     className="flex items-start gap-3 px-4 py-3 cursor-pointer"
                     style={{
                       borderBottom: '0.5px solid var(--color-border-tertiary)',
-                      background: n.is_read ? 'white' : '#F0FAF4',
+                      background: n.is_read ? 'white' : '#EBF5EF',
                     }}
                     onClick={() => { onMarkRead(n.id); setOpen(false) }}
                   >
@@ -105,7 +105,7 @@ export function NotificationBell({
                       style={{
                         fontSize: 14,
                         marginTop: 1,
-                        color: n.type === 'error' ? '#DC2626' : n.type === 'success' ? '#2DB87A' : '#2563EB',
+                        color: n.type === 'error' ? '#DC2626' : n.type === 'success' ? '#2DB87A' : '#2DB87A',
                         flexShrink: 0,
                       }}
                     />

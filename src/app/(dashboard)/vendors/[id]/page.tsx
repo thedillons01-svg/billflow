@@ -4,16 +4,17 @@ import Link from 'next/link'
 import { VendorGeneralTab } from './vendor-general-tab'
 import { VendorLineItemsTab } from './vendor-line-items-tab'
 import { VendorRulesTab } from './vendor-rules-tab'
+import { VendorPageClient } from './vendor-page-client'
 
 export default async function VendorDetailPage({
   params,
   searchParams,
 }: {
   params: Promise<{ id: string }>
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; from?: string }>
 }) {
   const { id } = await params
-  const { tab = 'general' } = await searchParams
+  const { tab = 'general', from } = await searchParams
 
   const supabase = await createClient()
 
@@ -101,88 +102,37 @@ export default async function VendorDetailPage({
   ]
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Page header */}
-      <div
-        className="flex-none px-5 py-[14px]"
-        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
-      >
-        <Link
-          href="/vendors"
-          className="flex items-center gap-1 mb-2"
-          style={{ fontSize: 12, color: 'var(--color-text-secondary)', textDecoration: 'none' }}
-        >
-          <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
-          Back to Vendors
-        </Link>
-        <div>
-          <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-            {vendor.vendor_name_display ?? vendor.vendor_name_extracted}
-          </h1>
-          {vendor.vendor_name_display && vendor.vendor_name_display !== vendor.vendor_name_extracted && (
-            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-              OCR name: {vendor.vendor_name_extracted}
-            </p>
-          )}
-        </div>
-      </div>
-
-      {/* Tab bar */}
-      <div
-        className="flex-none flex items-end px-5"
-        style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
-      >
-        {tabs.map(t => (
-          <Link
-            key={t.id}
-            href={`/vendors/${id}?tab=${t.id}`}
-            className="flex items-center gap-1.5"
-            style={{
-              padding: '10px 14px',
-              fontSize: 12,
-              fontWeight: tab === t.id ? 500 : 400,
-              color: tab === t.id ? '#1A3D2B' : 'var(--color-text-secondary)',
-              borderBottom: tab === t.id ? '2px solid #2DB87A' : '2px solid transparent',
-              marginBottom: -1,
-              textDecoration: 'none',
-            }}
-          >
-            {t.label}
-            {'count' in t && (t.count as number) > 0 && (
-              <span style={{ background: '#2DB87A', color: 'white', fontSize: 9, fontWeight: 500, padding: '1px 6px', borderRadius: 10 }}>
-                {t.count as number}
-              </span>
-            )}
-          </Link>
-        ))}
-      </div>
-
-      {/* Tab content */}
-      <div className="flex-1 overflow-auto px-5 py-5">
-        {tab === 'general' && (
-          <VendorGeneralTab
-            vendor={vendor}
-            accounts={accounts ?? []}
-            classes={classes ?? []}
-            classTrackingEnabled={companyCfg?.class_tracking_enabled ?? false}
-            qbVendors={qbVendors ?? []}
-            qbTerms={(qbTerms ?? []) as { qb_term_id: string; name: string; due_days: number | null; type: string }[]}
-          />
-        )}
-        {tab === 'line-items' && (
-          <VendorLineItemsTab vendorId={id} mappings={mappings ?? []} accounts={expenseAccounts} />
-        )}
-        {tab === 'rules' && (
-          <VendorRulesTab vendorId={id} rules={rules ?? []} accounts={expenseAccounts} />
-        )}
-        {tab === 'inbox' && (
-          <BillListTab bills={inboxBills ?? []} empty="No bills in inbox for this vendor." />
-        )}
-        {tab === 'archived' && (
-          <BillListTab bills={archivedBills ?? []} empty="No archived bills for this vendor." />
-        )}
-      </div>
-    </div>
+    <VendorPageClient
+      vendorName={vendor.vendor_name_display ?? vendor.vendor_name_extracted ?? ''}
+      ocrName={vendor.vendor_name_display ? vendor.vendor_name_extracted : null}
+      id={id}
+      tabs={tabs}
+      currentTab={tab}
+      from={from}
+    >
+      {tab === 'general' && (
+        <VendorGeneralTab
+          vendor={vendor}
+          accounts={accounts ?? []}
+          classes={classes ?? []}
+          classTrackingEnabled={companyCfg?.class_tracking_enabled ?? false}
+          qbVendors={qbVendors ?? []}
+          qbTerms={(qbTerms ?? []) as { qb_term_id: string; name: string; due_days: number | null; type: string }[]}
+        />
+      )}
+      {tab === 'line-items' && (
+        <VendorLineItemsTab vendorId={id} mappings={mappings ?? []} accounts={expenseAccounts} />
+      )}
+      {tab === 'rules' && (
+        <VendorRulesTab vendorId={id} rules={rules ?? []} accounts={expenseAccounts} />
+      )}
+      {tab === 'inbox' && (
+        <BillListTab bills={inboxBills ?? []} empty="No bills in inbox for this vendor." />
+      )}
+      {tab === 'archived' && (
+        <BillListTab bills={archivedBills ?? []} empty="No archived bills for this vendor." />
+      )}
+    </VendorPageClient>
   )
 }
 

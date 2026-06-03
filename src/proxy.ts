@@ -34,7 +34,7 @@ export async function proxy(request: NextRequest) {
   // Refresh session — do not add logic between createServerClient and getUser
   const { data: { user } } = await supabase.auth.getUser()
 
-  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup')
+  const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password')
   const isPublicApiRoute = pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/quickbooks/callback')
   const isDashboardRoute = !isAuthRoute && !isPublicApiRoute && !pathname.startsWith('/api/')
 

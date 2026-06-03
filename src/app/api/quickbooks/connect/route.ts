@@ -30,6 +30,7 @@ export async function GET() {
     scope:         'com.intuit.quickbooks.accounting',
     redirect_uri:  process.env.QBO_REDIRECT_URI!,
     state,
+    prompt:        'login',
   })
 
   const response = NextResponse.redirect(`${INTUIT_AUTH_URL}?${params}`)

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "@tabler/icons-webfont/dist/tabler-icons.min.css";
 
 @keyframes spin {
@@ -13,21 +13,21 @@
   --bf-green-mid:         #2DB87A;
   --bf-green-light:       #EBF5EF;
   --bf-green-border:      #C3DEC9;
-  --bf-green-page-bg:     #F7F9F8;
+  --bf-green-page-bg:     #F4F6F8;
 
   /* Neutral surfaces */
   --color-background-primary:   #ffffff;
-  --color-background-secondary: #F9FAFB;
-  --color-background-tertiary:  #F3F4F6;
+  --color-background-secondary: #F7F8F9;
+  --color-background-tertiary:  #EEEEF0;
 
-  /* Text */
-  --color-text-primary:   #111827;
-  --color-text-secondary: #6B7280;
-  --color-text-tertiary:  #9CA3AF;
+  /* Text — high contrast */
+  --color-text-primary:   #0D1117;
+  --color-text-secondary: #3D4856;
+  --color-text-tertiary:  #6B7280;
 
-  /* Borders */
-  --color-border-tertiary:  #E5E7EB;
-  --color-border-secondary: #D1D5DB;
+  /* Borders — more visible */
+  --color-border-tertiary:  #D0D5DD;
+  --color-border-secondary: #9AA4B2;
 }
 
 @theme inline {
