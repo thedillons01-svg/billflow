@@ -52,13 +52,17 @@ function getClient(): Anthropic {
   return _client
 }
 
-export async function extractTier3(pdfBuffer: Buffer, userComment?: string): Promise<TierResult> {
+export async function extractTier3(pdfBuffer: Buffer, userComment?: string, documentType: 'invoice' | 'po' = 'invoice'): Promise<TierResult> {
   const client = getClient()
   const base64Pdf = pdfBuffer.toString('base64')
 
+  const docNote = documentType === 'po'
+    ? 'IMPORTANT: This document is a Purchase Order (PO). Map "PO Number"/"Order Number" → invoice_number, "Order Date" → invoice_date, "Expected Delivery"/"Ship Date" → due_date. Extract ALL line items even if extended totals are missing or do not sum to the order total.'
+    : ''
+
   const extractText = userComment
-    ? `Extract all invoice data from this PDF and return the JSON.\n\nNote from the person who reviewed this invoice: "${userComment}"\nUse this context to help identify and correctly extract any fields that may have been difficult to read.`
-    : 'Extract all invoice data from this PDF and return the JSON.'
+    ? `${docNote ? docNote + '\n\n' : ''}Extract all data from this PDF and return the JSON.\n\nNote from reviewer: "${userComment}"\nUse this context to help extract difficult fields.`
+    : `${docNote ? docNote + '\n\n' : ''}Extract all data from this PDF and return the JSON.`
 
   const response = await client.messages.create({
     model: 'claude-opus-4-7',

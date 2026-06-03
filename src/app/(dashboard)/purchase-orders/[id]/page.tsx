@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import { PODetail } from './po-detail'
 import { POPdfPanel } from './po-pdf-panel'
+import { POSplitShell } from './po-split-shell'
 
 export default async function PODetailPage({
   params,
@@ -76,16 +77,8 @@ export default async function PODetailPage({
   }[]).sort((a, b) => a.sort_order - b.sort_order)
 
   return (
-    <div className="flex" style={{ height: '100%' }}>
-      {/* Left panel */}
-      <div
-        style={{
-          width: 520, flexShrink: 0,
-          display: 'flex', flexDirection: 'column',
-          borderRight: '0.5px solid var(--color-border-tertiary)',
-          background: 'white',
-        }}
-      >
+    <POSplitShell
+      left={
         <PODetail
           po={{
             po_id: po.po_id,
@@ -111,15 +104,15 @@ export default async function PODetailPage({
           jobLabel={jobLabel}
           pushPosToQb={companySettings?.push_pos_to_qb ?? true}
         />
-      </div>
-
-      {/* Right panel: PDF */}
-      <POPdfPanel
-        pdfSignedUrl={pdfSignedUrl}
-        vendorName={vendorName}
-        poNumber={po.po_number}
-        poId={po.po_id}
-      />
-    </div>
+      }
+      right={
+        <POPdfPanel
+          pdfSignedUrl={pdfSignedUrl}
+          vendorName={vendorName}
+          poNumber={po.po_number}
+          poId={po.po_id}
+        />
+      }
+    />
   )
 }

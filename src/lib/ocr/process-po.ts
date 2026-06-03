@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { extractTier1, hasTextLayer } from './tier1'
 import { extractTier2 } from './tier2'
 import { extractTier3 } from './tier3'
-import type { ExtractionResult, TierResult } from './types'
+import type { ExtractionResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { syncVendorsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
@@ -182,15 +182,8 @@ export async function processPO(poId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Tiered extraction — matches bill pipeline: Tier 1 → Tier 2 → Tier 3
+// Tiered extraction — Tier 1 → Tier 2 → Tier 3 with PO-specific logic
 // ---------------------------------------------------------------------------
-
-function lineItemsMatchTotal(result: TierResult): boolean {
-  if (result.total === null || result.line_items.length === 0) return false
-  if (result.line_items.some(li => li.total === null)) return false
-  const sum = result.line_items.reduce((s, li) => s + (li.total ?? 0), 0)
-  return Math.abs(sum - result.total) <= 0.01
-}
 
 async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: ExtractionResult; tier: number }> {
   const tier1 = await extractTier1(pdfBuffer)
@@ -198,25 +191,25 @@ async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: Extract
   // No text layer → Tier 3 (vision)
   if (!hasTextLayer(tier1.rawText)) {
     console.log('[ocr-po] No text layer → Tier 3 (vision)')
-    const tier3 = await extractTier3(pdfBuffer)
+    const tier3 = await extractTier3(pdfBuffer, undefined, 'po')
     return { result: { ...tier3, tier: 3 }, tier: 3 }
   }
 
-  // Tier 1 incomplete or line items don't balance → Tier 2
+  // For POs we don't require line items to balance to a total — POs often omit extended costs.
+  // Escalate Tier 1→2 only if key header fields are missing or no line items found at all.
   const tier1Incomplete =
     tier1.invoice_number === null ||
     tier1.invoice_date === null ||
-    tier1.total === null ||
-    !lineItemsMatchTotal(tier1)
+    tier1.line_items.length === 0
 
   if (tier1Incomplete) {
     console.log('[ocr-po] Tier 1 incomplete → Tier 2 (Claude Haiku)')
-    const tier2 = await extractTier2(tier1.rawText)
+    const tier2 = await extractTier2(tier1.rawText, undefined, 'po')
 
-    // Tier 2 line items don't balance → Tier 3
-    if (!lineItemsMatchTotal(tier2)) {
-      console.log('[ocr-po] Tier 2 line items do not match total → Tier 3 (vision)')
-      const tier3 = await extractTier3(pdfBuffer)
+    // Escalate Tier 2→3 only if still no line items
+    if (tier2.line_items.length === 0) {
+      console.log('[ocr-po] Tier 2 found no line items → Tier 3 (vision)')
+      const tier3 = await extractTier3(pdfBuffer, undefined, 'po')
       return { result: { ...tier3, tier: 3 }, tier: 3 }
     }
 

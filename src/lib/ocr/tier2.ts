@@ -56,12 +56,16 @@ function getClient(): Anthropic {
   return _client
 }
 
-export async function extractTier2(rawText: string, userComment?: string): Promise<TierResult> {
+export async function extractTier2(rawText: string, userComment?: string, documentType: 'invoice' | 'po' = 'invoice'): Promise<TierResult> {
   const client = getClient()
 
+  const docNote = documentType === 'po'
+    ? 'IMPORTANT: This document is a Purchase Order (PO), not an invoice. Map "PO Number" or "Order Number" → invoice_number, "Order Date" → invoice_date, "Expected Delivery" or "Ship Date" → due_date, and extract all line items (item descriptions, quantities, unit prices). Even if line item totals are missing or do not add up to the order total, include every line item you can find.'
+    : ''
+
   const userMessage = userComment
-    ? `Extract invoice data from this text.\n\nNote from the person who reviewed this invoice: "${userComment}"\nUse this context to help identify and correctly extract any fields that may have been difficult to parse.\n\nInvoice text:\n\n${rawText}`
-    : `Extract invoice data from this text:\n\n${rawText}`
+    ? `${docNote ? docNote + '\n\n' : ''}Extract data from this text.\n\nNote from reviewer: "${userComment}"\n\nText:\n\n${rawText}`
+    : `${docNote ? docNote + '\n\n' : ''}Extract data from this text:\n\n${rawText}`
 
   const response = await client.messages.create({
     model: 'claude-haiku-4-5-20251001',

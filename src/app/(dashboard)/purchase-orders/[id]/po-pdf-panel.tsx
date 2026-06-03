@@ -59,7 +59,7 @@ export function POPdfPanel({
       <div className="flex-1 overflow-hidden">
         {pdfSignedUrl ? (
           <iframe
-            src={pdfSignedUrl}
+            src={`${pdfSignedUrl}#navpanes=0`}
             style={{ width: '100%', height: '100%', border: 'none' }}
             title="Purchase Order PDF"
           />

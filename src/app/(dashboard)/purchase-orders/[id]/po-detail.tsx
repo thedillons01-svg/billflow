@@ -107,7 +107,7 @@ export function PODetail({
     if (!confirm('Delete this purchase order? It will be removed from Purchasomatic but not from QuickBooks.')) return
     startTransition(async () => {
       await deletePO(po.po_id)
-      router.push('/purchase-orders')
+      // server action uses redirect() — navigation handled server-side
     })
   }
 

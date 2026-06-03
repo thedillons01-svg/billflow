@@ -2,8 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-
-export const poActions = {}
+import { redirect } from 'next/navigation'
 
 export async function closePO(poId: string) {
   const supabase = await createClient()
@@ -11,7 +10,7 @@ export async function closePO(poId: string) {
     .from('purchase_orders')
     .update({ status: 'closed' })
     .eq('po_id', poId)
-  revalidatePath('/purchase-orders')
+  revalidatePath(`/purchase-orders/${poId}`)
 }
 
 export async function deletePO(poId: string) {
@@ -20,5 +19,5 @@ export async function deletePO(poId: string) {
     .from('purchase_orders')
     .update({ deleted_at: new Date().toISOString() })
     .eq('po_id', poId)
-  revalidatePath('/purchase-orders')
+  redirect('/purchase-orders')
 }
