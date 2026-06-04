@@ -3,6 +3,7 @@
 # Working Style
 Proceed with all file edits, terminal commands, git commits, and pushes without asking for confirmation. Make autonomous decisions based on BillFlow_Requirements_v4.md — it is the source of truth for all product decisions. Only stop if something is ambiguous that the requirements don't cover, or if you're about to do something irreversible like dropping database tables.
 Read DESIGN.md before writing any UI code. All colors, spacing, components, and interaction patterns are defined there.
+Also read Purchasomatic_Requirements_v4.1.md — this contains updates and corrections to v4.0. Where v4.1 conflicts with v4.0, v4.1 takes precedence.
 
 # Purchasomatic — Project Context for Claude Code
 

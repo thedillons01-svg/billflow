@@ -308,22 +308,46 @@ type LineItem = {
   sort_order?: number
 }
 
+const TAX_KEYWORDS = ['sales tax', 'tax', 'hst', 'gst', 'pst', 'qst', 'vat', 'excise tax']
+
+function isTaxDescription(desc: string | null | undefined): boolean {
+  if (!desc) return false
+  const d = desc.toLowerCase().trim()
+  return TAX_KEYWORDS.some(kw => d === kw || d.startsWith(kw + ' ') || d.endsWith(' ' + kw))
+}
+
 async function insertPOLineItems(
   supabase: SupabaseClient,
   poId: string,
   companyId: string,
-  lineItems: LineItem[]
+  lineItems: LineItem[],
+  taxAmount?: number | null
 ) {
-  if (!lineItems.length) return
+  // Synthesize a tax line from tax_amount if the OCR captured tax as a scalar
+  // and no line item already has a tax description
+  const allItems = [...lineItems]
+  const hasTaxLine = allItems.some(li => isTaxDescription(li.description))
+  if (!hasTaxLine && taxAmount && taxAmount > 0) {
+    allItems.push({
+      description: 'Sales Tax',
+      quantity:    null,
+      unit_price:  null,
+      total:       taxAmount,
+      sort_order:  allItems.length,
+    })
+  }
+
+  if (!allItems.length) return
   await supabase.from('po_line_items').delete().eq('po_id', poId)
   await supabase.from('po_line_items').insert(
-    lineItems.map((li, i) => ({
+    allItems.map((li, i) => ({
       po_id:            poId,
       company_id:       companyId,
       description:      li.description ?? null,
       quantity_ordered: li.quantity ?? null,
       unit_cost:        li.unit_price ?? null,
       extended_cost:    li.total ?? null,
+      is_tax_line:      isTaxDescription(li.description),
       sort_order:       li.sort_order ?? i,
     }))
   )
