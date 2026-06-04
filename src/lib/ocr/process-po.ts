@@ -131,11 +131,13 @@ export async function processPO(poId: string): Promise<void> {
     }
   }
 
-  // Job matching — try vendor_po_reference first, supplement with job_name_extracted
-  const jobMatchRef = result.vendor_po_reference ?? result.job_name_extracted
-  if (jobMatchRef) {
-    await tryMatchJobForPO(supabase, poId, po.company_id, jobMatchRef, result.job_name_extracted ?? undefined)
-  }
+  // Job matching — combine all available reference fields
+  await tryMatchJobForPO(supabase, poId, po.company_id, {
+    poNumber:         result.invoice_number,
+    poReference:      result.vendor_po_reference,
+    jobName:          result.job_name_extracted,
+    customerName:     result.customer_name_extracted,
+  })
 
   // Insert PO line items
   await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount)
@@ -222,13 +224,17 @@ async function tryMatchJobForPO(
   supabase: SupabaseClient,
   poId: string,
   companyId: string,
-  poReference: string,
-  jobNameExtracted?: string,
+  fields: {
+    poNumber: string | null
+    poReference: string | null
+    jobName: string | null
+    customerName: string | null
+  },
 ): Promise<void> {
-  const candidates = [
-    ...extractJobCandidates(poReference),
-    ...(jobNameExtracted ? extractJobCandidates(jobNameExtracted) : []),
-  ]
+  const sources = [fields.poNumber, fields.poReference, fields.jobName, fields.customerName].filter(Boolean) as string[]
+  if (!sources.length) return
+
+  const candidates = [...new Set(sources.flatMap(extractJobCandidates))]
 
   const { data: jobs } = await supabase
     .from('qb_jobs_cache')

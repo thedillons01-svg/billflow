@@ -1,9 +1,13 @@
-﻿'use client'
+'use client'
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition } from 'react'
-import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO } from '../actions'
+import { useState, useTransition, useEffect } from 'react'
+import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem, applyJobToAllPOLines } from '../actions'
+import { reopenJob } from '../../jobs/actions'
+
+type Job = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
+type Vendor = { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null; qb_vendor_id: string | null }
 
 type PO = {
   po_id: string
@@ -29,6 +33,7 @@ type LineItem = {
   quantity_received: number | null
   unit_cost: number | null
   extended_cost: number | null
+  job_id: string | null
   sort_order: number
 }
 
@@ -54,33 +59,53 @@ const BILL_STATUS_BADGE: Record<string, { bg: string; color: string; label: stri
   sync_error:{ bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
 }
 
+function jobLabel(j: Job): string {
+  return [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – ')
+}
+
 export function PODetail({
   po,
-  lineItems,
+  lineItems: initialLineItems,
   matchedBills,
-  jobLabel,
+  jobs = [],
+  closedJobs = [],
+  vendors = [],
+  jobCostingEnabled = false,
   pushPosToQb = true,
 }: {
   po: PO
   lineItems: LineItem[]
   matchedBills: MatchedBill[]
-  jobLabel: string | null
+  jobs?: Job[]
+  closedJobs?: Job[]
+  vendors?: Vendor[]
+  jobCostingEnabled?: boolean
   pushPosToQb?: boolean
-}
-) {
+}) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [pushError, setPushError] = useState<string | null>(null)
   const [pushSuccess, setPushSuccess] = useState(false)
   const [localStatus, setLocalStatus] = useState(po.status)
+  const [localVendorId, setLocalVendorId] = useState(po.vendor_id ?? '')
   const [localVendorQbLinked, setLocalVendorQbLinked] = useState(po.vendor_qb_linked)
-  const [localVendorId, setLocalVendorId] = useState(po.vendor_id)
   const [vendorActionError, setVendorActionError] = useState<string | null>(null)
+  const [lineItems, setLineItems] = useState(initialLineItems)
+  const [liveJobs, setLiveJobs] = useState(jobs)
+  const [liveClosedJobs, setLiveClosedJobs] = useState(closedJobs)
+  const [headerJobPending, setHeaderJobPending] = useState<{ jobId: string; label: string } | null>(null)
+
+  useEffect(() => { setLineItems(initialLineItems) }, [initialLineItems])
+  useEffect(() => { setLiveJobs(jobs) }, [jobs])
+  useEffect(() => { setLiveClosedJobs(closedJobs) }, [closedJobs])
 
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.open
   const canReceive = ['open', 'partially_received'].includes(localStatus)
   const canClose = ['open', 'partially_received', 'received'].includes(localStatus)
   const isQBPushed = !!po.qb_po_id
+
+  const selectedVendor = vendors.find(v => v.vendor_id === localVendorId)
+  const vendorQbLinkedFromList = selectedVendor?.qb_vendor_id != null
 
   const handlePushToQB = () => {
     setPushError(null)
@@ -113,19 +138,42 @@ export function PODetail({
     if (!confirm('Delete this purchase order? It will be removed from Purchasomatic but not from QuickBooks.')) return
     startTransition(async () => {
       await deletePO(po.po_id)
-      // server action uses redirect() — navigation handled server-side
     })
   }
 
+  const handleReopenAndSelectJob = async (jobId: string, onSelect: (id: string) => void) => {
+    await reopenJob(jobId)
+    const job = liveClosedJobs.find(j => j.qb_job_id === jobId)
+    setLiveClosedJobs(prev => prev.filter(j => j.qb_job_id !== jobId))
+    if (job) setLiveJobs(prev => [...prev, job])
+    onSelect(jobId)
+  }
+
+  const handleLineItemUpdate = async (lineId: string, fields: Partial<LineItem>) => {
+    setLineItems(prev => prev.map(li => li.line_id === lineId ? { ...li, ...fields } : li))
+    await updatePOLineItem(lineId, po.po_id, fields)
+  }
+
+  const handleLineJobChange = async (lineId: string, jobId: string) => {
+    if (liveClosedJobs.some(j => j.qb_job_id === jobId)) {
+      await handleReopenAndSelectJob(jobId, (id) => {
+        handleLineItemUpdate(lineId, { job_id: id })
+      })
+    } else {
+      await handleLineItemUpdate(lineId, { job_id: jobId || null })
+    }
+  }
+
   const totalOrdered = lineItems.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
+  const showJobColumn = jobCostingEnabled && (liveJobs.length > 0 || liveClosedJobs.length > 0)
+
+  // Grid template: Description | Ord qty | Rcvd | Unit | Total | [Job]
+  const gridCols = showJobColumn ? '2fr 60px 60px 80px 80px 1.4fr' : '2fr 60px 60px 80px 80px'
 
   return (
     <>
       {/* Fixed header */}
-      <div
-        className="flex-none px-5 py-3"
-        style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
-      >
+      <div className="flex-none px-5 py-3" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
         <Link
           href="/purchase-orders"
           className="flex items-center gap-1 mb-2"
@@ -137,7 +185,7 @@ export function PODetail({
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-              {po.vendor_name}
+              {selectedVendor?.vendor_name_display ?? selectedVendor?.vendor_name_extracted ?? po.vendor_name}
             </h1>
             {po.po_number && (
               <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
@@ -145,14 +193,11 @@ export function PODetail({
               </p>
             )}
           </div>
-          <span
-            style={{
-              display: 'inline-block', flexShrink: 0,
-              background: badge.bg, color: badge.color,
-              borderRadius: 4, padding: '3px 8px',
-              fontSize: 10, fontWeight: 500,
-            }}
-          >
+          <span style={{
+            display: 'inline-block', flexShrink: 0,
+            background: badge.bg, color: badge.color,
+            borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 500,
+          }}>
             {badge.label}
           </span>
         </div>
@@ -164,161 +209,41 @@ export function PODetail({
 
           {/* QB push disabled notice */}
           {!pushPosToQb && (
-            <div
-              className="flex items-center gap-2"
-              style={{ background: '#F3F4F6', border: '0.5px solid #E5E7EB', borderRadius: 6, padding: '10px 12px' }}
-            >
-              <i className="ti ti-info-circle" style={{ fontSize: 14, color: 'var(--color-text-secondary)' }} />
-              <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-                QuickBooks PO push is turned off. This PO is tracked in Purchasomatic only.
-                <a href="/settings" style={{ color: '#2DB87A', marginLeft: 4 }}>Change in Settings</a>
-              </p>
-            </div>
+            <Banner icon="ti-info-circle" color="gray">
+              QuickBooks PO push is turned off. This PO is tracked in Purchasomatic only.{' '}
+              <a href="/settings" style={{ color: '#2DB87A' }}>Change in Settings</a>
+            </Banner>
           )}
 
           {/* QB sync error */}
           {po.qb_sync_error && (
-            <div
-              className="flex items-start gap-2"
-              style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: 6, padding: '10px 12px' }}
-            >
-              <i className="ti ti-alert-circle" style={{ fontSize: 15, color: '#DC2626', marginTop: 1, flexShrink: 0 }} />
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 500, color: '#991B1B' }}>QuickBooks sync error</p>
-                <p style={{ fontSize: 11, color: '#991B1B', marginTop: 2 }}>{po.qb_sync_error}</p>
-              </div>
-            </div>
+            <Banner icon="ti-alert-circle" color="red">
+              <strong>QuickBooks sync error</strong>
+              <br />{po.qb_sync_error}
+            </Banner>
           )}
 
           {/* Push success */}
           {pushSuccess && (
-            <div
-              className="flex items-center gap-2"
-              style={{ background: '#D1FAE5', border: '0.5px solid #6EE7B7', borderRadius: 6, padding: '10px 12px' }}
-            >
-              <i className="ti ti-circle-check" style={{ fontSize: 15, color: '#059669' }} />
-              <p style={{ fontSize: 12, color: '#065F46' }}>Purchase order pushed to QuickBooks successfully.</p>
-            </div>
+            <Banner icon="ti-circle-check" color="green">
+              Purchase order pushed to QuickBooks successfully.
+            </Banner>
           )}
 
           {/* Push error */}
           {pushError && (
-            <div
-              className="flex items-center gap-2"
-              style={{ background: '#FEF2F2', border: '0.5px solid #FECACA', borderRadius: 6, padding: '10px 12px' }}
-            >
-              <i className="ti ti-alert-circle" style={{ fontSize: 15, color: '#DC2626' }} />
-              <p style={{ fontSize: 12, color: '#991B1B' }}>{pushError}</p>
-            </div>
-          )}
-
-          {/* Vendor QB status — only show when push is enabled and PO not yet in QB */}
-          {pushPosToQb && !isQBPushed && !pushSuccess && (
-            <>
-              {!localVendorId && po.vendor_name_raw && (
-                <div
-                  className="flex items-start gap-2"
-                  style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px' }}
-                >
-                  <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E' }}>Vendor not matched</p>
-                    <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
-                      &ldquo;{po.vendor_name_raw}&rdquo; isn&apos;t linked to a vendor record yet.
-                    </p>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        setVendorActionError(null)
-                        startTransition(async () => {
-                          const result = await createVendorFromPO(po.po_id, po.company_id, po.vendor_name_raw!)
-                          if ('error' in result) {
-                            setVendorActionError(result.error)
-                          } else {
-                            setLocalVendorId(result.vendorId)
-                            setLocalVendorQbLinked(true)
-                            router.refresh()
-                          }
-                        })
-                      }}
-                      style={{
-                        marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
-                        background: 'white', border: '0.5px solid #D97706', borderRadius: 5,
-                        padding: '4px 10px', fontSize: 11, fontWeight: 500, color: '#92400E',
-                        cursor: isPending ? 'default' : 'pointer', opacity: isPending ? 0.6 : 1,
-                      }}
-                    >
-                      <i className="ti ti-plus" style={{ fontSize: 11 }} />
-                      {isPending ? 'Creating…' : `Create "${po.vendor_name_raw}" as new vendor`}
-                    </button>
-                    {vendorActionError && (
-                      <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B' }}>{vendorActionError}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-              {localVendorId && !localVendorQbLinked && (
-                <div
-                  className="flex items-start gap-2"
-                  style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px' }}
-                >
-                  <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E' }}>Vendor not in QuickBooks</p>
-                    <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
-                      {po.vendor_name} exists in Purchasomatic but isn&apos;t linked to a QuickBooks vendor yet.
-                    </p>
-                    <button
-                      type="button"
-                      disabled={isPending}
-                      onClick={() => {
-                        setVendorActionError(null)
-                        startTransition(async () => {
-                          const result = await addVendorToQBFromPO(localVendorId, po.company_id, po.po_id)
-                          if (result.error) {
-                            setVendorActionError(result.error)
-                          } else {
-                            setLocalVendorQbLinked(true)
-                          }
-                        })
-                      }}
-                      style={{
-                        marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
-                        background: 'white', border: '0.5px solid #D97706', borderRadius: 5,
-                        padding: '4px 10px', fontSize: 11, fontWeight: 500, color: '#92400E',
-                        cursor: isPending ? 'default' : 'pointer', opacity: isPending ? 0.6 : 1,
-                      }}
-                    >
-                      <i className="ti ti-building-store" style={{ fontSize: 11 }} />
-                      {isPending ? 'Adding…' : 'Add to QuickBooks'}
-                    </button>
-                    {vendorActionError && (
-                      <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B' }}>{vendorActionError}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
+            <Banner icon="ti-alert-circle" color="red">{pushError}</Banner>
           )}
 
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {pushPosToQb && !isQBPushed && !pushSuccess && localVendorQbLinked && (
-              <ActionButton
-                onClick={handlePushToQB}
-                disabled={isPending}
-                primary
-                icon="ti-upload"
-              >
+            {pushPosToQb && !isQBPushed && !pushSuccess && vendorQbLinkedFromList && (
+              <ActionButton onClick={handlePushToQB} disabled={isPending} primary icon="ti-upload">
                 Push to QuickBooks
               </ActionButton>
             )}
             {pushPosToQb && isQBPushed && (
-              <span
-                className="flex items-center gap-1.5"
-                style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}
-              >
+              <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}>
                 <i className="ti ti-circle-check" style={{ fontSize: 14 }} />
                 In QuickBooks
                 <span style={{ fontWeight: 400, color: 'var(--color-text-tertiary)', fontSize: 11 }}>
@@ -331,11 +256,8 @@ export function PODetail({
                 href={`/receiving/${po.po_id}`}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6,
-                  background: 'white', color: '#1A3D2B',
-                  border: '0.5px solid #C3DEC9',
-                  borderRadius: 6, padding: '5px 12px',
-                  fontSize: 12, fontWeight: 500,
-                  textDecoration: 'none',
+                  background: 'white', color: '#1A3D2B', border: '0.5px solid #C3DEC9',
+                  borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 500, textDecoration: 'none',
                 }}
               >
                 <i className="ti ti-package" style={{ fontSize: 13 }} />
@@ -343,86 +265,319 @@ export function PODetail({
               </Link>
             )}
             {canClose && (
-              <ActionButton onClick={handleClose} disabled={isPending} icon="ti-lock">
-                Close PO
-              </ActionButton>
+              <ActionButton onClick={handleClose} disabled={isPending} icon="ti-lock">Close PO</ActionButton>
             )}
-            <ActionButton onClick={handleDelete} disabled={isPending} danger icon="ti-trash">
-              Delete
-            </ActionButton>
+            <ActionButton onClick={handleDelete} disabled={isPending} danger icon="ti-trash">Delete</ActionButton>
           </div>
 
-          {/* PO details */}
-          <Section title="Details">
-            <div className="grid gap-y-3" style={{ gridTemplateColumns: '140px 1fr' }}>
-              <DetailRow label="Order date" value={po.order_date ? new Date(po.order_date).toLocaleDateString() : '—'} />
-              <DetailRow
-                label="Expected delivery"
-                value={po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : '—'}
-              />
-              {jobLabel && <DetailRow label="Job" value={jobLabel} />}
-              {po.notes && <DetailRow label="Notes" value={po.notes} />}
+          {/* VENDOR */}
+          <Section title="Vendor">
+            <div className="space-y-2">
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Vendor record
+                </label>
+                <select
+                  value={localVendorId}
+                  onChange={e => {
+                    const vid = e.target.value
+                    setLocalVendorId(vid)
+                    setVendorActionError(null)
+                    startTransition(() => updatePO(po.po_id, { vendor_id: vid || null }))
+                  }}
+                  style={selectStyle}
+                >
+                  <option value="">
+                    {po.vendor_name_raw ? `— ${po.vendor_name_raw} (unmatched) —` : '— Unmatched —'}
+                  </option>
+                  {vendors.map(v => (
+                    <option key={v.vendor_id} value={v.vendor_id}>
+                      {v.vendor_name_display ?? v.vendor_name_extracted ?? v.vendor_id}
+                    </option>
+                  ))}
+                </select>
+                {localVendorId === '' && (
+                  <p style={{ marginTop: 4, fontSize: 11, color: '#92400E' }}>
+                    No vendor record linked — required to push to QuickBooks.
+                  </p>
+                )}
+              </div>
+
+              {/* Create vendor from OCR name */}
+              {localVendorId === '' && po.vendor_name_raw && (
+                <div>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      setVendorActionError(null)
+                      startTransition(async () => {
+                        const result = await createVendorFromPO(po.po_id, po.company_id, po.vendor_name_raw!)
+                        if ('error' in result) {
+                          setVendorActionError(result.error)
+                        } else {
+                          setLocalVendorId(result.vendorId)
+                          setLocalVendorQbLinked(true)
+                          router.refresh()
+                        }
+                      })
+                    }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: 'none', border: 'none', padding: 0,
+                      fontSize: 12, color: '#2DB87A', cursor: 'pointer',
+                      opacity: isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                    {isPending ? 'Creating…' : `Create "${po.vendor_name_raw}" as new vendor`}
+                  </button>
+                  {vendorActionError && (
+                    <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B' }}>{vendorActionError}</p>
+                  )}
+                </div>
+              )}
+
+              {/* Add to QB if vendor exists but not linked */}
+              {localVendorId !== '' && !vendorQbLinkedFromList && pushPosToQb && (
+                <div>
+                  <p style={{ fontSize: 11, color: '#92400E', marginBottom: 4 }}>
+                    Vendor has no QuickBooks link — cannot push PO.
+                  </p>
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      setVendorActionError(null)
+                      startTransition(async () => {
+                        const result = await addVendorToQBFromPO(localVendorId, po.company_id, po.po_id)
+                        if (result.error) {
+                          setVendorActionError(result.error)
+                        } else {
+                          setLocalVendorQbLinked(true)
+                          router.refresh()
+                        }
+                      })
+                    }}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4,
+                      background: 'none', border: 'none', padding: 0,
+                      fontSize: 12, color: '#2DB87A', cursor: 'pointer',
+                      opacity: isPending ? 0.6 : 1,
+                    }}
+                  >
+                    <i className="ti ti-building-store" style={{ fontSize: 12 }} />
+                    {isPending ? 'Adding…' : 'Add to QuickBooks'}
+                  </button>
+                  {vendorActionError && (
+                    <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B' }}>{vendorActionError}</p>
+                  )}
+                </div>
+              )}
             </div>
           </Section>
 
-          {/* Line items */}
+          {/* DETAILS */}
+          <Section title="Details">
+            <div className="grid gap-y-3" style={{ gridTemplateColumns: '140px 1fr' }}>
+              <span style={labelStyle}>PO number</span>
+              <InlineInput
+                initialValue={po.po_number ?? ''}
+                placeholder="—"
+                onSave={v => updatePO(po.po_id, { po_number: v || null })}
+              />
+
+              <span style={labelStyle}>Order date</span>
+              <InlineInput
+                initialValue={po.order_date ?? ''}
+                placeholder="—"
+                onSave={v => updatePO(po.po_id, { order_date: v || null })}
+              />
+
+              <span style={labelStyle}>Expected delivery</span>
+              <span style={{ fontSize: 12, color: 'var(--color-text-primary)', padding: '3px 4px' }}>
+                {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : '—'}
+              </span>
+
+              {po.notes && (
+                <>
+                  <span style={labelStyle}>Notes</span>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-primary)', padding: '3px 4px' }}>{po.notes}</span>
+                </>
+              )}
+            </div>
+          </Section>
+
+          {/* JOB — apply to all lines */}
+          {showJobColumn && lineItems.length > 0 && (
+            <Section title="Job">
+              <div>
+                <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                  Apply job to all line items at once. Individual lines can still be changed below.
+                </label>
+                <InlineSelect
+                  initialValue={
+                    lineItems.length > 0 && lineItems.every(li => li.job_id === lineItems[0].job_id)
+                      ? (lineItems[0].job_id ?? '')
+                      : ''
+                  }
+                  options={liveJobs.map(j => ({ value: j.qb_job_id, label: jobLabel(j) }))}
+                  closedOptions={liveClosedJobs.map(j => ({ value: j.qb_job_id, label: jobLabel(j) }))}
+                  placeholder={
+                    lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'No job assigned' : 'Mixed — select to apply all'
+                  }
+                  onSave={async v => {
+                    if (!v) return
+                    const j = liveJobs.find(j => j.qb_job_id === v)
+                    if (lineItems.length > 1) {
+                      setHeaderJobPending({ jobId: v, label: j ? jobLabel(j) : v })
+                    } else if (lineItems.length === 1) {
+                      await handleLineItemUpdate(lineItems[0].line_id, { job_id: v })
+                    }
+                  }}
+                  onSaveClosed={async v => {
+                    await handleReopenAndSelectJob(v, id => {
+                      const j = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
+                      if (lineItems.length > 1) {
+                        setHeaderJobPending({ jobId: id, label: j ? jobLabel(j) : id })
+                      } else if (lineItems.length === 1) {
+                        handleLineItemUpdate(lineItems[0].line_id, { job_id: id })
+                      }
+                    })
+                  }}
+                />
+                {headerJobPending && (
+                  <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
+                    <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#065F46', flex: 1 }}>
+                      Apply <strong>{headerJobPending.label}</strong> to all {lineItems.length} lines?
+                    </span>
+                    <button
+                      onClick={async () => {
+                        const pending = headerJobPending
+                        setHeaderJobPending(null)
+                        setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId })))
+                        await applyJobToAllPOLines(po.po_id, pending.jobId)
+                        router.refresh()
+                      }}
+                      style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      Yes, all {lineItems.length}
+                    </button>
+                    <button
+                      onClick={() => setHeaderJobPending(null)}
+                      style={{ fontSize: 12, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
+          {/* LINE ITEMS */}
           <Section title={`Line Items${totalOrdered > 0 ? ` — $${totalOrdered.toFixed(2)} total` : ''}`}>
             {lineItems.length === 0 ? (
               <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>No line items extracted.</p>
             ) : (
               <div style={{ border: '0.5px solid var(--color-border-tertiary)', borderRadius: 6, overflow: 'hidden' }}>
                 {/* Header row */}
-                <div
-                  className="grid px-3 py-2"
-                  style={{
-                    gridTemplateColumns: '1fr 60px 60px 70px 70px',
-                    background: 'var(--color-background-secondary)',
-                    borderBottom: '0.5px solid var(--color-border-tertiary)',
-                  }}
-                >
-                  {['Description', 'Ord', 'Rcvd', 'Unit', 'Total'].map(h => (
-                    <span
-                      key={h}
-                      style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}
-                    >
-                      {h}
+                <div className="grid px-2 py-2" style={{
+                  gridTemplateColumns: gridCols,
+                  background: 'var(--color-background-secondary)',
+                  borderBottom: '0.5px solid var(--color-border-tertiary)',
+                }}>
+                  {([
+                    { label: 'Description', align: 'left' },
+                    { label: 'Ord',         align: 'right' },
+                    { label: 'Rcvd',        align: 'right' },
+                    { label: 'Unit',        align: 'right' },
+                    { label: 'Total',       align: 'right' },
+                    ...(showJobColumn ? [{ label: 'Job', align: 'left' }] : []),
+                  ] as { label: string; align: 'left' | 'right' }[]).map((h, i) => (
+                    <span key={i} style={{
+                      fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em',
+                      color: 'var(--color-text-secondary)', textAlign: h.align,
+                      paddingRight: h.align === 'right' ? 4 : 0,
+                    }}>
+                      {h.label}
                     </span>
                   ))}
                 </div>
+
                 {lineItems.map((li, i) => {
-                  const ordered = li.quantity_ordered ?? 0
-                  const received = li.quantity_received ?? 0
+                  const ordered   = li.quantity_ordered ?? 0
+                  const received  = li.quantity_received ?? 0
                   const recvStatus = received === 0 ? 'none' : received >= ordered ? 'full' : 'partial'
                   return (
                     <div
                       key={li.line_id}
-                      className="grid items-center px-3 py-[9px]"
+                      className="grid items-center px-2"
                       style={{
-                        gridTemplateColumns: '1fr 60px 60px 70px 70px',
+                        gridTemplateColumns: gridCols,
                         borderBottom: i < lineItems.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
                         background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
+                        minHeight: 36,
                       }}
                     >
-                      <span style={{ fontSize: 12, color: 'var(--color-text-primary)' }}>
-                        {li.description ?? '—'}
+                      {/* Description */}
+                      <InlineInput
+                        initialValue={li.description ?? ''}
+                        placeholder="Description"
+                        onSave={v => handleLineItemUpdate(li.line_id, { description: v || null })}
+                      />
+
+                      {/* Qty ordered */}
+                      <InlineInput
+                        initialValue={li.quantity_ordered != null ? String(li.quantity_ordered) : ''}
+                        placeholder="—"
+                        align="right"
+                        onSave={async v => {
+                          const qty = v ? parseFloat(v) : null
+                          const ext = qty != null && li.unit_cost != null ? +(qty * li.unit_cost).toFixed(2) : li.extended_cost
+                          await handleLineItemUpdate(li.line_id, { quantity_ordered: isNaN(qty!) ? null : qty, extended_cost: ext })
+                        }}
+                      />
+
+                      {/* Qty received (read-only) */}
+                      <span style={{
+                        fontSize: 12, textAlign: 'right', paddingRight: 4,
+                        color: recvStatus === 'full' ? '#059669' : recvStatus === 'partial' ? '#D97706' : 'var(--color-text-tertiary)',
+                        fontWeight: recvStatus !== 'none' ? 500 : 400,
+                      }}>
+                        {received > 0 ? received : '—'}
                       </span>
-                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                        {ordered > 0 ? ordered : '—'}
-                      </span>
-                      <span style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>
-                        <span style={{
-                          color: recvStatus === 'full' ? '#059669' : recvStatus === 'partial' ? '#D97706' : 'var(--color-text-tertiary)',
-                          fontWeight: recvStatus !== 'none' ? 500 : 400,
-                        }}>
-                          {received > 0 ? received : '—'}
-                        </span>
-                      </span>
-                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
-                        {li.unit_cost != null ? `$${Number(li.unit_cost).toFixed(2)}` : '—'}
-                      </span>
-                      <span style={{ fontSize: 12, color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+
+                      {/* Unit cost */}
+                      <InlineInput
+                        initialValue={li.unit_cost != null ? String(li.unit_cost) : ''}
+                        placeholder="—"
+                        align="right"
+                        currency
+                        onSave={async v => {
+                          const cost = v ? parseFloat(v) : null
+                          const ext = cost != null && li.quantity_ordered != null ? +(li.quantity_ordered * cost).toFixed(2) : li.extended_cost
+                          await handleLineItemUpdate(li.line_id, { unit_cost: isNaN(cost!) ? null : cost, extended_cost: ext })
+                        }}
+                      />
+
+                      {/* Extended cost */}
+                      <span style={{ fontSize: 12, textAlign: 'right', paddingRight: 4, color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
                         {li.extended_cost != null ? `$${Number(li.extended_cost).toFixed(2)}` : '—'}
                       </span>
+
+                      {/* Job */}
+                      {showJobColumn && (
+                        <InlineSelect
+                          initialValue={li.job_id ?? ''}
+                          options={liveJobs.map(j => ({ value: j.qb_job_id, label: jobLabel(j) }))}
+                          closedOptions={liveClosedJobs.map(j => ({ value: j.qb_job_id, label: jobLabel(j) }))}
+                          placeholder="No job"
+                          onSave={v => handleLineJobChange(li.line_id, v)}
+                          onSaveClosed={v => handleLineJobChange(li.line_id, v)}
+                        />
+                      )}
                     </div>
                   )
                 })}
@@ -444,7 +599,7 @@ export function PODetail({
             )}
           </Section>
 
-          {/* Matched bills */}
+          {/* MATCHED BILLS */}
           {matchedBills.length > 0 && (
             <Section title="Matched Invoice">
               <div className="space-y-2">
@@ -456,11 +611,8 @@ export function PODetail({
                       href={`/bills/${bill.bill_id}`}
                       style={{
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                        padding: '10px 12px',
-                        border: '0.5px solid var(--color-border-secondary)',
-                        borderRadius: 6,
-                        textDecoration: 'none',
-                        background: 'var(--color-background-secondary)',
+                        padding: '10px 12px', border: '0.5px solid var(--color-border-secondary)',
+                        borderRadius: 6, textDecoration: 'none', background: 'var(--color-background-secondary)',
                       }}
                     >
                       <div>
@@ -468,17 +620,13 @@ export function PODetail({
                           {bill.invoice_number ? `Invoice #${bill.invoice_number}` : 'Invoice'}
                         </p>
                         <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                          {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : ''}{' '}
-                          · View in Bills
+                          {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : ''} · View in Bills
                         </p>
                       </div>
-                      <span
-                        style={{
-                          background: billBadge.bg, color: billBadge.color,
-                          borderRadius: 4, padding: '2px 8px',
-                          fontSize: 10, fontWeight: 500,
-                        }}
-                      >
+                      <span style={{
+                        background: billBadge.bg, color: billBadge.color,
+                        borderRadius: 4, padding: '2px 8px', fontSize: 10, fontWeight: 500,
+                      }}>
                         {billBadge.label}
                       </span>
                     </Link>
@@ -488,7 +636,6 @@ export function PODetail({
             </Section>
           )}
 
-          {/* No matched bill yet */}
           {matchedBills.length === 0 && localStatus !== 'closed' && (
             <Section title="Matched Invoice">
               <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)' }}>
@@ -502,6 +649,19 @@ export function PODetail({
     </>
   )
 }
+
+// ── Shared styles ──────────────────────────────────────────────────────────────
+
+const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-text-secondary)', padding: '3px 0', alignSelf: 'center' }
+
+const selectStyle: React.CSSProperties = {
+  width: '100%', height: 36,
+  border: '0.5px solid var(--color-border-secondary)',
+  borderRadius: 6, padding: '0 10px',
+  fontSize: 13, color: 'var(--color-text-primary)', background: 'white',
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -518,24 +678,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function Banner({ icon, color, children }: { icon: string; color: 'gray' | 'red' | 'green' | 'yellow'; children: React.ReactNode }) {
+  const colors = {
+    gray:   { bg: '#F3F4F6', border: '#E5E7EB', text: 'var(--color-text-secondary)', icon: 'var(--color-text-secondary)' },
+    red:    { bg: '#FEF2F2', border: '#FECACA', text: '#991B1B', icon: '#DC2626' },
+    green:  { bg: '#D1FAE5', border: '#6EE7B7', text: '#065F46', icon: '#059669' },
+    yellow: { bg: '#FFFBEB', border: '#FDE68A', text: '#92400E', icon: '#D97706' },
+  }
+  const c = colors[color]
   return (
-    <>
-      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{label}</span>
-      <span style={{ fontSize: 12, color: 'var(--color-text-primary)' }}>{value}</span>
-    </>
+    <div className="flex items-start gap-2" style={{ background: c.bg, border: `0.5px solid ${c.border}`, borderRadius: 6, padding: '10px 12px' }}>
+      <i className={`ti ${icon}`} style={{ fontSize: 14, color: c.icon, marginTop: 1, flexShrink: 0 }} />
+      <p style={{ fontSize: 12, color: c.text }}>{children}</p>
+    </div>
   )
 }
 
-function ActionButton({
-  onClick, disabled, children, primary, danger, icon,
-}: {
-  onClick: () => void
-  disabled: boolean
-  children: React.ReactNode
-  primary?: boolean
-  danger?: boolean
-  icon?: string
+function ActionButton({ onClick, disabled, children, primary, danger, icon }: {
+  onClick: () => void; disabled: boolean; children: React.ReactNode
+  primary?: boolean; danger?: boolean; icon?: string
 }) {
   return (
     <button
@@ -546,13 +707,97 @@ function ActionButton({
         background: primary ? '#2DB87A' : 'white',
         color: primary ? 'white' : danger ? '#DC2626' : '#1A3D2B',
         border: `0.5px solid ${primary ? '#2DB87A' : danger ? '#FCA5A5' : '#C3DEC9'}`,
-        borderRadius: 6, padding: '5px 12px',
-        fontSize: 12, fontWeight: 500, cursor: 'pointer',
-        opacity: disabled ? 0.6 : 1,
+        borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 500,
+        cursor: 'pointer', opacity: disabled ? 0.6 : 1,
       }}
     >
       {icon && <i className={`ti ${icon}`} style={{ fontSize: 13 }} />}
       {children}
     </button>
+  )
+}
+
+function InlineInput({ initialValue, onSave, placeholder, align, currency }: {
+  initialValue: string
+  onSave: (v: string) => Promise<void> | void
+  placeholder?: string
+  align?: 'right'
+  currency?: boolean
+}) {
+  const [value, setValue] = useState(initialValue)
+  const [focused, setFocused] = useState(false)
+  useEffect(() => { setValue(initialValue) }, [initialValue])
+
+  const displayValue = currency && !focused && value !== ''
+    ? `$${parseFloat(value || '0').toFixed(2)}`
+    : value
+
+  return (
+    <input
+      value={displayValue}
+      onChange={e => {
+        const raw = currency ? e.target.value.replace(/^\$/, '') : e.target.value
+        setValue(raw)
+      }}
+      onFocus={() => setFocused(true)}
+      onBlur={async () => {
+        setFocused(false)
+        try { await onSave(value) } catch { /* silent */ }
+      }}
+      placeholder={placeholder}
+      style={{
+        width: '100%', border: '0.5px solid transparent', borderRadius: 4,
+        padding: '3px 4px', fontSize: 12, background: 'transparent',
+        color: 'var(--color-text-primary)', textAlign: align === 'right' ? 'right' : 'left',
+      }}
+    />
+  )
+}
+
+function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClosed, placeholder }: {
+  initialValue: string
+  options: { value: string; label: string }[]
+  closedOptions?: { value: string; label: string }[]
+  onSave: (v: string) => Promise<void> | void
+  onSaveClosed?: (v: string) => Promise<void> | void
+  placeholder: string
+}) {
+  const [value, setValue] = useState(initialValue)
+  useEffect(() => { setValue(initialValue) }, [initialValue])
+
+  if (options.length === 0 && !closedOptions?.length) {
+    return <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontStyle: 'italic', padding: '0 4px' }}>—</span>
+  }
+
+  const handleChange = async (newValue: string) => {
+    const isClosed = closedOptions?.some(o => o.value === newValue)
+    setValue(newValue)
+    try {
+      if (isClosed && onSaveClosed) {
+        await onSaveClosed(newValue)
+      } else {
+        await onSave(newValue)
+      }
+    } catch { setValue(initialValue) }
+  }
+
+  return (
+    <select
+      value={value}
+      onChange={e => handleChange(e.target.value)}
+      style={{
+        width: '100%', border: '0.5px solid transparent', borderRadius: 4,
+        padding: '3px 4px', fontSize: 12, background: 'transparent',
+        color: 'var(--color-text-primary)',
+      }}
+    >
+      <option value="">{placeholder}</option>
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+      {closedOptions && closedOptions.length > 0 && (
+        <optgroup label="── Closed ──">
+          {closedOptions.map(o => <option key={o.value} value={o.value}>🔒 {o.label}</option>)}
+        </optgroup>
+      )}
+    </select>
   )
 }

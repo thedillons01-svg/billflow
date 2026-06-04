@@ -13,7 +13,8 @@ export type ExtractionResult = {
   invoice_date: string | null    // ISO 8601 date string YYYY-MM-DD
   due_date: string | null        // ISO 8601 date string YYYY-MM-DD
   vendor_po_reference: string | null
-  job_name_extracted: string | null  // Explicit "Job:" / "Job Name:" field on the document
+  job_name_extracted: string | null        // Explicit "Job:" / "Job Name:" field on the document
+  customer_name_extracted: string | null   // Explicit "Customer:" / "Bill To:" field on the document
   total: number | null
   subtotal: number | null
   tax_amount: number | null

@@ -5,6 +5,42 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getQBClient } from '@/lib/quickbooks/client'
 
+export async function updatePO(
+  poId: string,
+  fields: Partial<{
+    vendor_id: string | null
+    po_number: string | null
+    order_date: string | null
+    notes: string | null
+  }>
+) {
+  const supabase = await createClient()
+  await supabase.from('purchase_orders').update(fields).eq('po_id', poId)
+  revalidatePath(`/purchase-orders/${poId}`)
+}
+
+export async function updatePOLineItem(
+  lineId: string,
+  poId: string,
+  fields: Partial<{
+    description: string | null
+    quantity_ordered: number | null
+    unit_cost: number | null
+    extended_cost: number | null
+    job_id: string | null
+  }>
+) {
+  const supabase = await createClient()
+  await supabase.from('po_line_items').update(fields).eq('line_id', lineId)
+  revalidatePath(`/purchase-orders/${poId}`)
+}
+
+export async function applyJobToAllPOLines(poId: string, jobId: string | null) {
+  const supabase = await createClient()
+  await supabase.from('po_line_items').update({ job_id: jobId }).eq('po_id', poId)
+  revalidatePath(`/purchase-orders/${poId}`)
+}
+
 export async function closePO(poId: string) {
   const supabase = await createClient()
   await supabase

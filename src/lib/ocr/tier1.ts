@@ -17,7 +17,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     console.warn(`[ocr] Tier 1 pdf-parse failed: ${err instanceof Error ? err.message : String(err)} — routing to Tier 3`)
     return {
       vendor_name_raw: null, invoice_number: null, invoice_date: null, due_date: null,
-      vendor_po_reference: null, job_name_extracted: null, total: null, subtotal: null, tax_amount: null,
+      vendor_po_reference: null, job_name_extracted: null, customer_name_extracted: null, total: null, subtotal: null, tax_amount: null,
       line_items: [], confidence: 0, raw_text: '', rawText: '',
     }
   }
@@ -45,6 +45,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     due_date,
     vendor_po_reference,
     job_name_extracted,
+    customer_name_extracted: null,   // Tier 1 regex doesn't extract customer name; Tier 2/3 handle it
     total,
     subtotal,
     tax_amount,

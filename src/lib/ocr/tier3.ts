@@ -15,6 +15,7 @@ Extract the following fields:
 - due_date: Payment due date in ISO 8601 format (YYYY-MM-DD). Null if not present.
 - vendor_po_reference: The customer's PO number, job number, or reference number that the vendor printed on the invoice.
 - job_name: The value of any field explicitly labeled "Job", "Job Name", "Job #", "Project", or "Work Order Name" on the document. Null if no such labeled field exists.
+- customer_name: The value of any field explicitly labeled "Customer", "Bill To", "Sold To", or "Customer Name" on the document. Null if no such labeled field exists.
 - total: The invoice total (numeric only)
 - subtotal: The subtotal before tax (numeric). Null if not present.
 - tax_amount: Total tax charged (numeric). Null if not present.
@@ -140,9 +141,10 @@ function toTierResult(data: Record<string, unknown>): TierResult {
     invoice_number:       toString(data.invoice_number),
     invoice_date:         toString(data.invoice_date),
     due_date:             toString(data.due_date),
-    vendor_po_reference:  toString(data.vendor_po_reference),
-    job_name_extracted:   toString(data.job_name),
-    total:                toNumber(data.total),
+    vendor_po_reference:      toString(data.vendor_po_reference),
+    job_name_extracted:       toString(data.job_name),
+    customer_name_extracted:  toString(data.customer_name),
+    total:                    toNumber(data.total),
     subtotal:             toNumber(data.subtotal),
     tax_amount:           toNumber(data.tax_amount),
     line_items:           lineItems,

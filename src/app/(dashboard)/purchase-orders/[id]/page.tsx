@@ -19,15 +19,15 @@ export default async function PODetailPage({
       job_id, status, qb_po_id, qb_sync_error, pdf_url, notes, created_at, deleted_at,
       vendor_id,
       vendors(vendor_name_display, qb_vendor_id),
-      po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, extended_cost, sort_order)
+      po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, extended_cost, job_id, sort_order)
     `)
     .eq('po_id', id)
     .single()
 
   if (!po || po.deleted_at) notFound()
 
-  // Matched bills + company settings (in parallel)
-  const [{ data: matchedBills }, { data: companySettings }] = await Promise.all([
+  // Matched bills, company settings, jobs, vendors — all in parallel
+  const [{ data: matchedBills }, { data: companySettings }, { data: jobRows }, { data: vendorRows }] = await Promise.all([
     supabase
       .from('bills')
       .select('bill_id, invoice_number, total, status, vendor_name_raw')
@@ -35,26 +35,40 @@ export default async function PODetailPage({
       .is('deleted_at', null),
     supabase
       .from('companies')
-      .select('push_pos_to_qb')
+      .select('push_pos_to_qb, job_costing_enabled, job_tagging_level')
       .eq('company_id', po.company_id)
       .single(),
+    supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id, job_number, job_name, customer_name, status, parent_id, is_customer')
+      .eq('company_id', po.company_id)
+      .order('job_number', { ascending: true }),
+    supabase
+      .from('vendors')
+      .select('vendor_id, vendor_name_display, vendor_name_extracted, qb_vendor_id')
+      .eq('company_id', po.company_id)
+      .eq('is_visible', true)
+      .order('vendor_name_display', { ascending: true }),
   ])
 
-  // Job label from QB cache
-  let jobLabel: string | null = null
-  if (po.job_id) {
-    const { data: job } = await supabase
-      .from('qb_jobs_cache')
-      .select('job_number, job_name, customer_name')
-      .eq('company_id', po.company_id)
-      .eq('qb_job_id', po.job_id)
-      .single()
-    if (job) {
-      jobLabel = [job.job_number, job.job_name, job.customer_name].filter(Boolean).join(' · ')
-    } else {
-      jobLabel = po.job_id
-    }
-  }
+  // Filter jobs by tagging level setting
+  const taggingLevel = companySettings?.job_tagging_level ?? 'sub_customers_only'
+  const allJobs = (jobRows ?? []) as {
+    qb_job_id: string; job_number: string | null; job_name: string | null
+    customer_name: string | null; status: string; parent_id: string | null; is_customer: boolean
+  }[]
+  const activeJobs = allJobs.filter(j => {
+    if (j.status !== 'active') return false
+    if (taggingLevel === 'sub_customers_only') return !j.is_customer
+    if (taggingLevel === 'customers_only') return j.is_customer
+    return true
+  })
+  const closedJobs = allJobs.filter(j => {
+    if (j.status !== 'closed') return false
+    if (taggingLevel === 'sub_customers_only') return !j.is_customer
+    if (taggingLevel === 'customers_only') return j.is_customer
+    return true
+  })
 
   let pdfSignedUrl: string | null = null
   if (po.pdf_url) {
@@ -74,6 +88,7 @@ export default async function PODetailPage({
     quantity_received: number | null
     unit_cost: number | null
     extended_cost: number | null
+    job_id: string | null
     sort_order: number
   }[]).sort((a, b) => a.sort_order - b.sort_order)
 
@@ -105,7 +120,10 @@ export default async function PODetailPage({
             status: string
             vendor_name_raw: string | null
           }[]}
-          jobLabel={jobLabel}
+          jobs={activeJobs}
+          closedJobs={closedJobs}
+          vendors={(vendorRows ?? []) as { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null; qb_vendor_id: string | null }[]}
+          jobCostingEnabled={companySettings?.job_costing_enabled ?? false}
           pushPosToQb={companySettings?.push_pos_to_qb ?? true}
         />
       }
