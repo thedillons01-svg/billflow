@@ -19,6 +19,9 @@ export function ExportForm({
   const [dateEnd, setDateEnd] = useState('')
   const [selectedVendors, setSelectedVendors] = useState<string[]>([])
   const [selectedJobs, setSelectedJobs] = useState<string[]>([])
+  const [includePOs, setIncludePOs] = useState(true)
+  const [includeReceiving, setIncludeReceiving] = useState(true)
+  const [includeInvoiced, setIncludeInvoiced] = useState(true)
   const [isPending, startTransition] = useTransition()
 
   const toggleItem = (id: string, list: string[], setList: (v: string[]) => void) => {
@@ -32,6 +35,9 @@ export function ExportForm({
       if (dateEnd) params.set('dateEnd', dateEnd)
       if (selectedVendors.length) params.set('vendorIds', selectedVendors.join(','))
       if (selectedJobs.length) params.set('jobIds', selectedJobs.join(','))
+      if (!includePOs)        params.set('includePOs',       'false')
+      if (!includeReceiving)  params.set('includeReceiving', 'false')
+      if (!includeInvoiced)   params.set('includeInvoiced',  'false')
 
       const res = await fetch(`/api/exports/generate?${params}`)
       if (!res.ok) {
@@ -85,10 +91,34 @@ export function ExportForm({
       </div>
 
       <div className="px-5 py-4 space-y-4">
+        {/* Transaction types */}
+        <div>
+          <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 8 }}>
+            Include
+          </p>
+          <div className="flex flex-wrap gap-4">
+            {([
+              { key: 'pos',       label: 'Purchase Orders', value: includePOs,       set: setIncludePOs       },
+              { key: 'receiving', label: 'Receiving Records', value: includeReceiving, set: setIncludeReceiving },
+              { key: 'invoiced',  label: 'Invoiced Bills',   value: includeInvoiced,  set: setIncludeInvoiced  },
+            ] as const).map(({ key, label, value, set }) => (
+              <label key={key} className="flex items-center gap-2" style={{ cursor: 'pointer', fontSize: 13, color: 'var(--color-text-primary)' }}>
+                <input
+                  type="checkbox"
+                  checked={value}
+                  onChange={e => set(e.target.checked)}
+                  style={{ width: 14, height: 14, accentColor: '#2DB87A', cursor: 'pointer' }}
+                />
+                {label}
+              </label>
+            ))}
+          </div>
+        </div>
+
         {/* Date range */}
         <div>
           <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 6 }}>
-            Invoice Date Range
+            Date Range
           </p>
           <div className="flex items-center gap-2">
             <input type="date" value={dateStart} onChange={e => setDateStart(e.target.value)} style={inputStyle} />
