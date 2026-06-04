@@ -65,7 +65,7 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
       }
     })
 
-    payload = {
+    const payload: Record<string, unknown> = {
       Line: qboLines,
       VendorRef: { value: String(vendor.qb_vendor_id) },
     }
