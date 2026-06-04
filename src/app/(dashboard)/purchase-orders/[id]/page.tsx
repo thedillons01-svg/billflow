@@ -17,7 +17,8 @@ export default async function PODetailPage({
     .select(`
       po_id, company_id, vendor_name_raw, po_number, order_date, expected_delivery_date,
       job_id, status, qb_po_id, qb_sync_error, pdf_url, notes, created_at, deleted_at,
-      vendors(vendor_name_display),
+      vendor_id,
+      vendors(vendor_name_display, qb_vendor_id),
       po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, extended_cost, sort_order)
     `)
     .eq('po_id', id)
@@ -63,7 +64,7 @@ export default async function PODetailPage({
     pdfSignedUrl = signed?.signedUrl ?? null
   }
 
-  const vendor = (po.vendors as unknown as { vendor_name_display: string | null } | null)
+  const vendor = (po.vendors as unknown as { vendor_name_display: string | null; qb_vendor_id: string | null } | null)
   const vendorName = vendor?.vendor_name_display ?? po.vendor_name_raw ?? 'Unknown Vendor'
 
   const lineItems = ((po.po_line_items ?? []) as {
@@ -83,7 +84,10 @@ export default async function PODetailPage({
           po={{
             po_id: po.po_id,
             company_id: po.company_id,
+            vendor_id: po.vendor_id ?? null,
             vendor_name: vendorName,
+            vendor_name_raw: po.vendor_name_raw ?? null,
+            vendor_qb_linked: !!vendor?.qb_vendor_id,
             po_number: po.po_number,
             order_date: po.order_date,
             expected_delivery_date: po.expected_delivery_date,

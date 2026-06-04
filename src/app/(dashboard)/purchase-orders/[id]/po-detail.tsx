@@ -3,12 +3,15 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
-import { closePO, deletePO } from '../actions'
+import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO } from '../actions'
 
 type PO = {
   po_id: string
   company_id: string
+  vendor_id: string | null
   vendor_name: string
+  vendor_name_raw: string | null
+  vendor_qb_linked: boolean
   po_number: string | null
   order_date: string | null
   expected_delivery_date: string | null
@@ -70,6 +73,9 @@ export function PODetail({
   const [pushError, setPushError] = useState<string | null>(null)
   const [pushSuccess, setPushSuccess] = useState(false)
   const [localStatus, setLocalStatus] = useState(po.status)
+  const [localVendorQbLinked, setLocalVendorQbLinked] = useState(po.vendor_qb_linked)
+  const [localVendorId, setLocalVendorId] = useState(po.vendor_id)
+  const [vendorActionError, setVendorActionError] = useState<string | null>(null)
 
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.open
   const canReceive = ['open', 'partially_received'].includes(localStatus)
@@ -206,9 +212,99 @@ export function PODetail({
             </div>
           )}
 
+          {/* Vendor QB status — only show when push is enabled and PO not yet in QB */}
+          {pushPosToQb && !isQBPushed && !pushSuccess && (
+            <>
+              {!localVendorId && po.vendor_name_raw && (
+                <div
+                  className="flex items-start gap-2"
+                  style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px' }}
+                >
+                  <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E' }}>Vendor not matched</p>
+                    <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                      &ldquo;{po.vendor_name_raw}&rdquo; isn&apos;t linked to a vendor record yet.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setVendorActionError(null)
+                        startTransition(async () => {
+                          const result = await createVendorFromPO(po.po_id, po.company_id, po.vendor_name_raw!)
+                          if ('error' in result) {
+                            setVendorActionError(result.error)
+                          } else {
+                            setLocalVendorId(result.vendorId)
+                            setLocalVendorQbLinked(true)
+                            router.refresh()
+                          }
+                        })
+                      }}
+                      style={{
+                        marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: 'white', border: '0.5px solid #D97706', borderRadius: 5,
+                        padding: '4px 10px', fontSize: 11, fontWeight: 500, color: '#92400E',
+                        cursor: isPending ? 'default' : 'pointer', opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      <i className="ti ti-plus" style={{ fontSize: 11 }} />
+                      {isPending ? 'Creating…' : `Create "${po.vendor_name_raw}" as new vendor`}
+                    </button>
+                    {vendorActionError && (
+                      <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B' }}>{vendorActionError}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+              {localVendorId && !localVendorQbLinked && (
+                <div
+                  className="flex items-start gap-2"
+                  style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px' }}
+                >
+                  <i className="ti ti-alert-triangle" style={{ fontSize: 15, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E' }}>Vendor not in QuickBooks</p>
+                    <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                      {po.vendor_name} exists in Purchasomatic but isn&apos;t linked to a QuickBooks vendor yet.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={isPending}
+                      onClick={() => {
+                        setVendorActionError(null)
+                        startTransition(async () => {
+                          const result = await addVendorToQBFromPO(localVendorId, po.company_id, po.po_id)
+                          if (result.error) {
+                            setVendorActionError(result.error)
+                          } else {
+                            setLocalVendorQbLinked(true)
+                          }
+                        })
+                      }}
+                      style={{
+                        marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 4,
+                        background: 'white', border: '0.5px solid #D97706', borderRadius: 5,
+                        padding: '4px 10px', fontSize: 11, fontWeight: 500, color: '#92400E',
+                        cursor: isPending ? 'default' : 'pointer', opacity: isPending ? 0.6 : 1,
+                      }}
+                    >
+                      <i className="ti ti-building-store" style={{ fontSize: 11 }} />
+                      {isPending ? 'Adding…' : 'Add to QuickBooks'}
+                    </button>
+                    {vendorActionError && (
+                      <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B' }}>{vendorActionError}</p>
+                    )}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {/* Action buttons */}
           <div className="flex items-center gap-2 flex-wrap">
-            {pushPosToQb && !isQBPushed && !pushSuccess && (
+            {pushPosToQb && !isQBPushed && !pushSuccess && localVendorQbLinked && (
               <ActionButton
                 onClick={handlePushToQB}
                 disabled={isPending}

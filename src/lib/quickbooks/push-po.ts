@@ -26,8 +26,6 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
   } | null
   if (!vendor?.qb_vendor_id) throw new Error('Vendor not linked to QuickBooks.')
 
-  // POs don't affect the GL — the vendor's default expense account is used only as the
-  // AccountRef the QBO API requires. Users never set GL accounts on individual PO lines.
   const vendorGl = vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
   if (!vendorGl) {
     throw new Error(
@@ -37,12 +35,12 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
   }
 
   const lines = ((po as Record<string, unknown>).po_line_items as {
-    line_id: string
-    description: string | null
+    line_id:          string
+    description:      string | null
     quantity_ordered: number | null
-    unit_cost: number | null
-    extended_cost: number | null
-    sort_order: number
+    unit_cost:        number | null
+    extended_cost:    number | null
+    sort_order:       number
   }[]).sort((a, b) => a.sort_order - b.sort_order)
 
   if (lines.length === 0) {
@@ -53,23 +51,23 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
     const { qbPost } = await getQBClient(companyId)
 
     const qboLines = lines.map(l => {
-      const amount = l.extended_cost ?? ((l.quantity_ordered ?? 1) * (l.unit_cost ?? 0))
+      const amount = l.extended_cost != null
+        ? Number(l.extended_cost)
+        : (Number(l.quantity_ordered ?? 1) * Number(l.unit_cost ?? 0))
       return {
         DetailType: 'AccountBasedExpenseLineDetail',
         Amount: Math.max(0, amount),
         ...(l.description ? { Description: l.description } : {}),
         AccountBasedExpenseLineDetail: {
-          AccountRef: { value: vendorGl },
-          ...(l.quantity_ordered != null ? { Qty: l.quantity_ordered } : {}),
-          ...(l.unit_cost != null ? { UnitPrice: l.unit_cost } : {}),
-          ...(po.job_id ? { CustomerRef: { value: po.job_id } } : {}),
+          AccountRef: { value: String(vendorGl) },
+          ...(po.job_id ? { CustomerRef: { value: String(po.job_id) } } : {}),
         },
       }
     })
 
-    const payload: Record<string, unknown> = {
+    payload = {
       Line: qboLines,
-      VendorRef: { value: vendor.qb_vendor_id },
+      VendorRef: { value: String(vendor.qb_vendor_id) },
     }
     if (po.po_number) payload.DocNumber = po.po_number
     if (po.order_date) payload.TxnDate = po.order_date

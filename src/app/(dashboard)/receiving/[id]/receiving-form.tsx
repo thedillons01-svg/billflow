@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
@@ -14,194 +14,271 @@ type Line = {
   sort_order: number
 }
 
+type LineState = {
+  qty: string
+  note: string
+  noteOpen: boolean
+}
+
+function initQty(line: Line): string {
+  const prev = line.quantity_received ?? 0
+  const ordered = line.quantity_ordered ?? 1
+  // Default to fully received if already partially or fully received, else 0
+  return prev > 0 ? String(ordered) : String(ordered)
+}
+
+function deriveStatus(qty: string, ordered: number | null): 'received' | 'partial' | 'not_received' {
+  const n = parseFloat(qty) || 0
+  const o = ordered ?? 1
+  if (n <= 0) return 'not_received'
+  if (n >= o) return 'received'
+  return 'partial'
+}
+
 export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [notes, setNotes] = useState('')
-  const [lineState, setLineState] = useState<Record<string, { status: 'received' | 'partial' | 'not_received'; qty: string; note: string }>>(
+  const [lineState, setLineState] = useState<Record<string, LineState>>(
     Object.fromEntries(lines.map(l => [l.line_id, {
-      status: (l.quantity_received ?? 0) >= (l.quantity_ordered ?? 1) ? 'received' : 'not_received',
-      qty: String(l.quantity_ordered ?? ''),
+      qty: initQty(l),
       note: '',
+      noteOpen: false,
     }]))
   )
 
-  const setLineStatus = (id: string, status: 'received' | 'partial' | 'not_received') => {
+  const receiveAll = () => {
+    setLineState(prev => {
+      const next = { ...prev }
+      for (const l of lines) {
+        next[l.line_id] = { ...next[l.line_id], qty: String(l.quantity_ordered ?? 1) }
+      }
+      return next
+    })
+  }
+
+  const toggleLine = (id: string, ordered: number | null) => {
+    const current = parseFloat(lineState[id]?.qty || '0') || 0
+    const o = ordered ?? 1
     setLineState(prev => ({
       ...prev,
-      [id]: {
-        ...prev[id],
-        status,
-        qty: status === 'received' ? String(lines.find(l => l.line_id === id)?.quantity_ordered ?? '') : prev[id].qty,
-      }
+      [id]: { ...prev[id], qty: current > 0 ? '0' : String(o) },
     }))
   }
 
   const handleSubmit = () => {
     startTransition(async () => {
-      const lineItems = lines.map(l => ({
-        line_id: l.line_id,
-        status: lineState[l.line_id]?.status ?? 'not_received',
-        quantity_received: lineState[l.line_id]?.status === 'not_received'
-          ? 0
-          : lineState[l.line_id]?.status === 'received'
-          ? (l.quantity_ordered ?? 1)
-          : parseFloat(lineState[l.line_id]?.qty || '0'),
-        note: lineState[l.line_id]?.note ?? '',
-      }))
+      const lineItems = lines.map(l => {
+        const qty = parseFloat(lineState[l.line_id]?.qty || '0') || 0
+        return {
+          line_id: l.line_id,
+          status: deriveStatus(lineState[l.line_id]?.qty ?? '0', l.quantity_ordered),
+          quantity_received: Math.max(0, Math.min(qty, l.quantity_ordered ?? qty)),
+          note: lineState[l.line_id]?.note ?? '',
+        }
+      })
       await submitReceiving({ poId, lineItems, notes })
       router.push('/receiving')
     })
   }
 
+  const allReceived = lines.every(l => parseFloat(lineState[l.line_id]?.qty || '0') >= (l.quantity_ordered ?? 1))
+
   return (
     <div>
-      <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 16 }}>
-        Mark each line as received, partially received, or not received. This updates the PO status in Purchasomatic.
-      </p>
+      {/* Toolbar */}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <button
+          onClick={receiveAll}
+          disabled={isPending || allReceived}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            background: 'white', color: '#1A3D2B',
+            border: '0.5px solid #C3DEC9', borderRadius: 6,
+            padding: '6px 14px', fontSize: 13, fontWeight: 500,
+            cursor: isPending || allReceived ? 'default' : 'pointer',
+            opacity: allReceived ? 0.5 : 1,
+          }}
+        >
+          <i className="ti ti-checks" style={{ fontSize: 14 }} />
+          Receive All
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSubmit}
+            disabled={isPending}
+            style={{
+              background: '#2DB87A', color: 'white',
+              borderRadius: 6, padding: '6px 16px',
+              fontSize: 13, fontWeight: 500,
+              border: 'none', cursor: isPending ? 'default' : 'pointer',
+              opacity: isPending ? 0.6 : 1,
+            }}
+          >
+            {isPending ? 'Saving…' : 'Save'}
+          </button>
+          <a
+            href="/receiving"
+            style={{
+              background: 'white', color: 'var(--color-text-secondary)',
+              borderRadius: 6, padding: '6px 14px', fontSize: 13,
+              border: '0.5px solid var(--color-border-secondary)',
+              textDecoration: 'none', display: 'inline-block',
+            }}
+          >
+            Cancel
+          </a>
+        </div>
+      </div>
 
+      {/* Grid */}
       <div
         style={{
           background: 'white',
           border: '0.5px solid var(--color-border-tertiary)',
-          borderRadius: 8,
-          overflow: 'hidden',
-          marginBottom: 20,
+          borderRadius: 8, overflow: 'hidden',
+          marginBottom: 16,
         }}
       >
-        {lines.map((line, idx) => {
-          const state = lineState[line.line_id] ?? { status: 'not_received', qty: '', note: '' }
-          return (
-            <div
-              key={line.line_id}
-              style={{
-                borderBottom: idx < lines.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
-              }}
-            >
-              <div className="px-5 py-4">
-                <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-                  {line.description ?? 'No description'}
-                </p>
-                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
-                  Ordered: {line.quantity_ordered ?? '—'}
-                  {line.unit_cost != null ? ` · $${Number(line.unit_cost).toFixed(2)} each` : ''}
-                  {(line.quantity_received ?? 0) > 0 ? ` · ${line.quantity_received} previously received` : ''}
-                </p>
+        {/* Header */}
+        <div
+          className="grid items-center px-3 py-2"
+          style={{
+            gridTemplateColumns: '36px 1fr 52px 80px 32px',
+            background: 'var(--color-background-secondary)',
+            borderBottom: '0.5px solid var(--color-border-tertiary)',
+          }}
+        >
+          {['', 'Description', 'Ord', 'Rcvd', ''].map((h, i) => (
+            <span key={i} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
+              {h}
+            </span>
+          ))}
+        </div>
 
-                {/* Status buttons */}
-                <div className="flex gap-2 mb-3">
-                  {(['received', 'partial', 'not_received'] as const).map(s => (
-                    <button
-                      key={s}
-                      onClick={() => setLineStatus(line.line_id, s)}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: 6,
-                        fontSize: 12,
-                        fontWeight: state.status === s ? 500 : 400,
-                        cursor: 'pointer',
-                        border: state.status === s ? '1.5px solid #2DB87A' : '0.5px solid var(--color-border-secondary)',
-                        background: state.status === s ? '#EBF5EF' : 'white',
-                        color: state.status === s ? '#1A3D2B' : 'var(--color-text-secondary)',
-                      }}
-                    >
-                      {s === 'received' ? 'Received' : s === 'partial' ? 'Partial' : 'Not Received'}
-                    </button>
-                  ))}
+        {lines.map((line, idx) => {
+          const state = lineState[line.line_id]
+          const qty = parseFloat(state?.qty || '0') || 0
+          const ordered = line.quantity_ordered ?? 1
+          const checked = qty > 0
+          const status = deriveStatus(state?.qty ?? '0', line.quantity_ordered)
+
+          return (
+            <div key={line.line_id} style={{ borderBottom: idx < lines.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none' }}>
+              <div
+                className="grid items-center px-3"
+                style={{ gridTemplateColumns: '36px 1fr 52px 80px 32px', minHeight: 48 }}
+              >
+                {/* Checkbox */}
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleLine(line.line_id, line.quantity_ordered)}
+                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#2DB87A' }}
+                />
+
+                {/* Description + status badge */}
+                <div style={{ paddingRight: 8, paddingTop: 4, paddingBottom: 4 }}>
+                  <span style={{
+                    fontSize: 13, color: checked ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
+                    display: 'block', lineHeight: 1.4,
+                  }}>
+                    {line.description ?? 'No description'}
+                  </span>
+                  {line.unit_cost != null && (
+                    <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)' }}>
+                      ${Number(line.unit_cost).toFixed(2)} each
+                    </span>
+                  )}
+                  {status === 'partial' && (
+                    <span style={{ fontSize: 10, fontWeight: 500, color: '#D97706', background: '#FEF3C7', borderRadius: 3, padding: '1px 5px', marginLeft: 4 }}>
+                      partial
+                    </span>
+                  )}
                 </div>
 
-                {state.status === 'partial' && (
-                  <div className="mb-3">
-                    <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
-                      Quantity received
-                    </label>
-                    <input
-                      type="number"
-                      value={state.qty}
-                      min={0}
-                      max={line.quantity_ordered ?? undefined}
-                      step="0.01"
-                      onChange={e => setLineState(prev => ({ ...prev, [line.line_id]: { ...prev[line.line_id], qty: e.target.value } }))}
-                      style={{
-                        width: 120, height: 36,
-                        border: '0.5px solid var(--color-border-secondary)',
-                        borderRadius: 6, padding: '0 10px',
-                        fontSize: 13,
-                      }}
-                    />
-                  </div>
-                )}
+                {/* Ordered qty */}
+                <span style={{ fontSize: 13, color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums', textAlign: 'right', paddingRight: 8 }}>
+                  {ordered}
+                </span>
 
-                <div>
+                {/* Received qty input */}
+                <input
+                  type="number"
+                  value={state?.qty ?? ''}
+                  min={0}
+                  max={ordered}
+                  step="1"
+                  onChange={e => setLineState(prev => ({
+                    ...prev,
+                    [line.line_id]: { ...prev[line.line_id], qty: e.target.value },
+                  }))}
+                  style={{
+                    width: '100%', height: 32,
+                    border: `0.5px solid ${status === 'partial' ? '#FCD34D' : status === 'received' ? '#6EE7B7' : 'var(--color-border-secondary)'}`,
+                    borderRadius: 5, padding: '0 8px',
+                    fontSize: 13, textAlign: 'center',
+                    background: status === 'received' ? '#F0FDF4' : status === 'partial' ? '#FFFBEB' : 'white',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                />
+
+                {/* Note toggle */}
+                <button
+                  type="button"
+                  onClick={() => setLineState(prev => ({
+                    ...prev,
+                    [line.line_id]: { ...prev[line.line_id], noteOpen: !prev[line.line_id].noteOpen },
+                  }))}
+                  title="Add note"
+                  style={{
+                    background: 'none', border: 'none', cursor: 'pointer',
+                    color: state?.note ? '#D97706' : 'var(--color-text-tertiary)',
+                    fontSize: 15, padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <i className={state?.note ? 'ti ti-message-filled' : 'ti ti-message'} />
+                </button>
+              </div>
+
+              {/* Inline note field */}
+              {state?.noteOpen && (
+                <div className="px-3 pb-3" style={{ paddingLeft: 52 }}>
                   <input
                     type="text"
-                    placeholder="Notes (damage, substitution…)"
+                    placeholder="Damage, substitution, discrepancy…"
                     value={state.note}
-                    onChange={e => setLineState(prev => ({ ...prev, [line.line_id]: { ...prev[line.line_id], note: e.target.value } }))}
+                    autoFocus
+                    onChange={e => setLineState(prev => ({
+                      ...prev,
+                      [line.line_id]: { ...prev[line.line_id], note: e.target.value },
+                    }))}
                     style={{
-                      width: '100%', height: 36,
+                      width: '100%', height: 32,
                       border: '0.5px solid var(--color-border-secondary)',
-                      borderRadius: 6, padding: '0 10px',
-                      fontSize: 13, color: 'var(--color-text-primary)',
+                      borderRadius: 5, padding: '0 10px', fontSize: 12,
                     }}
                   />
-                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-                    Optional — record damage, substitutions, or discrepancies.
-                  </p>
                 </div>
-              </div>
+              )}
             </div>
           )
         })}
       </div>
 
-      {/* Overall notes */}
+      {/* Overall notes — compact */}
       <div className="mb-5">
-        <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
-          Overall receiving notes
-        </label>
-        <textarea
+        <input
+          type="text"
           value={notes}
           onChange={e => setNotes(e.target.value)}
-          placeholder="Any general notes about this delivery…"
-          rows={3}
+          placeholder="Overall delivery notes (optional)"
           style={{
-            width: '100%',
+            width: '100%', height: 36,
             border: '0.5px solid var(--color-border-secondary)',
-            borderRadius: 6, padding: '8px 10px',
-            fontSize: 13, resize: 'vertical',
+            borderRadius: 6, padding: '0 10px', fontSize: 13,
           }}
         />
-        <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-          Optional — recorded in the receiving history for this PO.
-        </p>
-      </div>
-
-      <div className="flex gap-3">
-        <button
-          onClick={handleSubmit}
-          disabled={isPending}
-          style={{
-            background: '#2DB87A', color: 'white',
-            borderRadius: 6, padding: '7px 16px',
-            fontSize: 13, fontWeight: 500,
-            border: 'none', cursor: 'pointer',
-            opacity: isPending ? 0.6 : 1,
-          }}
-        >
-          {isPending ? 'Saving…' : 'Save Receiving Record'}
-        </button>
-        <a
-          href="/receiving"
-          style={{
-            background: 'white', color: 'var(--color-text-primary)',
-            borderRadius: 6, padding: '7px 16px',
-            fontSize: 13, border: '0.5px solid var(--color-border-secondary)',
-            textDecoration: 'none', display: 'inline-block',
-          }}
-        >
-          Cancel
-        </a>
       </div>
     </div>
   )

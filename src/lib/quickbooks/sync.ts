@@ -435,6 +435,39 @@ export async function syncTerms(companyId: string) {
   if (error) throw new Error(`Terms cache upsert failed: ${error.message}`)
 }
 
+type QBItem = {
+  Id: string
+  Name: string
+  Type: string
+  Active: boolean
+}
+
+export async function syncItems(companyId: string) {
+  const supabase = createServiceClient()
+  const { qbFetchAll } = await getQBClient(companyId)
+
+  let items: QBItem[]
+  try {
+    items = await qbFetchAll<QBItem>('Item', 'SELECT * FROM Item WHERE Active = true')
+  } catch {
+    return
+  }
+  if (items.length === 0) return
+
+  const { error } = await supabase.from('qb_items_cache').upsert(
+    items.map(i => ({
+      company_id: companyId,
+      qb_item_id: i.Id,
+      name:       i.Name,
+      item_type:  i.Type,
+      active:     i.Active,
+      cached_at:  new Date().toISOString(),
+    })),
+    { onConflict: 'company_id,qb_item_id', ignoreDuplicates: false }
+  )
+  if (error) throw new Error(`Items cache upsert failed: ${error.message}`)
+}
+
 export async function syncAll(companyId: string) {
   await Promise.all([
     syncAccounts(companyId),
@@ -442,6 +475,7 @@ export async function syncAll(companyId: string) {
     syncJobs(companyId),
     syncClasses(companyId).catch(() => {}),
     syncTerms(companyId).catch(() => {}),
+    syncItems(companyId).catch(() => {}),
   ])
 
   const supabase = createServiceClient()
