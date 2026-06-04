@@ -329,7 +329,7 @@ async function insertPOLineItems(
   const hasTaxLine = allItems.some(li => isTaxDescription(li.description))
   if (!hasTaxLine && taxAmount && taxAmount > 0) {
     allItems.push({
-      description: 'Sales Tax',
+      description: 'Tax',
       quantity:    null,
       unit_price:  null,
       total:       taxAmount,
