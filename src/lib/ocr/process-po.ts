@@ -138,7 +138,7 @@ export async function processPO(poId: string): Promise<void> {
   }
 
   // Insert PO line items
-  await insertPOLineItems(supabase, poId, po.company_id, result.line_items)
+  await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount)
 
   // Deduct 1 credit for PO processing
   const { data: co } = await supabase
