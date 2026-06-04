@@ -297,7 +297,7 @@ export async function getExportData(
     const vendorName = vendor?.vendor_name_display ?? vendor?.vendor_name_extracted ?? 'Unknown Vendor'
 
     const lines = bill.bill_line_items
-      .filter(li => !li.is_tax_line && li.job_id && targetJobIds.has(li.job_id))
+      .filter(li => li.job_id && targetJobIds.has(li.job_id))
       .sort((a, b) => a.sort_order - b.sort_order)
 
     const linesByJob = new Map<string, typeof lines>()

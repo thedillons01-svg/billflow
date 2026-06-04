@@ -253,5 +253,5 @@ function normalizeDate(raw: string): string | null {
 }
 
 function isSummaryLine(desc: string): boolean {
-  return /^(sub\s*total|total|tax|shipping|freight|discount|amount due|balance due)/i.test(desc)
+  return /^(sub\s*total|total|amount due|balance due)/i.test(desc)
 }
