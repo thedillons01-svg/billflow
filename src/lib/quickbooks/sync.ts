@@ -238,40 +238,103 @@ export async function syncSingleVendorFromQB(companyId: string, qbVendorId: stri
   }
 }
 
+// Build a cache row from a QB customer. Works for both top-level customers and sub-customers.
+function buildJobRow(companyId: string, c: QBCustomer, statusMap: Map<string, string>): Record<string, unknown> {
+  const isCustomer = !c.ParentRef
+  const parts = c.FullyQualifiedName.split(':')
+  // For top-level customers: job_name = their own name, customer_name = ''
+  // For sub-customers: job_name = last segment, customer_name = everything before
+  const jobName = parts[parts.length - 1]
+  const customerName = parts.length > 1 ? parts.slice(0, -1).join(':') : ''
+  const jobNumberMatch = jobName.match(/\b(\d+)\b/)
+  return {
+    company_id:    companyId,
+    qb_job_id:     c.Id,
+    job_name:      jobName,
+    job_number:    jobNumberMatch?.[1] ?? null,
+    customer_name: customerName,
+    customer_id:   c.ParentRef?.value ?? null,
+    parent_id:     c.ParentRef?.value ?? null,
+    is_customer:   isCustomer,
+    // Preserve user-set status; new entries default to 'active'
+    status:        statusMap.get(c.Id) ?? 'active',
+    cached_at:     new Date().toISOString(),
+  }
+}
+
 export async function syncJobs(companyId: string) {
   const supabase = createServiceClient()
   const { qbFetchAll } = await getQBClient(companyId)
 
-  // Fetch all active customers — filter in code because QBO Online often sets
-  // ParentRef instead of Job=true for sub-customers (jobs)
   const allCustomers = await qbFetchAll<QBCustomer>(
     'Customer',
     'SELECT * FROM Customer WHERE Active = true'
   )
-  const jobs = allCustomers.filter(c => c.Job === true || c.ParentRef != null)
-  if (jobs.length === 0) return
+  if (allCustomers.length === 0) return
 
-  await supabase.from('qb_jobs_cache').delete().eq('company_id', companyId)
-  const { error } = await supabase.from('qb_jobs_cache').insert(
-    jobs.map(j => {
-      // FullyQualifiedName format: "Customer Name:Job Name"
-      const parts = j.FullyQualifiedName.split(':')
-      const customerName = parts.length > 1 ? parts.slice(0, -1).join(':') : (j.ParentRef?.name ?? '')
-      const jobName = parts[parts.length - 1]
-      const jobNumberMatch = jobName.match(/\b(\d+)\b/)
+  // Preserve user-set status values before upserting
+  const { data: existing } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id, status')
+    .eq('company_id', companyId)
+  const statusMap = new Map((existing ?? []).map(r => [r.qb_job_id, r.status as string]))
 
-      return {
-        company_id: companyId,
-        qb_job_id: j.Id,
-        job_name: jobName,
-        job_number: jobNumberMatch?.[1] ?? null,
-        customer_name: customerName,
-        customer_id: j.ParentRef?.value ?? null,
-        cached_at: new Date().toISOString(),
-      }
-    })
-  )
-  if (error) throw new Error(`Jobs cache insert failed: ${error.message}`)
+  const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap))
+
+  const { error } = await supabase.from('qb_jobs_cache').upsert(rows, {
+    onConflict: 'company_id,qb_job_id',
+    ignoreDuplicates: false,
+  })
+  if (error) throw new Error(`Jobs cache upsert failed: ${error.message}`)
+}
+
+export async function closeInactiveJobs(companyId: string): Promise<void> {
+  const supabase = createServiceClient()
+
+  const { data: company } = await supabase
+    .from('companies')
+    .select('auto_close_jobs_days')
+    .eq('company_id', companyId)
+    .single()
+
+  const days = company?.auto_close_jobs_days
+  if (!days || days <= 0) return
+
+  const cutoff = new Date()
+  cutoff.setDate(cutoff.getDate() - days)
+  const cutoffStr = cutoff.toISOString().slice(0, 10)
+
+  // Find jobs with no bill line items, PO lines, or receiving records after the cutoff
+  const { data: activeJobs } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id')
+    .eq('company_id', companyId)
+    .eq('status', 'active')
+
+  if (!activeJobs?.length) return
+
+  // For each active job, check last activity date across all transaction types
+  const inactiveIds: string[] = []
+  for (const job of activeJobs) {
+    const [{ data: billLines }, { data: poLines }] = await Promise.all([
+      supabase.from('bill_line_items').select('line_id')
+        .eq('company_id', companyId).eq('job_id', job.qb_job_id)
+        .gte('created_at', cutoffStr).limit(1),
+      supabase.from('po_line_items').select('line_id')
+        .eq('company_id', companyId).eq('job_id', job.qb_job_id)
+        .gte('created_at', cutoffStr).limit(1),
+    ])
+    if (!billLines?.length && !poLines?.length) {
+      inactiveIds.push(job.qb_job_id)
+    }
+  }
+
+  if (inactiveIds.length > 0) {
+    await supabase.from('qb_jobs_cache')
+      .update({ status: 'closed' })
+      .eq('company_id', companyId)
+      .in('qb_job_id', inactiveIds)
+  }
 }
 
 export async function syncClasses(companyId: string) {
@@ -326,26 +389,15 @@ export async function syncJobsIfStale(companyId: string, maxAgeMinutes = 5): Pro
       'Customer',
       'SELECT * FROM Customer WHERE Active = true'
     )
-    const jobs = allCustomers.filter(c => c.Job === true || c.ParentRef != null)
-    if (jobs.length === 0) return
+    if (allCustomers.length === 0) return
 
-    const now = new Date().toISOString()
-    const rows = jobs.map(j => {
-      const parts = j.FullyQualifiedName.split(':')
-      const customerName = parts.length > 1 ? parts.slice(0, -1).join(':') : (j.ParentRef?.name ?? '')
-      const jobName = parts[parts.length - 1]
-      const jobNumberMatch = jobName.match(/\b(\d+)\b/)
-      return {
-        company_id:    companyId,
-        qb_job_id:     j.Id,
-        job_name:      jobName,
-        job_number:    jobNumberMatch?.[1] ?? null,
-        customer_name: customerName,
-        customer_id:   j.ParentRef?.value ?? null,
-        cached_at:     now,
-      }
-    })
+    const { data: existing } = await supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id, status')
+      .eq('company_id', companyId)
+    const statusMap = new Map((existing ?? []).map(r => [r.qb_job_id, r.status as string]))
 
+    const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap))
     await supabase.from('qb_jobs_cache').upsert(rows, {
       onConflict: 'company_id,qb_job_id',
       ignoreDuplicates: false,
@@ -477,6 +529,7 @@ export async function syncAll(companyId: string) {
     syncTerms(companyId).catch(() => {}),
     syncItems(companyId).catch(() => {}),
   ])
+  await closeInactiveJobs(companyId).catch(() => {})
 
   const supabase = createServiceClient()
   await supabase

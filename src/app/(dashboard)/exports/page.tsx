@@ -1,24 +1,23 @@
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { ExportForm } from './export-form'
 
 export default async function ExportsPage() {
   const supabase = await createClient()
 
-  const { data: company } = await supabase.from('companies').select('company_id').single()
+  const { data: company } = await supabase
+    .from('companies')
+    .select('company_id, job_tagging_level')
+    .single()
 
-  const [{ data: vendors }, { data: jobs }, { data: recentExports }] = await Promise.all([
+  const svc = createServiceClient()
+
+  const [{ data: vendors }, { data: recentExports }, jobsWithActivity] = await Promise.all([
     company
       ? supabase.from('vendors')
           .select('vendor_id, vendor_name_display, vendor_name_extracted')
           .eq('company_id', company.company_id)
           .order('vendor_name_extracted')
-      : { data: [] },
-    company
-      ? supabase.from('qb_jobs_cache')
-          .select('qb_job_id, job_number, job_name, customer_name')
-          .eq('company_id', company.company_id)
-          .order('cached_at', { ascending: false })
-          .limit(200)
       : { data: [] },
     company
       ? supabase.from('exports')
@@ -27,6 +26,20 @@ export default async function ExportsPage() {
           .order('export_date', { ascending: false })
           .limit(20)
       : { data: [] },
+    // Jobs that have at least one transaction, sorted by most recent activity
+    company ? (async () => {
+      const taggingLevel = company.job_tagging_level ?? 'sub_customers_only'
+      let q = svc
+        .from('qb_jobs_cache')
+        .select('qb_job_id, job_number, job_name, customer_name, status, is_customer')
+        .eq('company_id', company.company_id)
+        .order('job_number', { ascending: true })
+        .limit(500)
+      if (taggingLevel === 'sub_customers_only') q = q.eq('is_customer', false)
+      else if (taggingLevel === 'customers_only') q = q.eq('is_customer', true)
+      const { data } = await q
+      return data ?? []
+    })() : Promise.resolve([]),
   ])
 
   const vendorOptions = (vendors ?? []).map(v => ({
@@ -34,9 +47,11 @@ export default async function ExportsPage() {
     label: v.vendor_name_display ?? v.vendor_name_extracted ?? '',
   }))
 
-  const jobOptions = (jobs ?? []).map(j => ({
+  type JobRow = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; status: string; is_customer: boolean }
+  const jobOptions = (jobsWithActivity as JobRow[]).map(j => ({
     id: j.qb_job_id,
     label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+    status: j.status,
   }))
 
   return (
@@ -62,6 +77,7 @@ export default async function ExportsPage() {
             jobs={jobOptions}
             lastExportDate={recentExports?.[0]?.export_date ?? null}
           />
+
 
           {/* Export history */}
           {recentExports && recentExports.length > 0 && (

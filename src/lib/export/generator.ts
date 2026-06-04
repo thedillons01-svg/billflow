@@ -77,13 +77,15 @@ export async function getExportData(
     includePOs?: boolean
     includeReceiving?: boolean
     includeInvoiced?: boolean
+    includeClosedJobs?: boolean
   }
 ): Promise<ExportData> {
   const supabase = createServiceClient()
 
-  const includePOs      = options.includePOs      ?? true
-  const includeReceiving = options.includeReceiving ?? true
-  const includeInvoiced  = options.includeInvoiced  ?? true
+  const includePOs        = options.includePOs        ?? true
+  const includeReceiving  = options.includeReceiving  ?? true
+  const includeInvoiced   = options.includeInvoiced   ?? true
+  const includeClosedJobs = options.includeClosedJobs ?? false
 
   const jobSections = new Map<string, ExportJobSection>()
   const allJobIds   = new Set<string>()
@@ -220,8 +222,23 @@ export async function getExportData(
     }
   }
 
+  // ── 4a. Closed job IDs (used to filter when includeClosedJobs=false) ─
+  const closedJobIds = new Set<string>()
+  if (!includeClosedJobs && allJobIds.size > 0) {
+    const realIds = [...allJobIds].filter(id => id !== 'unassigned')
+    if (realIds.length > 0) {
+      const { data: closedRows } = await supabase
+        .from('qb_jobs_cache')
+        .select('qb_job_id')
+        .eq('company_id', companyId)
+        .eq('status', 'closed')
+        .in('qb_job_id', realIds)
+      for (const r of closedRows ?? []) closedJobIds.add(r.qb_job_id)
+    }
+  }
+
   // ── 4. Job details ───────────────────────────────────────────────────
-  const realJobIds = [...allJobIds].filter(id => id !== 'unassigned')
+  const realJobIds = [...allJobIds].filter(id => id !== 'unassigned' && !closedJobIds.has(id))
 
   // If the user filtered by job, intersect. The 'unassigned' bucket is only
   // included when no job filter is active (can't filter to "unassigned" jobs).
@@ -313,6 +330,7 @@ export async function getExportData(
   for (const po of pos) {
     const jobKey = po.job_id ?? 'unassigned'
     if (!targetJobIds.has(jobKey)) continue
+    if (po.job_id && closedJobIds.has(po.job_id)) continue
     const vendor = po.vendors
     const vendorName = vendor?.vendor_name_display ?? vendor?.vendor_name_extracted ?? 'Unknown Vendor'
     const section = getOrCreate(jobKey)
@@ -338,6 +356,7 @@ export async function getExportData(
     if (!po) continue
     const jobKey = po.job_id ?? 'unassigned'
     if (!targetJobIds.has(jobKey)) continue
+    if (po.job_id && closedJobIds.has(po.job_id)) continue
     const vendor = po.vendors
     const vendorName = vendor?.vendor_name_display ?? vendor?.vendor_name_extracted ?? 'Unknown Vendor'
     const section = getOrCreate(jobKey)

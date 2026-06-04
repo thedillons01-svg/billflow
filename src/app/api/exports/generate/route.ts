@@ -17,13 +17,14 @@ export async function GET(req: NextRequest) {
   const dateEnd    = url.searchParams.get('dateEnd')   ?? undefined
   const vendorIds  = url.searchParams.get('vendorIds')?.split(',').filter(Boolean)
   const jobIds     = url.searchParams.get('jobIds')?.split(',').filter(Boolean)
-  const includePOs       = url.searchParams.get('includePOs')       !== 'false'
-  const includeReceiving = url.searchParams.get('includeReceiving') !== 'false'
-  const includeInvoiced  = url.searchParams.get('includeInvoiced')  !== 'false'
+  const includePOs        = url.searchParams.get('includePOs')        !== 'false'
+  const includeReceiving  = url.searchParams.get('includeReceiving')  !== 'false'
+  const includeInvoiced   = url.searchParams.get('includeInvoiced')   !== 'false'
+  const includeClosedJobs = url.searchParams.get('includeClosedJobs') === 'true'
 
   const exportData = await getExportData(company.company_id, {
     dateStart, dateEnd, vendorIds, jobIds,
-    includePOs, includeReceiving, includeInvoiced,
+    includePOs, includeReceiving, includeInvoiced, includeClosedJobs,
   })
 
   return format === 'excel' ? generateExcel(exportData) : generatePDF(exportData)

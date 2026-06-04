@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback } from 'react'
 import { useConfirm } from '@/components/confirm-dialog'
 import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
+import { reopenJob } from '../../jobs/actions'
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
-type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
+type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; parent_id?: string | null; is_customer?: boolean; status?: string }
 type QBClass = { id: string; qb_class_id: string; name: string | null }
 
 type LineItem = {
@@ -69,6 +70,7 @@ export function BillReviewForm({
   lineItems: initialLineItems,
   accounts,
   jobs,
+  closedJobs = [],
   classes,
   vendorPromo,
   vendors = [],
@@ -80,6 +82,7 @@ export function BillReviewForm({
   lineItems: LineItem[]
   accounts: Account[]
   jobs: Job[]
+  closedJobs?: Job[]
   classes: QBClass[]
   vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
   vendors?: Vendor[]
@@ -91,6 +94,29 @@ export function BillReviewForm({
   const confirm = useConfirm()
   const [stablePdfUrl] = useState(pdfSignedUrl)
   const [liveJobs, setLiveJobs] = useState<Job[]>(jobs)
+  const [liveClosedJobs, setLiveClosedJobs] = useState<Job[]>(closedJobs)
+
+  // Build select options. Sub-customers are indented under their parent customer name.
+  const buildJobOptions = (jobList: Job[]) => {
+    const hasCustomers = jobList.some(j => j.is_customer)
+    return jobList.map(j => {
+      const base = [j.job_number, j.job_name].filter(Boolean).join(' · ')
+      const label = hasCustomers && !j.is_customer
+        ? `  ${base}` // indent sub-customers when customers also appear
+        : j.is_customer
+        ? `${j.job_name ?? j.customer_name ?? ''}`
+        : [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – ')
+      return { value: j.qb_job_id, label }
+    })
+  }
+
+  const handleReopenAndSelect = async (jobId: string, onSelect: (id: string) => Promise<void>) => {
+    await reopenJob(jobId)
+    setLiveClosedJobs(prev => prev.filter(j => j.qb_job_id !== jobId))
+    const reopened = liveClosedJobs.find(j => j.qb_job_id === jobId)
+    if (reopened) setLiveJobs(prev => [...prev, reopened])
+    await onSelect(jobId)
+  }
   const [localStatus, setLocalStatus] = useState(bill.status)
   const [localVendorId, setLocalVendorId] = useState(bill.vendor_id ?? '')
   const [swapped, setSwapped] = useState(false)
@@ -194,9 +220,16 @@ export function BillReviewForm({
 
   // Fetch live jobs from QB on mount — replaces stale cache with current QB data
   useEffect(() => {
-    fetch('/api/quickbooks/jobs')
+    fetch('/api/quickbooks/jobs?includeClosed=true')
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data?.jobs) setLiveJobs(data.jobs) })
+      .then(data => {
+        if (data?.jobs) {
+          const active = (data.jobs as Job[]).filter(j => j.status !== 'closed')
+          const closed = (data.jobs as Job[]).filter(j => j.status === 'closed')
+          setLiveJobs(active)
+          setLiveClosedJobs(closed)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -874,10 +907,8 @@ export function BillReviewForm({
                           ? (lineItems[0].job_id ?? '')
                           : ''
                       }
-                      options={liveJobs.map(j => ({
-                        value: j.qb_job_id,
-                        label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
-                      }))}
+                      options={buildJobOptions(liveJobs)}
+                      closedOptions={buildJobOptions(liveClosedJobs)}
                       onSave={async (v) => {
                         if (!v) return
                         const job = liveJobs.find(j => j.qb_job_id === v)
@@ -888,6 +919,18 @@ export function BillReviewForm({
                           await updateLineItem(lineItems[0].line_id, { job_id: v })
                           router.refresh()
                         }
+                      }}
+                      onSaveClosed={async (v) => {
+                        await handleReopenAndSelect(v, async (id) => {
+                          const job = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
+                          const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || id
+                          if (lineItems.length > 1) {
+                            setHeaderJobPending({ jobId: id, jobLabel: label })
+                          } else if (lineItems.length === 1) {
+                            await updateLineItem(lineItems[0].line_id, { job_id: id })
+                            router.refresh()
+                          }
+                        })
                       }}
                       placeholder={lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'Job…' : 'Mixed — select to apply all'}
                       emptyLabel="—"
@@ -996,10 +1039,8 @@ export function BillReviewForm({
                       <div style={{ paddingLeft: 8 }}>
                         <InlineSelect
                           initialValue={item.job_id ?? ''}
-                          options={liveJobs.map(j => ({
-                            value: j.qb_job_id,
-                            label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
-                          }))}
+                          options={buildJobOptions(liveJobs)}
+                          closedOptions={buildJobOptions(liveClosedJobs)}
                           onSave={async (v) => {
                             await updateLineItem(item.line_id, { job_id: v || null })
                             if (v && lineItems.length > 1) {
@@ -1007,6 +1048,16 @@ export function BillReviewForm({
                               const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
                               setJobApplyPrompt({ jobId: v, jobLabel: label })
                             }
+                          }}
+                          onSaveClosed={async (v) => {
+                            await handleReopenAndSelect(v, async (id) => {
+                              await updateLineItem(item.line_id, { job_id: id })
+                              if (lineItems.length > 1) {
+                                const job = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
+                                const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || id
+                                setJobApplyPrompt({ jobId: id, jobLabel: label })
+                              }
+                            })
                           }}
                           placeholder="Job…"
                           emptyLabel="—"
@@ -1706,10 +1757,12 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: { i
   )
 }
 
-function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel, title }: {
+function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClosed, placeholder, emptyLabel, title }: {
   initialValue: string
   options: { value: string; label: string }[]
+  closedOptions?: { value: string; label: string }[]
   onSave: (v: string) => Promise<void>
+  onSaveClosed?: (v: string) => Promise<void>
   placeholder: string
   emptyLabel: string
   title?: string
@@ -1718,13 +1771,25 @@ function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel, 
 
   useEffect(() => { setValue(initialValue) }, [initialValue])
 
-  if (options.length === 0) {
+  if (options.length === 0 && !closedOptions?.length) {
     return <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', fontStyle: 'italic', padding: '0 4px' }}>{emptyLabel}</span>
   }
 
   const handleChange = async (newValue: string) => {
+    if (!newValue) {
+      setValue('')
+      try { await onSave('') } catch { setValue(initialValue) }
+      return
+    }
+    const isClosed = closedOptions?.some(o => o.value === newValue)
     setValue(newValue)
-    try { await onSave(newValue) } catch { setValue(initialValue) }
+    try {
+      if (isClosed && onSaveClosed) {
+        await onSaveClosed(newValue)
+      } else {
+        await onSave(newValue)
+      }
+    } catch { setValue(initialValue) }
   }
 
   return (
@@ -1740,6 +1805,11 @@ function InlineSelect({ initialValue, options, onSave, placeholder, emptyLabel, 
     >
       <option value="">{placeholder}</option>
       {options.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+      {closedOptions && closedOptions.length > 0 && (
+        <optgroup label="── Closed ──">
+          {closedOptions.map(opt => <option key={opt.value} value={opt.value}>🔒 {opt.label}</option>)}
+        </optgroup>
+      )}
     </select>
   )
 }

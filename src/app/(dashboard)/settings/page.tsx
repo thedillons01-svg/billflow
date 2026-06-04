@@ -23,6 +23,8 @@ type Company = {
   notify_uploader: boolean | null
   qb_ref_source: string | null
   default_due_date: string | null
+  job_tagging_level: string | null
+  auto_close_jobs_days: number | null
   plan_name: string | null
   credit_balance: number | null
   stripe_customer_id: string | null
@@ -39,7 +41,7 @@ export default async function SettingsPage({
   const [{ data }, { data: qbdHeartbeat }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, plan_name, credit_balance, stripe_customer_id')
       .single(),
     supabase
       .from('qbd_heartbeats')
@@ -298,6 +300,8 @@ export default async function SettingsPage({
                 fsm_platform: fd.get('fsm_platform') as string || null,
                 qb_ref_source: fd.get('qb_ref_source') as string || 'po_number',
                 default_due_date: fd.get('default_due_date') as string || 'not_required',
+                job_tagging_level: fd.get('job_tagging_level') as string || 'sub_customers_only',
+                auto_close_jobs_days: fd.get('auto_close_jobs_days') ? Number(fd.get('auto_close_jobs_days')) : null,
               })
             }}>
               <div className="space-y-4">
@@ -325,6 +329,42 @@ export default async function SettingsPage({
                   label="Push purchase orders to QuickBooks"
                   helper="When on, captured POs can be pushed to QuickBooks as Purchase Order records. Turn off if you want to use PO capture and receiving workflow in Purchasomatic only — without creating PO records in QuickBooks."
                 />
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Job tagging level
+                  </label>
+                  <select
+                    name="job_tagging_level"
+                    defaultValue={company?.job_tagging_level ?? 'sub_customers_only'}
+                    style={{ width: '100%', height: 36, border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, padding: '0 10px', fontSize: 13, color: 'var(--color-text-primary)', background: 'white' }}
+                  >
+                    <option value="sub_customers_only">Jobs / Sub-customers only</option>
+                    <option value="customers_only">Customers only</option>
+                    <option value="both">Both customers and sub-customers</option>
+                  </select>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Controls which QuickBooks entities appear in job tagging dropdowns throughout the app. &ldquo;Jobs / Sub-customers only&rdquo; is correct for most contractors — your jobs are sub-customers under a parent customer in QuickBooks.
+                  </p>
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Auto-close jobs after days of inactivity
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      name="auto_close_jobs_days"
+                      defaultValue={company?.auto_close_jobs_days ?? 90}
+                      min={0}
+                      max={3650}
+                      style={{ width: 100, height: 36, border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, padding: '0 10px', fontSize: 13, color: 'var(--color-text-primary)', background: 'white' }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>days (0 = disabled)</span>
+                  </div>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    Jobs with no bill, PO, or receiving activity for this many days are automatically closed and hidden from tagging dropdowns. Set to 0 to disable auto-close. Runs during each QB sync.
+                  </p>
+                </div>
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                     QB Reference Number field source

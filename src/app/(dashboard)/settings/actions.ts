@@ -126,6 +126,8 @@ export async function updateCompanySettings(
     fsm_platform?: string | null
     qb_ref_source?: string
     default_due_date?: string
+    job_tagging_level?: string
+    auto_close_jobs_days?: number | null
   }
 ) {
   const supabase = await createClient()

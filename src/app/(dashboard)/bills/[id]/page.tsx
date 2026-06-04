@@ -42,7 +42,7 @@ export default async function BillDetailPage({
     (a: { sort_order: number }, b: { sort_order: number }) => a.sort_order - b.sort_order
   )
 
-  const [{ data: accounts }, { data: jobs }, { data: classes }, { data: companySettings }, { data: vendors }] = await Promise.all([
+  const [{ data: accounts }, { data: allJobsRaw }, { data: classes }, { data: companySettings }, { data: vendors }] = await Promise.all([
     supabase
       .from('qb_accounts_cache')
       .select('id, qb_account_id, name, account_type')
@@ -50,9 +50,10 @@ export default async function BillDetailPage({
       .eq('is_hidden', false),
     supabase
       .from('qb_jobs_cache')
-      .select('id, qb_job_id, job_number, job_name, customer_name')
+      .select('id, qb_job_id, job_number, job_name, customer_name, parent_id, is_customer, status')
       .eq('company_id', bill.company_id)
-      .order('cached_at', { ascending: false }),
+      .order('customer_name')
+      .order('job_name'),
     supabase
       .from('qb_classes_cache')
       .select('id, qb_class_id, name')
@@ -61,7 +62,7 @@ export default async function BillDetailPage({
       .order('name'),
     supabase
       .from('companies')
-      .select('job_costing_enabled, class_tracking_enabled')
+      .select('job_costing_enabled, class_tracking_enabled, job_tagging_level')
       .single(),
     supabase
       .from('vendors')
@@ -70,6 +71,28 @@ export default async function BillDetailPage({
       .eq('is_visible', true)
       .order('vendor_name_display'),
   ])
+
+  const taggingLevel = companySettings?.job_tagging_level ?? 'sub_customers_only'
+
+  // Filter jobs by tagging level; separate active from closed
+  const allJobs = (allJobsRaw ?? []) as {
+    id: string; qb_job_id: string; job_number: string | null; job_name: string | null
+    customer_name: string | null; parent_id: string | null; is_customer: boolean; status: string
+  }[]
+
+  const jobs = allJobs.filter(j => {
+    if (j.status !== 'active') return false
+    if (taggingLevel === 'sub_customers_only') return !j.is_customer
+    if (taggingLevel === 'customers_only')     return j.is_customer
+    return true
+  })
+
+  const closedJobs = allJobs.filter(j => {
+    if (j.status !== 'closed') return false
+    if (taggingLevel === 'sub_customers_only') return !j.is_customer
+    if (taggingLevel === 'customers_only')     return j.is_customer
+    return true
+  })
 
   const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
   const classTrackingEnabled = companySettings?.class_tracking_enabled ?? false
@@ -94,6 +117,7 @@ export default async function BillDetailPage({
         lineItems={lineItems as unknown as Parameters<typeof BillReviewForm>[0]['lineItems']}
         accounts={(accounts ?? []) as Parameters<typeof BillReviewForm>[0]['accounts']}
         jobs={(jobs ?? []) as Parameters<typeof BillReviewForm>[0]['jobs']}
+        closedJobs={(closedJobs ?? []) as Parameters<typeof BillReviewForm>[0]['closedJobs']}
         vendorPromo={
           bill.vendor_id &&
           bill.vendors &&
