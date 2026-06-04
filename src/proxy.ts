@@ -36,7 +36,8 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password')
   const isPublicApiRoute = pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/quickbooks/callback')
-  const isDashboardRoute = !isAuthRoute && !isPublicApiRoute && !pathname.startsWith('/api/')
+  const isPublicPage = pathname === '/'
+  const isDashboardRoute = !isAuthRoute && !isPublicApiRoute && !isPublicPage && !pathname.startsWith('/api/')
 
   if (!user && isDashboardRoute) {
     const url = request.nextUrl.clone()

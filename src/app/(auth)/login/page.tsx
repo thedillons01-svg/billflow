@@ -8,68 +8,94 @@ export default function LoginPage() {
   const [state, formAction, isPending] = useActionState<AuthState, FormData>(login, null)
 
   return (
-    <div className="w-full max-w-sm">
-      <div className="mb-8 text-center">
-        <h1 className="text-2xl font-bold text-gray-900">Purchasomatic</h1>
-        <p className="mt-2 text-sm text-gray-500">Sign in to your account</p>
+    <div style={{ width: '100%', maxWidth: 380 }}>
+      {/* Logo */}
+      <div style={{ textAlign: 'center', marginBottom: 32 }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+          <div style={{
+            width: 32, height: 32, background: '#2DB87A', borderRadius: 8,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <i className="ti ti-file-invoice" style={{ fontSize: 17, color: 'white' }} />
+          </div>
+          <span style={{ fontSize: 18, fontWeight: 700, color: '#1A3D2B', letterSpacing: '-0.01em' }}>
+            Purchasomatic
+          </span>
+        </div>
+        <p style={{ fontSize: 14, color: '#6B7280' }}>Sign in to your account</p>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
-        <form action={formAction} className="space-y-4">
+      <div style={{
+        background: 'white', borderRadius: 12,
+        border: '1px solid #E5E7EB', boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+        padding: 32,
+      }}>
+        <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {state?.error && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+            <div style={{
+              fontSize: 13, color: '#991B1B', background: '#FEF2F2',
+              border: '1px solid #FECACA', borderRadius: 6, padding: '8px 12px',
+            }}>
               {state.error}
-            </p>
+            </div>
           )}
 
           <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="email" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
               Email
             </label>
             <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              required
-              placeholder="you@example.com"
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              id="email" name="email" type="email"
+              autoComplete="email" required placeholder="you@example.com"
+              style={{
+                width: '100%', height: 38, boxSizing: 'border-box',
+                border: '1px solid #D1D5DB', borderRadius: 7,
+                padding: '0 12px', fontSize: 14, color: '#111827',
+                outline: 'none',
+              }}
             />
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <label htmlFor="password" style={{ fontSize: 13, fontWeight: 500, color: '#374151' }}>
                 Password
               </label>
-              <Link href="/forgot-password" className="text-xs text-blue-600 hover:text-blue-500">
+              <Link href="/forgot-password" style={{ fontSize: 12, color: '#2DB87A', textDecoration: 'none' }}>
                 Forgot password?
               </Link>
             </div>
             <input
-              id="password"
-              name="password"
-              type="password"
-              autoComplete="current-password"
-              required
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              id="password" name="password" type="password"
+              autoComplete="current-password" required
+              style={{
+                width: '100%', height: 38, boxSizing: 'border-box',
+                border: '1px solid #D1D5DB', borderRadius: 7,
+                padding: '0 12px', fontSize: 14, color: '#111827',
+                outline: 'none',
+              }}
             />
           </div>
 
           <button
-            type="submit"
-            disabled={isPending}
-            className="w-full bg-blue-600 text-white rounded-lg px-4 py-2.5 text-sm font-semibold hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            type="submit" disabled={isPending}
+            style={{
+              width: '100%', height: 40,
+              background: isPending ? '#86EFBD' : '#2DB87A',
+              color: 'white', border: 'none', borderRadius: 7,
+              fontSize: 14, fontWeight: 600, cursor: isPending ? 'default' : 'pointer',
+              marginTop: 4,
+            }}
           >
             {isPending ? 'Signing in…' : 'Sign in'}
           </button>
         </form>
       </div>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p style={{ marginTop: 20, textAlign: 'center', fontSize: 13, color: '#6B7280' }}>
         Don&apos;t have an account?{' '}
-        <Link href="/signup" className="font-medium text-blue-600 hover:text-blue-500">
-          Sign up
+        <Link href="/signup" style={{ fontWeight: 500, color: '#2DB87A', textDecoration: 'none' }}>
+          Sign up free
         </Link>
       </p>
     </div>
