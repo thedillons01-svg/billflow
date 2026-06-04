@@ -21,10 +21,7 @@ type LineState = {
 }
 
 function initQty(line: Line): string {
-  const prev = line.quantity_received ?? 0
-  const ordered = line.quantity_ordered ?? 1
-  // Default to fully received if already partially or fully received, else 0
-  return prev > 0 ? String(ordered) : String(ordered)
+  return String(line.quantity_received ?? 0)
 }
 
 function deriveStatus(qty: string, ordered: number | null): 'received' | 'partial' | 'not_received' {
