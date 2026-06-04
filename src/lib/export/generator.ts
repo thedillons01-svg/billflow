@@ -144,7 +144,6 @@ export async function getExportData(
       `)
       .eq('company_id', companyId)
       .is('deleted_at', null)
-      .not('job_id', 'is', null)
 
     if (options.dateStart) q = q.gte('order_date', options.dateStart)
     if (options.dateEnd)   q = q.lte('order_date', options.dateEnd)
@@ -154,7 +153,7 @@ export async function getExportData(
     const { data } = await q.order('order_date', { ascending: true })
     pos = (data ?? []) as unknown as PORow[]
     for (const po of pos) {
-      if (po.job_id) allJobIds.add(po.job_id)
+      allJobIds.add(po.job_id ?? 'unassigned')
       if (po.created_by) allUserIds.add(po.created_by)
     }
   }
@@ -194,7 +193,6 @@ export async function getExportData(
           vendors!purchase_orders_vendor_id_fkey(vendor_name_display, vendor_name_extracted)
         `)
         .in('po_id', recvPoIds)
-        .not('job_id', 'is', null)
 
       if (options.vendorIds?.length) posQ = posQ.in('vendor_id', options.vendorIds)
       if (options.jobIds?.length)    posQ = posQ.in('job_id',    options.jobIds)
@@ -202,7 +200,7 @@ export async function getExportData(
       const { data: recvPos } = await posQ
       for (const po of (recvPos ?? []) as unknown as RecvPORow[]) {
         recvPoMap.set(po.po_id, po)
-        if (po.job_id) allJobIds.add(po.job_id)
+        allJobIds.add(po.job_id ?? 'unassigned')
       }
 
       const { data: poLines } = await supabase
@@ -223,6 +221,10 @@ export async function getExportData(
   }
 
   // ── 4. Job details ───────────────────────────────────────────────────
+  const realJobIds = [...allJobIds].filter(id => id !== 'unassigned')
+
+  // If the user filtered by job, intersect. The 'unassigned' bucket is only
+  // included when no job filter is active (can't filter to "unassigned" jobs).
   const targetJobIds = options.jobIds?.length
     ? new Set(options.jobIds.filter(id => allJobIds.has(id)))
     : allJobIds
@@ -231,13 +233,15 @@ export async function getExportData(
     return { sections: [], include: { pos: includePOs, receiving: includeReceiving, invoiced: includeInvoiced }, generatedAt: new Date().toISOString(), dateRangeStart: options.dateStart ?? null, dateRangeEnd: options.dateEnd ?? null }
   }
 
-  const { data: jobRows } = await supabase
-    .from('qb_jobs_cache')
-    .select('qb_job_id, job_number, job_name, customer_name')
-    .eq('company_id', companyId)
-    .in('qb_job_id', [...targetJobIds])
-
-  const jobMap = new Map(jobRows?.map(j => [j.qb_job_id, j]) ?? [])
+  const jobMap = new Map<string, { job_number: string | null; job_name: string | null; customer_name: string | null }>()
+  if (realJobIds.length > 0) {
+    const { data: jobRows } = await supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id, job_number, job_name, customer_name')
+      .eq('company_id', companyId)
+      .in('qb_job_id', realJobIds)
+    for (const j of jobRows ?? []) jobMap.set(j.qb_job_id, j)
+  }
 
   // ── 5. User names ────────────────────────────────────────────────────
   const userNameMap = new Map<string, string>()
@@ -256,12 +260,12 @@ export async function getExportData(
   function getOrCreate(jobId: string): ExportJobSection {
     let s = jobSections.get(jobId)
     if (!s) {
-      const info = jobMap.get(jobId)
+      const info = jobId !== 'unassigned' ? jobMap.get(jobId) : null
       s = {
         jobId,
-        jobNumber:    info?.job_number    ?? null,
-        jobName:      info?.job_name      ?? null,
-        customerName: info?.customer_name ?? null,
+        jobNumber:    jobId === 'unassigned' ? null : (info?.job_number    ?? null),
+        jobName:      jobId === 'unassigned' ? 'No Job Assigned' : (info?.job_name ?? null),
+        customerName: jobId === 'unassigned' ? null : (info?.customer_name ?? null),
         poRecords: [], receivingRecords: [], invoicedRecords: [],
         totalInvoiced: 0,
       }
@@ -307,10 +311,11 @@ export async function getExportData(
 
   // ── 7. Populate POs ──────────────────────────────────────────────────
   for (const po of pos) {
-    if (!po.job_id || !targetJobIds.has(po.job_id)) continue
+    const jobKey = po.job_id ?? 'unassigned'
+    if (!targetJobIds.has(jobKey)) continue
     const vendor = po.vendors
     const vendorName = vendor?.vendor_name_display ?? vendor?.vendor_name_extracted ?? 'Unknown Vendor'
-    const section = getOrCreate(po.job_id)
+    const section = getOrCreate(jobKey)
 
     section.poRecords.push({
       vendorName,
@@ -330,10 +335,12 @@ export async function getExportData(
   // ── 8. Populate receiving ────────────────────────────────────────────
   for (const record of recvRecords) {
     const po = recvPoMap.get(record.po_id)
-    if (!po?.job_id || !targetJobIds.has(po.job_id)) continue
+    if (!po) continue
+    const jobKey = po.job_id ?? 'unassigned'
+    if (!targetJobIds.has(jobKey)) continue
     const vendor = po.vendors
     const vendorName = vendor?.vendor_name_display ?? vendor?.vendor_name_extracted ?? 'Unknown Vendor'
-    const section = getOrCreate(po.job_id)
+    const section = getOrCreate(jobKey)
 
     section.receivingRecords.push({
       vendorName,
@@ -355,7 +362,11 @@ export async function getExportData(
   return {
     sections: [...jobSections.values()]
       .filter(s => s.poRecords.length > 0 || s.receivingRecords.length > 0 || s.invoicedRecords.length > 0)
-      .sort((a, b) => (a.jobNumber ?? '').localeCompare(b.jobNumber ?? '')),
+      .sort((a, b) => {
+        if (a.jobId === 'unassigned') return 1
+        if (b.jobId === 'unassigned') return -1
+        return (a.jobNumber ?? '').localeCompare(b.jobNumber ?? '')
+      }),
     include: { pos: includePOs, receiving: includeReceiving, invoiced: includeInvoiced },
     generatedAt:    new Date().toISOString(),
     dateRangeStart: options.dateStart ?? null,
