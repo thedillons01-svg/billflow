@@ -529,7 +529,7 @@ export function BillReviewForm({
                   value={opt.value}
                   checked={billType === opt.value}
                   disabled={isPublished}
-                  onChange={() => { if (!isPublished) { setBillType(opt.value); updateBill(bill.bill_id, { bill_type: opt.value }); setIsDirty(true) } }}
+                  onChange={() => { if (!isPublished) { setBillType(opt.value); setIsDirty(true) } }}
                   style={{ accentColor: '#2DB87A', cursor: isPublished ? 'default' : 'pointer' }}
                 />
                 {opt.label}
@@ -690,7 +690,6 @@ export function BillReviewForm({
                     onChange={e => {
                       setLocalVendorId(e.target.value)
                       setIsDirty(true)
-                      updateBill(bill.bill_id, { vendor_id: e.target.value || null })
                     }}
                     style={selectStyle}
                   >
