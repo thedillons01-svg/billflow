@@ -962,7 +962,6 @@ export function BillReviewForm({
                 </div>
               )}
             </div>
-          </div>
 
           {/* LINE ITEMS */}
           <Section title="Line Items">
