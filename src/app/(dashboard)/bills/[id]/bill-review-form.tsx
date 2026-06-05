@@ -686,8 +686,7 @@ export function BillReviewForm({
           )}
 
           {/* INVOICE DETAILS */}
-          <Section title="Invoice Details">
-            <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2">
               <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
                   <select
                     value={localVendorId}
@@ -963,7 +962,7 @@ export function BillReviewForm({
                 </div>
               )}
             </div>
-          </Section>
+          </div>
 
           {/* LINE ITEMS */}
           <Section title="Line Items">
