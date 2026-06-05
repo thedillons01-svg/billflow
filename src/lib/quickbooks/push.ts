@@ -51,11 +51,12 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
 
   const { data: companySettings } = await supabase
     .from('companies')
-    .select('qb_ref_source, default_due_date')
+    .select('qb_ref_source, default_due_date, push_pdf_to_qb')
     .eq('company_id', companyId)
     .single()
   const qbRefSource = companySettings?.qb_ref_source ?? 'po_number'
   const companyDueDateSetting = companySettings?.default_due_date ?? 'not_required'
+  const pushPdfToQb = companySettings?.push_pdf_to_qb ?? true
 
   // Fetch vendor's due date override
   const { data: vendorSettings } = bill.vendor_id ? await supabase
@@ -137,7 +138,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       : (result?.Bill?.Id ?? null)
 
     // Attach PDF to QBO bill (QBD cannot receive attachments — see requirements §9.2)
-    if (!isCreditNote && qbBillId && b.pdf_url) {
+    if (pushPdfToQb && !isCreditNote && qbBillId && b.pdf_url) {
       try {
         const { data: pdfBlob } = await supabase.storage.from('bill-pdfs').download(b.pdf_url as string)
         if (pdfBlob) {

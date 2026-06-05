@@ -26,6 +26,7 @@ type Company = {
   job_tagging_level: string | null
   auto_close_jobs_days: number | null
   show_field_tips: boolean | null
+  push_pdf_to_qb: boolean | null
   plan_name: string | null
   credit_balance: number | null
   stripe_customer_id: string | null
@@ -42,7 +43,7 @@ export default async function SettingsPage({
   const [{ data }, { data: qbdHeartbeat }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, show_field_tips, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, show_field_tips, push_pdf_to_qb, plan_name, credit_balance, stripe_customer_id')
       .single(),
     supabase
       .from('qbd_heartbeats')
@@ -304,6 +305,7 @@ export default async function SettingsPage({
                 job_tagging_level: fd.get('job_tagging_level') as string || 'sub_customers_only',
                 auto_close_jobs_days: fd.get('auto_close_jobs_days') ? Number(fd.get('auto_close_jobs_days')) : null,
                 show_field_tips: fd.get('show_field_tips') === 'on',
+                push_pdf_to_qb: fd.get('push_pdf_to_qb') === 'on',
               })
             }}>
               <div className="space-y-4">
@@ -336,6 +338,12 @@ export default async function SettingsPage({
                   defaultChecked={company?.show_field_tips ?? true}
                   label="Show field tips"
                   helper="When on, explanatory text appears below each field on the bill and PO screens. When off, tips are hidden but still available by hovering the ⓘ icon next to the field label."
+                />
+                <Toggle
+                  name="push_pdf_to_qb"
+                  defaultChecked={company?.push_pdf_to_qb ?? true}
+                  label="Attach PDF copies to QuickBooks bills"
+                  helper="When on, the original invoice PDF is attached to the bill record in QuickBooks when published. Turn off if you don't need PDF copies in QB, or if attachment uploads are causing push errors."
                 />
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>

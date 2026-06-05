@@ -129,6 +129,7 @@ export async function updateCompanySettings(
     job_tagging_level?: string
     auto_close_jobs_days?: number | null
     show_field_tips?: boolean
+    push_pdf_to_qb?: boolean
   }
 ) {
   const supabase = await createClient()
