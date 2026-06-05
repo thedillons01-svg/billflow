@@ -69,6 +69,7 @@ export function PODetail({
   matchedBills,
   jobs = [],
   closedJobs = [],
+  customers = [],
   vendors = [],
   jobCostingEnabled = false,
   pushPosToQb = true,
@@ -78,6 +79,7 @@ export function PODetail({
   matchedBills: MatchedBill[]
   jobs?: Job[]
   closedJobs?: Job[]
+  customers?: Job[]
   vendors?: Vendor[]
   jobCostingEnabled?: boolean
   pushPosToQb?: boolean
@@ -96,6 +98,7 @@ export function PODetail({
   const [headerJobPending, setHeaderJobPending] = useState<{ jobId: string; label: string } | null>(null)
   const [showJobCreate, setShowJobCreate] = useState(false)
   const [newJobName, setNewJobName] = useState('')
+  const [newJobCustomerId, setNewJobCustomerId] = useState('')
   const [jobCreateError, setJobCreateError] = useState<string | null>(null)
 
   useEffect(() => { setLineItems(initialLineItems) }, [initialLineItems])
@@ -454,15 +457,29 @@ export function PODetail({
                     {!showJobCreate ? (
                       <button
                         type="button"
-                        onClick={() => { setShowJobCreate(true); setNewJobName(po.po_number ?? '') }}
+                        onClick={() => { setShowJobCreate(true); setNewJobName(''); setNewJobCustomerId('') }}
                         style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                       >
                         <i className="ti ti-plus" style={{ fontSize: 12 }} />
                         Create new job in QuickBooks
                       </button>
                     ) : (
-                      <div>
-                        <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div className="flex items-center gap-2">
+                          <select
+                            value={newJobCustomerId}
+                            onChange={e => setNewJobCustomerId(e.target.value)}
+                            style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12, background: 'white' }}
+                          >
+                            <option value="">Customer (optional)</option>
+                            {customers.map(c => (
+                              <option key={c.qb_job_id} value={c.qb_job_id}>
+                                {c.job_name ?? c.customer_name ?? c.qb_job_id}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="flex items-center gap-2">
                           <input
                             type="text"
                             value={newJobName}
@@ -477,7 +494,7 @@ export function PODetail({
                             onClick={() => {
                               setJobCreateError(null)
                               startTransition(async () => {
-                                const result = await createJob(po.company_id, newJobName.trim())
+                                const result = await createJob(po.company_id, newJobName.trim(), newJobCustomerId || undefined)
                                 if ('error' in result) {
                                   setJobCreateError(result.error)
                                 } else {
@@ -485,6 +502,7 @@ export function PODetail({
                                   setLiveJobs(prev => [...prev, newJob])
                                   setShowJobCreate(false)
                                   setNewJobName('')
+                                  setNewJobCustomerId('')
                                   setHeaderJobPending({ jobId: result.qbJobId, label: result.jobName })
                                 }
                               })
@@ -502,7 +520,7 @@ export function PODetail({
                           </button>
                         </div>
                         {jobCreateError && (
-                          <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <p style={{ marginTop: 2, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
                             <i className="ti ti-circle-x" style={{ fontSize: 12 }} />
                             {jobCreateError}
                           </p>

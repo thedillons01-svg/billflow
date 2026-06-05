@@ -76,6 +76,7 @@ export function BillReviewForm({
   classes,
   vendorPromo,
   vendors = [],
+  customers = [],
   jobCostingEnabled = false,
   classTrackingEnabled = false,
   showFieldTips = true,
@@ -89,6 +90,7 @@ export function BillReviewForm({
   classes: QBClass[]
   vendorPromo?: { vendorId: string; invoicesProcessed: number } | null
   vendors?: Vendor[]
+  customers?: Job[]
   jobCostingEnabled?: boolean
   classTrackingEnabled?: boolean
   showFieldTips?: boolean
@@ -183,6 +185,7 @@ export function BillReviewForm({
   const [qbAddError, setQbAddError] = useState<string | null>(null)
   const [showJobCreate, setShowJobCreate] = useState(false)
   const [newJobName, setNewJobName] = useState('')
+  const [newJobCustomerId, setNewJobCustomerId] = useState('')
   const [jobCreateError, setJobCreateError] = useState<string | null>(null)
 
   // Invoice history popover
@@ -938,15 +941,29 @@ export function BillReviewForm({
                         {!showJobCreate ? (
                           <button
                             type="button"
-                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.vendor_po_reference ?? '') }}
+                            onClick={() => { setShowJobCreate(true); setNewJobName(''); setNewJobCustomerId('') }}
                             style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                           >
                             <i className="ti ti-plus" style={{ fontSize: 12 }} />
                             Create new job in QuickBooks
                           </button>
                         ) : (
-                          <div>
-                            <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                          <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div className="flex items-center gap-2">
+                              <select
+                                value={newJobCustomerId}
+                                onChange={e => setNewJobCustomerId(e.target.value)}
+                                style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12, background: 'white' }}
+                              >
+                                <option value="">Customer (optional)</option>
+                                {customers.map(c => (
+                                  <option key={c.qb_job_id} value={c.qb_job_id}>
+                                    {c.job_name ?? c.customer_name ?? c.qb_job_id}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="flex items-center gap-2">
                               <input
                                 type="text"
                                 value={newJobName}
@@ -961,14 +978,15 @@ export function BillReviewForm({
                                 onClick={() => {
                                   setJobCreateError(null)
                                   startTransition(async () => {
-                                    const result = await createJob(bill.company_id, newJobName.trim())
+                                    const result = await createJob(bill.company_id, newJobName.trim(), newJobCustomerId || undefined)
                                     if ('error' in result) {
                                       setJobCreateError(result.error)
                                     } else {
-                                      const newJob = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: result.customerName, parent_id: null, is_customer: true, status: 'active' }
+                                      const newJob = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: result.customerName, parent_id: newJobCustomerId || null, is_customer: !newJobCustomerId, status: 'active' }
                                       setLiveJobs(prev => [...prev, newJob])
                                       setShowJobCreate(false)
                                       setNewJobName('')
+                                      setNewJobCustomerId('')
                                       setHeaderJobPending({ jobId: result.qbJobId, jobLabel: result.jobName })
                                     }
                                   })

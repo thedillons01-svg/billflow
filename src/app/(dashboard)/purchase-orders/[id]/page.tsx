@@ -69,6 +69,7 @@ export default async function PODetailPage({
     if (taggingLevel === 'customers_only') return j.is_customer
     return true
   })
+  const customers = allJobs.filter(j => j.status === 'active' && j.is_customer)
 
   let pdfSignedUrl: string | null = null
   if (po.pdf_url) {
@@ -122,6 +123,7 @@ export default async function PODetailPage({
           }[]}
           jobs={activeJobs}
           closedJobs={closedJobs}
+          customers={customers}
           vendors={(vendorRows ?? []) as { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null; qb_vendor_id: string | null }[]}
           jobCostingEnabled={companySettings?.job_costing_enabled ?? false}
           pushPosToQb={companySettings?.push_pos_to_qb ?? true}

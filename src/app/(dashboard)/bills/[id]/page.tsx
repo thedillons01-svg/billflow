@@ -94,6 +94,9 @@ export default async function BillDetailPage({
     return true
   })
 
+  // Top-level customers always available for job creation parent selector
+  const customers = allJobs.filter(j => j.status === 'active' && j.is_customer)
+
   const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
   const classTrackingEnabled = companySettings?.class_tracking_enabled ?? false
   const showFieldTips = companySettings?.show_field_tips ?? true
@@ -129,6 +132,7 @@ export default async function BillDetailPage({
         }
         classes={(classes ?? []) as Parameters<typeof BillReviewForm>[0]['classes']}
         vendors={(vendors ?? []) as Parameters<typeof BillReviewForm>[0]['vendors']}
+        customers={(customers ?? []) as Parameters<typeof BillReviewForm>[0]['customers']}
         jobCostingEnabled={jobCostingEnabled}
         classTrackingEnabled={classTrackingEnabled}
         showFieldTips={showFieldTips}
