@@ -205,7 +205,7 @@ export function PODetail({
 
       {/* Scrollable body */}
       <div className="flex-1 overflow-auto">
-        <div className="px-5 py-4 space-y-5">
+        <div className="px-5 py-3 space-y-3">
 
           {/* QB push disabled notice */}
           {!pushPosToQb && (
@@ -655,10 +655,10 @@ export function PODetail({
 const labelStyle: React.CSSProperties = { fontSize: 12, color: 'var(--color-text-secondary)', padding: '3px 0', alignSelf: 'center' }
 
 const selectStyle: React.CSSProperties = {
-  width: '100%', height: 36,
+  width: '100%', height: 30,
   border: '0.5px solid var(--color-border-secondary)',
   borderRadius: 6, padding: '0 10px',
-  fontSize: 13, color: 'var(--color-text-primary)', background: 'white',
+  fontSize: 12, color: 'var(--color-text-primary)', background: 'white',
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -669,7 +669,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <p style={{
         fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
         color: 'var(--color-text-secondary)', marginBottom: 10,
-        paddingTop: 16, borderTop: '0.5px solid var(--color-border-tertiary)',
+        paddingTop: 8, borderTop: '0.5px solid var(--color-border-tertiary)',
       }}>
         {title}
       </p>

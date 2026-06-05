@@ -185,7 +185,7 @@ export function BillReviewForm({
   }> | null>(null)
   const historyRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
-  const [formWidth, setFormWidth] = useState(720)
+  const [formWidth, setFormWidth] = useState(460)
   const [isDragging, setIsDragging] = useState(false)
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
@@ -541,7 +541,7 @@ export function BillReviewForm({
 
       {/* Scrollable form */}
       <div className="flex-1 overflow-auto">
-        <div className="px-5 py-4 space-y-5">
+        <div className="px-5 py-3 space-y-3">
           {/* Auto-publish promotion banner */}
           {vendorPromo && !promoDismissed && !promoEnabled && (
             <div
@@ -682,7 +682,7 @@ export function BillReviewForm({
 
           {/* INVOICE DETAILS */}
           <Section title="Invoice Details">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2">
               <div className="col-span-2">
                 <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
                   <select
@@ -802,16 +802,12 @@ export function BillReviewForm({
               <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum for auto-publish.">
                 <AutoSaveInput type="number" initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
               </Field>
-              <div className="col-span-2">
-                <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and optionally copied to QB Ref No field.">
-                  <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
-                </Field>
-              </div>
-              <div className="col-span-2">
-                <Field label="Memo / Description" helper="Pre-populates the QB bill memo field. Defaults to vendor name if blank.">
-                  <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
-                </Field>
-              </div>
+              <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and optionally copied to QB Ref No field.">
+                <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
+              </Field>
+              <Field label="Memo / Description" helper="Pre-populates the QB bill memo field. Defaults to vendor name if blank.">
+                <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
+              </Field>
               {lineItems.length > 0 && (
                 <div className="col-span-2">
                   <Field label="GL Account (all lines)" helper="Sets the GL account for all line items at once. Useful when all items go to the same account. Individual line items can still be changed after.">
@@ -1645,7 +1641,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       <p style={{
         fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em',
         color: 'var(--color-text-secondary)',
-        paddingTop: 12, marginBottom: 10,
+        paddingTop: 8, marginBottom: 6,
         borderTop: '0.5px solid var(--color-border-tertiary)',
       }}>
         {title}
@@ -1708,10 +1704,10 @@ function AutoSaveInput({
       onBlur={handleBlur}
       placeholder={placeholder}
       style={{
-        width: '100%', height: 36,
+        width: '100%', height: 30,
         border: `0.5px solid ${borderColor ?? 'var(--color-border-secondary)'}`,
         borderRadius: 6, padding: '0 10px',
-        fontSize: 13, color: 'var(--color-text-primary)',
+        fontSize: 12, color: 'var(--color-text-primary)',
         textAlign: align === 'right' ? 'right' : 'left',
         outline: 'none',
         background: 'white',
@@ -1814,10 +1810,10 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
 }
 
 const selectStyle: React.CSSProperties = {
-  width: '100%', height: 36,
+  width: '100%', height: 30,
   border: '0.5px solid var(--color-border-secondary)',
   borderRadius: 6, padding: '0 10px',
-  fontSize: 13, color: 'var(--color-text-primary)',
+  fontSize: 12, color: 'var(--color-text-primary)',
   background: 'white',
 }
 
