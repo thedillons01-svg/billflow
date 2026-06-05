@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback, createContext, useContext } from 'react'
 import { useConfirm } from '@/components/confirm-dialog'
 import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
-import { reopenJob } from '../../jobs/actions'
+import { reopenJob, createJob } from '../../jobs/actions'
 
 const FieldTipsContext = createContext(true)
 
@@ -181,6 +181,9 @@ export function BillReviewForm({
   const [vendorCreateError, setVendorCreateError] = useState<string | null>(null)
   const [localVendorQbLinked, setLocalVendorQbLinked] = useState(bill.vendor_qb_linked)
   const [qbAddError, setQbAddError] = useState<string | null>(null)
+  const [showJobCreate, setShowJobCreate] = useState(false)
+  const [newJobName, setNewJobName] = useState('')
+  const [jobCreateError, setJobCreateError] = useState<string | null>(null)
 
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
@@ -930,6 +933,68 @@ export function BillReviewForm({
                       placeholder={lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'Job…' : 'Mixed — select to apply all'}
                       emptyLabel="—"
                     />
+                    {lineItems.every(li => !li.job_id) && (
+                      <div style={{ marginTop: 6 }}>
+                        {!showJobCreate ? (
+                          <button
+                            type="button"
+                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.vendor_po_reference ?? '') }}
+                            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                          >
+                            <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                            Create new job in QuickBooks
+                          </button>
+                        ) : (
+                          <div>
+                            <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                              <input
+                                type="text"
+                                value={newJobName}
+                                onChange={e => setNewJobName(e.target.value)}
+                                placeholder="Job name"
+                                autoFocus
+                                style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12 }}
+                              />
+                              <button
+                                type="button"
+                                disabled={!newJobName.trim() || isPending}
+                                onClick={() => {
+                                  setJobCreateError(null)
+                                  startTransition(async () => {
+                                    const result = await createJob(bill.company_id, newJobName.trim())
+                                    if ('error' in result) {
+                                      setJobCreateError(result.error)
+                                    } else {
+                                      const newJob = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: result.customerName, parent_id: null, is_customer: true, status: 'active' }
+                                      setLiveJobs(prev => [...prev, newJob])
+                                      setShowJobCreate(false)
+                                      setNewJobName('')
+                                      setHeaderJobPending({ jobId: result.qbJobId, jobLabel: result.jobName })
+                                    }
+                                  })
+                                }}
+                                style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !newJobName.trim() || isPending ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                              >
+                                {isPending ? 'Creating…' : 'Create'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => { setShowJobCreate(false); setJobCreateError(null) }}
+                                style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                            {jobCreateError && (
+                              <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                <i className="ti ti-circle-x" style={{ fontSize: 12 }} />
+                                {jobCreateError}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
                     {headerJobPending && (
                       <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}>
                         <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#4338CA', flexShrink: 0 }} />

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, useEffect } from 'react'
 import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem, applyJobToAllPOLines } from '../actions'
-import { reopenJob } from '../../jobs/actions'
+import { reopenJob, createJob } from '../../jobs/actions'
 
 type Job = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
 type Vendor = { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null; qb_vendor_id: string | null }
@@ -94,6 +94,9 @@ export function PODetail({
   const [liveJobs, setLiveJobs] = useState(jobs)
   const [liveClosedJobs, setLiveClosedJobs] = useState(closedJobs)
   const [headerJobPending, setHeaderJobPending] = useState<{ jobId: string; label: string } | null>(null)
+  const [showJobCreate, setShowJobCreate] = useState(false)
+  const [newJobName, setNewJobName] = useState('')
+  const [jobCreateError, setJobCreateError] = useState<string | null>(null)
 
   useEffect(() => { setLineItems(initialLineItems) }, [initialLineItems])
   useEffect(() => { setLiveJobs(jobs) }, [jobs])
@@ -446,6 +449,68 @@ export function PODetail({
                     })
                   }}
                 />
+                {lineItems.every(li => !li.job_id) && (
+                  <div style={{ marginTop: 6 }}>
+                    {!showJobCreate ? (
+                      <button
+                        type="button"
+                        onClick={() => { setShowJobCreate(true); setNewJobName(po.po_number ?? '') }}
+                        style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      >
+                        <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                        Create new job in QuickBooks
+                      </button>
+                    ) : (
+                      <div>
+                        <div className="flex items-center gap-2" style={{ marginTop: 2 }}>
+                          <input
+                            type="text"
+                            value={newJobName}
+                            onChange={e => setNewJobName(e.target.value)}
+                            placeholder="Job name"
+                            autoFocus
+                            style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12 }}
+                          />
+                          <button
+                            type="button"
+                            disabled={!newJobName.trim() || isPending}
+                            onClick={() => {
+                              setJobCreateError(null)
+                              startTransition(async () => {
+                                const result = await createJob(po.company_id, newJobName.trim())
+                                if ('error' in result) {
+                                  setJobCreateError(result.error)
+                                } else {
+                                  const newJob = { qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: result.customerName }
+                                  setLiveJobs(prev => [...prev, newJob])
+                                  setShowJobCreate(false)
+                                  setNewJobName('')
+                                  setHeaderJobPending({ jobId: result.qbJobId, label: result.jobName })
+                                }
+                              })
+                            }}
+                            style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !newJobName.trim() || isPending ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                          >
+                            {isPending ? 'Creating…' : 'Create'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => { setShowJobCreate(false); setJobCreateError(null) }}
+                            style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        {jobCreateError && (
+                          <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <i className="ti ti-circle-x" style={{ fontSize: 12 }} />
+                            {jobCreateError}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {headerJobPending && (
                   <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
                     <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
