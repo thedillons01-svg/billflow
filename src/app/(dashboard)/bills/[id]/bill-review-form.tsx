@@ -683,8 +683,7 @@ export function BillReviewForm({
           {/* INVOICE DETAILS */}
           <Section title="Invoice Details">
             <div className="grid grid-cols-2 gap-2">
-              <div className="col-span-2">
-                <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
+              <Field label="Vendor" helper="The vendor this invoice is matched to. Change if the OCR matched the wrong vendor.">
                   <select
                     value={localVendorId}
                     onChange={e => {
@@ -785,7 +784,6 @@ export function BillReviewForm({
                     </>
                   )}
                 </Field>
-              </div>
               <Field label="Invoice #" helper="The invoice number from the vendor PDF. Used for duplicate detection.">
                 <AutoSaveInput
                   initialValue={bill.invoice_number ?? ''}
@@ -809,8 +807,7 @@ export function BillReviewForm({
                 <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
               </Field>
               {lineItems.length > 0 && (
-                <div className="col-span-2">
-                  <Field label="GL Account (all lines)" helper="Sets the GL account for all line items at once. Useful when all items go to the same account. Individual line items can still be changed after.">
+                <Field label="GL Account (all lines)" helper="Sets the GL account for all line items at once. Useful when all items go to the same account. Individual line items can still be changed after.">
                     <InlineSelect
                       initialValue={
                         lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id)
@@ -891,11 +888,9 @@ export function BillReviewForm({
                       </div>
                     )}
                   </Field>
-                </div>
               )}
               {jobCostingEnabled && lineItems.length > 0 && (
-                <div className="col-span-2">
-                  <Field label="Job (all lines)" helper="Sets the job for all line items at once. Individual line items can still be changed after.">
+                <Field label="Job (all lines)" helper="Sets the job for all line items at once. Individual line items can still be changed after.">
                     <InlineSelect
                       initialValue={
                         lineItems.every(li => li.job_id === lineItems[0].job_id)
@@ -959,7 +954,6 @@ export function BillReviewForm({
                       </div>
                     )}
                   </Field>
-                </div>
               )}
             </div>
           </Section>
