@@ -121,8 +121,8 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
         payload.DueDate = due.toISOString().slice(0, 10)
       }
     }
-    // DocNumber is the QB "Ref No." field — use the value from qb_ref_source
-    if (refNumber) payload.DocNumber = refNumber
+    // DocNumber is the QB "Ref No." field — max 21 chars enforced by QBO
+    if (refNumber) payload.DocNumber = refNumber.slice(0, 21)
     if (b.description) payload.PrivateNote = b.description
 
     const isCreditNote = b.bill_type === 'credit_note'
