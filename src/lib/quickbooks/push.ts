@@ -11,6 +11,7 @@ type LineItem = {
   gl_account_id: string | null
   job_id: string | null
   class_id: string | null
+  is_tax_line: boolean | null
   sort_order: number
 }
 
@@ -34,7 +35,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       ),
       bill_line_items (
         line_id, description, quantity, unit_cost, extended_cost,
-        gl_account_id, job_id, class_id, sort_order
+        gl_account_id, job_id, class_id, is_tax_line, sort_order
       )
     `)
     .eq('bill_id', billId)
@@ -85,6 +86,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
         AccountRef: { value: li.gl_account_id! },
         ...(li.job_id ? { CustomerRef: { value: li.job_id } } : {}),
         ...(li.class_id ? { ClassRef: { value: li.class_id } } : {}),
+        ...(li.is_tax_line ? { TaxCodeRef: { value: 'TAX' } } : {}),
       },
     }))
 
