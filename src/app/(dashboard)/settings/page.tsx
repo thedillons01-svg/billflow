@@ -381,6 +381,7 @@ export default async function SettingsPage({
                     Jobs with no bill, PO, or receiving activity for this many days are automatically closed and hidden from tagging dropdowns. Set to 0 to disable auto-close. Runs during each QB sync.
                   </p>
                 </div>
+                {company?.qb_type === 'qbd' && (
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                     QB Reference Number field source
@@ -401,9 +402,10 @@ export default async function SettingsPage({
                     <option value="blank">Leave blank</option>
                   </select>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
-                    Controls what goes in the QB Ref No field on each pushed bill. &ldquo;PO / Reference number&rdquo; uses the vendor&apos;s PO or reference field. &ldquo;Invoice number&rdquo; uses the invoice number instead. Per-vendor &ldquo;Copy PO to QB reference&rdquo; toggle overrides this setting.
+                    QuickBooks Desktop has a separate Ref No. field on bills. Controls what Purchasomatic puts there. Per-vendor &ldquo;Copy PO to QB reference&rdquo; toggle overrides this setting.
                   </p>
                 </div>
+                )}
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                     Default due date
