@@ -24,9 +24,9 @@
 .DS_Store
 *.pem
 
-# dev scripts
+# dev scripts and local screenshots
 screenshot.mjs
-ss-*.png
+*.png
 
 # debug
 npm-debug.log*
