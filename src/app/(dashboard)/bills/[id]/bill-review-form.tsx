@@ -2,10 +2,12 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useRef, useTransition, useEffect, useCallback } from 'react'
+import { useState, useRef, useTransition, useEffect, useCallback, createContext, useContext } from 'react'
 import { useConfirm } from '@/components/confirm-dialog'
 import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
 import { reopenJob } from '../../jobs/actions'
+
+const FieldTipsContext = createContext(true)
 
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; parent_id?: string | null; is_customer?: boolean; status?: string }
@@ -76,6 +78,7 @@ export function BillReviewForm({
   vendors = [],
   jobCostingEnabled = false,
   classTrackingEnabled = false,
+  showFieldTips = true,
   pdfSignedUrl = null,
 }: {
   bill: Bill
@@ -88,6 +91,7 @@ export function BillReviewForm({
   vendors?: Vendor[]
   jobCostingEnabled?: boolean
   classTrackingEnabled?: boolean
+  showFieldTips?: boolean
   pdfSignedUrl?: string | null
 }) {
   const router = useRouter()
@@ -366,8 +370,9 @@ export function BillReviewForm({
   const canReprocess = !isPublished
 
   const formPanel = (
-    <div
-      ref={formRef}
+    <FieldTipsContext.Provider value={showFieldTips}>
+      <div
+        ref={formRef}
       style={{
         width: formWidth, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
@@ -1436,6 +1441,7 @@ export function BillReviewForm({
         </div>
       </div>
     </div>
+    </FieldTipsContext.Provider>
   )
 
   const handleDownload = async () => {
@@ -1648,13 +1654,17 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function Field({ label, helper, children }: { label: string; helper: string; children: React.ReactNode }) {
+  const showTips = useContext(FieldTipsContext)
   return (
     <div>
-      <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+      <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
         {label}
+        {!showTips && helper && (
+          <span title={helper} style={{ cursor: 'help', color: 'var(--color-text-tertiary)', fontSize: 11, lineHeight: 1 }}>ⓘ</span>
+        )}
       </label>
       {children}
-      <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>{helper}</p>
+      {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>{helper}</p>}
     </div>
   )
 }

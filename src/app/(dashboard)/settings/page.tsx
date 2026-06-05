@@ -25,6 +25,7 @@ type Company = {
   default_due_date: string | null
   job_tagging_level: string | null
   auto_close_jobs_days: number | null
+  show_field_tips: boolean | null
   plan_name: string | null
   credit_balance: number | null
   stripe_customer_id: string | null
@@ -41,7 +42,7 @@ export default async function SettingsPage({
   const [{ data }, { data: qbdHeartbeat }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, show_field_tips, plan_name, credit_balance, stripe_customer_id')
       .single(),
     supabase
       .from('qbd_heartbeats')
@@ -302,6 +303,7 @@ export default async function SettingsPage({
                 default_due_date: fd.get('default_due_date') as string || 'not_required',
                 job_tagging_level: fd.get('job_tagging_level') as string || 'sub_customers_only',
                 auto_close_jobs_days: fd.get('auto_close_jobs_days') ? Number(fd.get('auto_close_jobs_days')) : null,
+                show_field_tips: fd.get('show_field_tips') === 'on',
               })
             }}>
               <div className="space-y-4">
@@ -328,6 +330,12 @@ export default async function SettingsPage({
                   defaultChecked={company?.push_pos_to_qb ?? true}
                   label="Push purchase orders to QuickBooks"
                   helper="When on, captured POs can be pushed to QuickBooks as Purchase Order records. Turn off if you want to use PO capture and receiving workflow in Purchasomatic only — without creating PO records in QuickBooks."
+                />
+                <Toggle
+                  name="show_field_tips"
+                  defaultChecked={company?.show_field_tips ?? true}
+                  label="Show field tips"
+                  helper="When on, explanatory text appears below each field on the bill and PO screens. When off, tips are hidden but still available by hovering the ⓘ icon next to the field label."
                 />
                 <div>
                   <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>

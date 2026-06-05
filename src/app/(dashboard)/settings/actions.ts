@@ -128,6 +128,7 @@ export async function updateCompanySettings(
     default_due_date?: string
     job_tagging_level?: string
     auto_close_jobs_days?: number | null
+    show_field_tips?: boolean
   }
 ) {
   const supabase = await createClient()
