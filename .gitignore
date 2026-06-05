@@ -26,6 +26,7 @@
 
 # dev scripts and local screenshots
 screenshot.mjs
+CUsers*.mjs
 *.png
 
 # debug
