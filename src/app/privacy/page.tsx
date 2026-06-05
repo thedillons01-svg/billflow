@@ -7,7 +7,7 @@ export const metadata: Metadata = {
 
 const EFFECTIVE_DATE = 'June 5, 2026'
 const CONTACT_EMAIL  = 'privacy@purchasomatic.com'
-const COMPANY_NAME   = 'Dillon Software LLC'
+const COMPANY_NAME   = 'Heather Dillon'
 const APP_NAME       = 'Purchasomatic'
 
 export default function PrivacyPage() {
