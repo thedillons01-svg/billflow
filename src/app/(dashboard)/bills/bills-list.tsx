@@ -10,7 +10,7 @@ type Bill = {
   bill_id: string
   vendor_id: string | null
   vendor_name_raw: string | null
-  vendors?: { vendor_name_display: string | null }[] | null
+  vendors?: { vendor_name_display: string | null } | null
   invoice_number: string | null
   invoice_date: string | null
   total: number | null
@@ -256,7 +256,7 @@ export function BillsList({
                     onClick={e => startVendorEdit(bill, e)}
                     title="Click to edit vendor name"
                   >
-                    {(bill.vendors as { vendor_name_display: string | null }[] | null)?.[0]?.vendor_name_display ?? bill.vendor_name_raw ?? 'Unknown Vendor'}
+                    {(bill.vendors as { vendor_name_display: string | null } | null)?.vendor_name_display ?? bill.vendor_name_raw ?? 'Unknown Vendor'}
                   </p>
                   {bill.vendor_id && (
                     <a

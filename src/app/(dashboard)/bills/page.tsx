@@ -146,7 +146,7 @@ export default async function BillsPage({
         {bills.length === 0 ? (
           <EmptyState tab={activeTab} search={search} />
         ) : (
-          <BillsList bills={bills} accounts={accounts} isInbox={isInbox} />
+          <BillsList bills={bills as unknown as Parameters<typeof BillsList>[0]['bills']} accounts={accounts} isInbox={isInbox} />
         )}
       </div>
     </div>
