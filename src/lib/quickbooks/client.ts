@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 
+// Dev default = sandbox. Set QBO_BASE_URL=https://quickbooks.api.intuit.com in Vercel for production.
 const QBO_BASE_URL = process.env.QBO_BASE_URL ?? 'https://sandbox-quickbooks.api.intuit.com'
 const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
 

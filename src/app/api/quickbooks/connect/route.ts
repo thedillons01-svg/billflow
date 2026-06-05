@@ -1,13 +1,15 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { randomBytes } from 'crypto'
+import { randomBytes, createHash } from 'crypto'
 
 const INTUIT_AUTH_URL = 'https://appcenter.intuit.com/connect/oauth2'
+
+// Scopes required by Intuit app review: accounting + OpenID identity
+const SCOPES = 'com.intuit.quickbooks.accounting openid profile email'
 
 export async function GET() {
   const supabase = await createClient()
 
-  // Get the user's company
   const { data: company } = await supabase
     .from('companies')
     .select('company_id')
@@ -19,30 +21,37 @@ export async function GET() {
     )
   }
 
-  // Build CSRF state: companyId.randomNonce
+  // CSRF state: companyId.randomNonce
   const nonce = randomBytes(16).toString('hex')
   const state = `${company.company_id}.${nonce}`
 
-  // Build Intuit authorization URL
+  // PKCE: generate code_verifier + code_challenge (S256)
+  const codeVerifier  = randomBytes(32).toString('base64url')
+  const codeChallenge = createHash('sha256').update(codeVerifier).digest('base64url')
+
   const params = new URLSearchParams({
-    client_id:     process.env.QBO_CLIENT_ID!,
-    response_type: 'code',
-    scope:         'com.intuit.quickbooks.accounting',
-    redirect_uri:  process.env.QBO_REDIRECT_URI!,
+    client_id:             process.env.QBO_CLIENT_ID!,
+    response_type:         'code',
+    scope:                 SCOPES,
+    redirect_uri:          process.env.QBO_REDIRECT_URI!,
     state,
-    prompt:        'login',
+    prompt:                'login',
+    code_challenge:        codeChallenge,
+    code_challenge_method: 'S256',
   })
 
   const response = NextResponse.redirect(`${INTUIT_AUTH_URL}?${params}`)
 
-  // Store state in a short-lived HttpOnly cookie for CSRF verification
-  response.cookies.set('qb_oauth_state', state, {
+  const cookieOpts = {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
-    maxAge:   600, // 10 minutes
+    maxAge:   600,
     path:     '/',
-    sameSite: 'lax',
-  })
+    sameSite: 'lax' as const,
+  }
+
+  response.cookies.set('qb_oauth_state',    state,        cookieOpts)
+  response.cookies.set('qb_pkce_verifier',  codeVerifier, cookieOpts)
 
   return response
 }

@@ -26,15 +26,16 @@ export async function GET(request: NextRequest) {
   }
 
   // Verify CSRF state against cookie
-  const storedState = request.cookies.get('qb_oauth_state')?.value
-  if (!storedState || storedState !== state) {
+  const storedState    = request.cookies.get('qb_oauth_state')?.value
+  const codeVerifier   = request.cookies.get('qb_pkce_verifier')?.value
+  if (!storedState || storedState !== state || !codeVerifier) {
     return settingsRedirect(request, { qb_error: 'invalid_state' })
   }
 
   // Extract company_id from state (format: companyId.nonce)
   const companyId = state.split('.')[0]
 
-  // Exchange authorization code for tokens
+  // Exchange authorization code for tokens (include PKCE verifier)
   const credentials = Buffer.from(
     `${process.env.QBO_CLIENT_ID}:${process.env.QBO_CLIENT_SECRET}`
   ).toString('base64')
@@ -47,9 +48,10 @@ export async function GET(request: NextRequest) {
       Accept:         'application/json',
     },
     body: new URLSearchParams({
-      grant_type:   'authorization_code',
+      grant_type:    'authorization_code',
       code,
-      redirect_uri: process.env.QBO_REDIRECT_URI!,
+      redirect_uri:  process.env.QBO_REDIRECT_URI!,
+      code_verifier: codeVerifier,
     }),
   })
 
@@ -92,8 +94,9 @@ export async function GET(request: NextRequest) {
     console.error('Initial QB sync failed:', err)
   }
 
-  // Clear the state cookie and redirect to settings
+  // Clear OAuth cookies and redirect to settings
   const response = settingsRedirect(request, { qb_connected: 'true' })
   response.cookies.delete('qb_oauth_state')
+  response.cookies.delete('qb_pkce_verifier')
   return response
 }
