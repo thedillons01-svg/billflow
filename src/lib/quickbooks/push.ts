@@ -51,10 +51,9 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
 
   const { data: companySettings } = await supabase
     .from('companies')
-    .select('qb_ref_source, default_due_date, push_pdf_to_qb')
+    .select('default_due_date, push_pdf_to_qb')
     .eq('company_id', companyId)
     .single()
-  const qbRefSource = companySettings?.qb_ref_source ?? 'po_number'
   const companyDueDateSetting = companySettings?.default_due_date ?? 'not_required'
   const pushPdfToQb = companySettings?.push_pdf_to_qb ?? true
 
@@ -92,17 +91,6 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }))
 
     const b = bill as Record<string, unknown>
-    // Compute QB Ref No: vendor flag copy_po_to_qb_reference overrides company qb_ref_source setting
-    let refNumber: string | undefined
-    if (vendor.copy_po_to_qb_reference) {
-      refNumber = (b.qb_reference_number as string | null) ?? (b.vendor_po_reference as string | null) ?? undefined
-    } else if (qbRefSource === 'invoice_number') {
-      refNumber = (b.qb_reference_number as string | null) ?? (b.invoice_number as string | null) ?? undefined
-    } else if (qbRefSource === 'po_number') {
-      refNumber = (b.qb_reference_number as string | null) ?? (b.vendor_po_reference as string | null) ?? undefined
-    } else {
-      refNumber = (b.qb_reference_number as string | null) ?? undefined
-    }
 
     const payload: Record<string, unknown> = {
       Line: qboLines,
@@ -124,8 +112,9 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
         payload.DueDate = due.toISOString().slice(0, 10)
       }
     }
-    // DocNumber is the QB "Ref No." field — max 21 chars enforced by QBO
-    if (refNumber) payload.DocNumber = refNumber.slice(0, 21)
+    // DocNumber = QB "Bill No." field (vendor invoice number), max 21 chars
+    const invoiceNum = (b.qb_reference_number as string | null) ?? (b.invoice_number as string | null)
+    if (invoiceNum) payload.DocNumber = invoiceNum.slice(0, 21)
     // PrivateNote = QB memo field: use description if set, else full vendor_po_reference
     const memo = (b.description as string | null) || (b.vendor_po_reference as string | null)
     if (memo) payload.PrivateNote = memo
