@@ -890,6 +890,7 @@ export function BillReviewForm({
                   </Field>
               )}
               {jobCostingEnabled && lineItems.length > 0 && (
+                <div className="col-span-2">
                 <Field label="Job (all lines)" helper="Sets the job for all line items at once. Individual line items can still be changed after.">
                     <InlineSelect
                       initialValue={
@@ -954,6 +955,7 @@ export function BillReviewForm({
                       </div>
                     )}
                   </Field>
+                </div>
               )}
             </div>
           </Section>
