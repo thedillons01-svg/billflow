@@ -370,12 +370,13 @@ export default async function SettingsPage({
                     <input
                       type="number"
                       name="auto_close_jobs_days"
-                      defaultValue={company?.auto_close_jobs_days ?? 90}
-                      min={0}
+                      defaultValue={company?.auto_close_jobs_days ?? ''}
+                      placeholder="disabled"
+                      min={1}
                       max={3650}
                       style={{ width: 100, height: 36, border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, padding: '0 10px', fontSize: 13, color: 'var(--color-text-primary)', background: 'white' }}
                     />
-                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>days (0 = disabled)</span>
+                    <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>days (blank = disabled)</span>
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
                     Jobs with no bill, PO, or receiving activity for this many days are automatically closed and hidden from tagging dropdowns. Set to 0 to disable auto-close. Runs during each QB sync.

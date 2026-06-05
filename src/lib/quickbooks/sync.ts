@@ -24,6 +24,7 @@ type QBCustomer = {
   ParentRef?: { value: string; name: string }
   Job: boolean
   Active: boolean
+  MetaData?: { CreateTime?: string; LastUpdatedTime?: string }
 }
 
 type QBClass = {
@@ -258,6 +259,8 @@ function buildJobRow(companyId: string, c: QBCustomer, statusMap: Map<string, st
     is_customer:   isCustomer,
     // Preserve user-set status; new entries default to 'active'
     status:        statusMap.get(c.Id) ?? 'active',
+    qb_created_at: c.MetaData?.CreateTime ?? null,
+    qb_updated_at: c.MetaData?.LastUpdatedTime ?? null,
     cached_at:     new Date().toISOString(),
   }
 }
@@ -302,28 +305,34 @@ export async function closeInactiveJobs(companyId: string): Promise<void> {
 
   const cutoff = new Date()
   cutoff.setDate(cutoff.getDate() - days)
-  const cutoffStr = cutoff.toISOString().slice(0, 10)
+  const cutoffIso = cutoff.toISOString()
 
-  // Find jobs with no bill line items, PO lines, or receiving records after the cutoff
+  // Fetch active jobs including their QB dates
   const { data: activeJobs } = await supabase
     .from('qb_jobs_cache')
-    .select('qb_job_id')
+    .select('qb_job_id, qb_created_at, qb_updated_at')
     .eq('company_id', companyId)
     .eq('status', 'active')
 
   if (!activeJobs?.length) return
 
-  // For each active job, check last activity date across all transaction types
   const inactiveIds: string[] = []
+
   for (const job of activeJobs) {
+    // If QB says the job was created or updated recently, keep it active
+    if (job.qb_created_at && job.qb_created_at > cutoffIso) continue
+    if (job.qb_updated_at && job.qb_updated_at > cutoffIso) continue
+
+    // Check Purchasomatic activity: bills or POs tagged to this job
     const [{ data: billLines }, { data: poLines }] = await Promise.all([
       supabase.from('bill_line_items').select('line_id')
         .eq('company_id', companyId).eq('job_id', job.qb_job_id)
-        .gte('created_at', cutoffStr).limit(1),
+        .gte('created_at', cutoffIso).limit(1),
       supabase.from('po_line_items').select('line_id')
         .eq('company_id', companyId).eq('job_id', job.qb_job_id)
-        .gte('created_at', cutoffStr).limit(1),
+        .gte('created_at', cutoffIso).limit(1),
     ])
+
     if (!billLines?.length && !poLines?.length) {
       inactiveIds.push(job.qb_job_id)
     }
