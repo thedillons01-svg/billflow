@@ -185,7 +185,7 @@ export function BillReviewForm({
   }> | null>(null)
   const historyRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLDivElement>(null)
-  const [formWidth, setFormWidth] = useState(460)
+  const [formWidth, setFormWidth] = useState(560)
   const [isDragging, setIsDragging] = useState(false)
 
   const handleDragStart = useCallback((e: React.MouseEvent) => {
