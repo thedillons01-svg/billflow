@@ -123,7 +123,9 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }
     // DocNumber is the QB "Ref No." field — max 21 chars enforced by QBO
     if (refNumber) payload.DocNumber = refNumber.slice(0, 21)
-    if (b.description) payload.PrivateNote = b.description
+    // PrivateNote = QB memo field: use description if set, else full vendor_po_reference
+    const memo = (b.description as string | null) || (b.vendor_po_reference as string | null)
+    if (memo) payload.PrivateNote = memo
 
     const isCreditNote = b.bill_type === 'credit_note'
     const endpoint = isCreditNote ? 'vendorcredit' : 'bill'

@@ -808,7 +808,7 @@ export function BillReviewForm({
               <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and optionally copied to QB Ref No field.">
                 <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
               </Field>
-              <Field label="Memo / Description" helper="Pre-populates the QB bill memo field. Defaults to vendor name if blank.">
+              <Field label="Memo / Description" helper="Sent to the QB bill memo field. If left blank, the full Vendor PO / Reference is used instead — useful since the Ref No. field in QB is limited to 21 characters.">
                 <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
               </Field>
               {lineItems.length > 0 && (
