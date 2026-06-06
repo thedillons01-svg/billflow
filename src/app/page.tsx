@@ -748,7 +748,7 @@ function Footer() {
           </div>
           <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Purchasomatic</span>
           <span style={{ fontSize: 13, color: '#4B5563', marginLeft: 8 }}>
-            &copy; {new Date().getFullYear()} Dillon Software
+            &copy; {new Date().getFullYear()} Heather Dillon
           </span>
         </div>
 
@@ -756,6 +756,8 @@ function Footer() {
           {[
             { label: 'Sign in', href: '/login' },
             { label: 'Create account', href: '/signup' },
+            { label: 'Privacy Policy', href: '/privacy' },
+            { label: 'Terms of Service', href: '/terms' },
             { label: 'support@purchasomatic.com', href: 'mailto:support@purchasomatic.com' },
           ].map(link => (
             <a
