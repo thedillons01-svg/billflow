@@ -1,11 +1,54 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID, createHash } from 'crypto'
+import { Resend } from 'resend'
 import { processBill } from '@/lib/ocr/process'
 import { processPO } from '@/lib/ocr/process-po'
 import { splitPdf } from '@/lib/ocr/split-pdf'
 import { createServiceClient } from '@/lib/supabase/service'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { getFileCategory, convertToPdf, SUPPORTED_TYPES_LABEL } from '@/lib/converters/to-pdf'
+
+const FORWARD_TO      = 'billflowdev@gmail.com'
+const FROM_ADDRESS    = 'Purchasomatic <notifications@purchasomatic.com>'
+
+async function forwardUnknownEmail(payload: PostmarkPayload, toAddress: string): Promise<void> {
+  const key = process.env.RESEND_API_KEY
+  if (!key) {
+    console.warn('[email-webhook] RESEND_API_KEY not set — cannot forward unknown email')
+    return
+  }
+  const resend = new Resend(key)
+  const html = `
+    <div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
+      <div style="background: #1A3D2B; padding: 16px 20px; border-radius: 8px 8px 0 0;">
+        <span style="color: white; font-size: 15px; font-weight: 600;">Purchasomatic — Forwarded Email</span>
+      </div>
+      <div style="background: white; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 8px 8px; padding: 24px;">
+        <table style="font-size: 13px; color: #374151; margin-bottom: 20px; border-collapse: collapse;">
+          <tr><td style="padding: 3px 12px 3px 0; color: #6B7280; white-space: nowrap;">Sent to</td><td>${toAddress}</td></tr>
+          <tr><td style="padding: 3px 12px 3px 0; color: #6B7280; white-space: nowrap;">From</td><td>${payload.From}${payload.FromName ? ` (${payload.FromName})` : ''}</td></tr>
+          <tr><td style="padding: 3px 12px 3px 0; color: #6B7280; white-space: nowrap;">Subject</td><td>${payload.Subject ?? '(no subject)'}</td></tr>
+          <tr><td style="padding: 3px 12px 3px 0; color: #6B7280; white-space: nowrap;">Date</td><td>${payload.Date ?? ''}</td></tr>
+        </table>
+        <hr style="border: none; border-top: 1px solid #E5E7EB; margin: 0 0 20px;" />
+        <div style="font-size: 14px; color: #111827; line-height: 1.6; white-space: pre-wrap;">${
+          (payload.TextBody ?? '(no text body)').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        }</div>
+      </div>
+    </div>
+  `
+  try {
+    await resend.emails.send({
+      from:    FROM_ADDRESS,
+      to:      FORWARD_TO,
+      subject: `Fwd: ${payload.Subject ?? '(no subject)'}`,
+      html,
+    })
+    console.log(`[email-webhook] Forwarded unknown email from ${payload.From} (to: ${toAddress}) → ${FORWARD_TO}`)
+  } catch (err) {
+    console.error('[email-webhook] Forward via Resend failed:', err)
+  }
+}
 
 export const maxDuration = 60
 
@@ -53,6 +96,13 @@ export async function POST(request: NextRequest) {
     payload.ToFull?.[0]?.Email ??
     payload.To ??
     ''
+
+  // If the address isn't a recognised capture address, forward and stop
+  const toAddrLower = toAddress.toLowerCase()
+  if (!toAddrLower.endsWith('-bills@purchasomatic.com') && !toAddrLower.endsWith('-pos@purchasomatic.com')) {
+    await forwardUnknownEmail(payload, toAddress)
+    return NextResponse.json({ skipped: true, reason: 'unknown_address_forwarded' })
+  }
 
   // Determine document type from address suffix: {prefix}-bills@ or {prefix}-pos@
   const localPart = toAddress.split('@')[0].toLowerCase()
