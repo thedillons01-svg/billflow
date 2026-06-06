@@ -165,16 +165,23 @@ export default async function SettingsPage({
                     <span style={{ display: 'block', width: 10, height: 10, borderRadius: '50%', background: 'var(--color-border-secondary)' }} />
                     <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Not connected</p>
                   </div>
+                  {/* Intuit-branded Connect to QuickBooks button — required for app review */}
                   <a
                     href="/api/quickbooks/connect"
                     style={{
-                      background: '#2DB87A', color: 'white',
-                      borderRadius: 6, padding: '7px 16px',
-                      fontSize: 13, fontWeight: 500,
-                      textDecoration: 'none',
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      background: '#2CA01C', color: 'white',
+                      borderRadius: 4, padding: '8px 16px',
+                      fontSize: 14, fontWeight: 600, fontFamily: 'Arial, sans-serif',
+                      textDecoration: 'none', letterSpacing: '0.01em',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
                     }}
                   >
-                    Connect QuickBooks
+                    <svg width="18" height="18" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <circle cx="20" cy="20" r="20" fill="white"/>
+                      <text x="20" y="27" textAnchor="middle" fontSize="22" fontWeight="bold" fill="#2CA01C" fontFamily="Arial, sans-serif">Q</text>
+                    </svg>
+                    Connect to QuickBooks
                   </a>
                 </>
               )}

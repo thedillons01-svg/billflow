@@ -1,8 +1,27 @@
 import { createServiceClient } from '@/lib/supabase/service'
+import { sendNotification } from '@/lib/notifications/send-email'
 
 // Dev default = sandbox. Set QBO_BASE_URL=https://quickbooks.api.intuit.com in Vercel for production.
 const QBO_BASE_URL = process.env.QBO_BASE_URL ?? 'https://sandbox-quickbooks.api.intuit.com'
-const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
+const TOKEN_URL    = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
+
+// ---------------------------------------------------------------------------
+// Exponential backoff for 429 rate-limit responses
+// Intuit enforces rate limits; apps must retry with backoff to pass review.
+// ---------------------------------------------------------------------------
+async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const res = await fetch(url, options)
+    if (res.status !== 429 || attempt === maxRetries) return res
+    const retryAfterSec = parseInt(res.headers.get('Retry-After') ?? '0', 10)
+    const delayMs = retryAfterSec > 0
+      ? retryAfterSec * 1000
+      : Math.min(1000 * Math.pow(2, attempt), 30_000)
+    console.warn(`[qb-client] 429 rate limited — retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries})`)
+    await new Promise(r => setTimeout(r, delayMs))
+  }
+  return fetch(url, options)
+}
 
 async function refreshAccessToken(refreshToken: string) {
   const credentials = Buffer.from(
@@ -17,16 +36,16 @@ async function refreshAccessToken(refreshToken: string) {
       Accept: 'application/json',
     },
     body: new URLSearchParams({
-      grant_type: 'refresh_token',
+      grant_type:    'refresh_token',
       refresh_token: refreshToken,
     }),
   })
 
   if (!res.ok) throw new Error(`Token refresh failed: ${await res.text()}`)
   return res.json() as Promise<{
-    access_token: string
+    access_token:  string
     refresh_token: string
-    expires_in: number
+    expires_in:    number
   }>
 }
 
@@ -48,7 +67,7 @@ export async function getQBClient(companyId: string) {
   // Refresh if expiring within 5 minutes
   if (new Date(expiresAt as string).getTime() - Date.now() < 5 * 60 * 1000) {
     const newTokens = await refreshAccessToken(refreshToken as string)
-    accessToken = newTokens.access_token
+    accessToken  = newTokens.access_token
     refreshToken = newTokens.refresh_token
     const newExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
     await supabase
@@ -57,14 +76,44 @@ export async function getQBClient(companyId: string) {
       .eq('company_id', companyId)
   }
 
+  // ---------------------------------------------------------------------------
+  // Handle externally revoked tokens (user disconnected from Intuit's portal)
+  // ---------------------------------------------------------------------------
+  async function handleUnauthorized(): Promise<never> {
+    await supabase
+      .from('companies')
+      .update({
+        qb_connection_status: 'disconnected',
+        qb_access_token:      null,
+        qb_refresh_token:     null,
+        qb_token_expires_at:  null,
+      })
+      .eq('company_id', companyId)
+
+    // Notify the user so they know to reconnect
+    await sendNotification({
+      companyId,
+      event:   'bill_sync_error',
+      subject: 'QuickBooks connection lost',
+      body:    'Your QuickBooks connection was disconnected — possibly from the QuickBooks or Intuit account settings. Go to Settings in Purchasomatic to reconnect.',
+    }).catch(() => {})
+
+    throw new Error('QuickBooks token was revoked. Reconnect in Settings.')
+  }
+
+  // ---------------------------------------------------------------------------
+  // QB API helpers
+  // ---------------------------------------------------------------------------
+
   async function qbQuery(query: string) {
     const url = new URL(`${QBO_BASE_URL}/v3/company/${realmId}/query`)
     url.searchParams.set('query', query)
     url.searchParams.set('minorversion', '65')
 
-    const res = await fetch(url.toString(), {
+    const res = await fetchWithRetry(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
+    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) throw new Error(`QBO query failed (${res.status}): ${await res.text()}`)
     return res.json()
   }
@@ -85,15 +134,16 @@ export async function getQBClient(companyId: string) {
 
   async function qbPost(path: string, body: unknown) {
     const url = `${QBO_BASE_URL}/v3/company/${realmId}/${path}?minorversion=65`
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization:  `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
-        Accept: 'application/json',
+        Accept:         'application/json',
       },
       body: JSON.stringify(body),
     })
+    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) throw new Error(`QBO POST ${path} failed (${res.status}): ${await res.text()}`)
     return res.json()
   }
@@ -102,8 +152,8 @@ export async function getQBClient(companyId: string) {
     const boundary = `----PurchasomaticBoundary${Date.now()}`
     const metadata = JSON.stringify({
       AttachableRef: [{ EntityRef: { type: entityType, value: entityId } }],
-      ContentType: 'application/pdf',
-      FileName: filename,
+      ContentType:   'application/pdf',
+      FileName:      filename,
     })
     const body = Buffer.concat([
       Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file_metadata_01"\r\nContent-Type: application/json\r\n\r\n`),
@@ -113,15 +163,16 @@ export async function getQBClient(companyId: string) {
       Buffer.from(`\r\n--${boundary}--\r\n`),
     ])
     const url = `${QBO_BASE_URL}/v3/company/${realmId}/upload?minorversion=65`
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${accessToken}`,
+        Authorization:  `Bearer ${accessToken}`,
         'Content-Type': `multipart/form-data; boundary=${boundary}`,
-        Accept: 'application/json',
+        Accept:         'application/json',
       },
       body,
     })
+    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) throw new Error(`QBO upload failed (${res.status}): ${await res.text()}`)
     return res.json()
   }
@@ -130,9 +181,10 @@ export async function getQBClient(companyId: string) {
     const url = new URL(`${QBO_BASE_URL}/v3/company/${realmId}/reports/${reportType}`)
     url.searchParams.set('minorversion', '65')
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v)
-    const res = await fetch(url.toString(), {
+    const res = await fetchWithRetry(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
+    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) throw new Error(`QBO report ${reportType} failed (${res.status}): ${await res.text()}`)
     return res.json()
   }

@@ -178,6 +178,8 @@ export default function PrivacyPage() {
 
         <p style={{ marginTop: 24, textAlign: 'center', fontSize: 13, color: '#9CA3AF' }}>
           &copy; {new Date().getFullYear()} {COMPANY_NAME} &middot;{' '}
+          <Link href="/terms" style={{ color: '#9CA3AF' }}>Terms of Service</Link>
+          {' '}&middot;{' '}
           <Link href="/" style={{ color: '#9CA3AF' }}>purchasomatic.com</Link>
         </p>
       </div>
