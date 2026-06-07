@@ -12,9 +12,9 @@ export default function LoginPage() {
     <div style={{ width: '100%', maxWidth: 380 }}>
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 32, height: 32 }} />
-          <span style={{ fontSize: 18, fontWeight: 700, color: '#1A3D2B', letterSpacing: '-0.01em' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+          <img src="/logo-512.png" alt="Purchasomatic" style={{ width: 48, height: 48 }} />
+          <span style={{ fontSize: 20, fontWeight: 700, color: '#1A3D2B', letterSpacing: '-0.01em' }}>
             Purchasomatic
           </span>
         </div>
