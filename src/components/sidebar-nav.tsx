@@ -42,12 +42,7 @@ export function SidebarNav({
         className="flex-none flex items-center gap-2 px-3"
         style={{ background: '#1A3D2B', height: 52, flexShrink: 0 }}
       >
-        <div
-          className="flex-none flex items-center justify-center rounded-[6px] text-white"
-          style={{ width: 28, height: 28, background: '#2DB87A', fontSize: 12, fontWeight: 700 }}
-        >
-          P
-        </div>
+        <img src="/logo-512.png" alt="Purchasomatic" style={{ width: 28, height: 28, flexShrink: 0 }} />
         <span className="text-white" style={{ fontSize: 14, fontWeight: 600, letterSpacing: '-0.01em' }}>
           Purchasomatic
         </span>
