@@ -13,12 +13,7 @@ export default function LoginPage() {
       {/* Logo */}
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-          <div style={{
-            width: 32, height: 32, background: '#2DB87A', borderRadius: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <i className="ti ti-file-invoice" style={{ fontSize: 17, color: 'white' }} />
-          </div>
+          <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 32, height: 32 }} />
           <span style={{ fontSize: 18, fontWeight: 700, color: '#1A3D2B', letterSpacing: '-0.01em' }}>
             Purchasomatic
           </span>

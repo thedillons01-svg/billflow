@@ -21,9 +21,7 @@ export default function PrivacyPage() {
             href="/"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 32, textDecoration: 'none' }}
           >
-            <div style={{ width: 28, height: 28, background: '#2DB87A', borderRadius: 7, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <i className="ti ti-file-invoice" style={{ fontSize: 15, color: 'white' }} />
-            </div>
+            <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 28, height: 28 }} />
             <span style={{ fontSize: 15, fontWeight: 700, color: '#1A3D2B' }}>{APP_NAME}</span>
           </Link>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 8 }}>Privacy Policy</h1>

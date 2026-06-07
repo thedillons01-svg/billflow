@@ -56,19 +56,7 @@ function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
       >
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: '#2DB87A',
-              borderRadius: 7,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <i className="ti ti-file-invoice" style={{ fontSize: 15, color: 'white' }} />
-          </div>
+          <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 28, height: 28 }} />
           <span style={{ fontSize: 16, fontWeight: 600, color: '#1A3D2B', letterSpacing: '-0.01em' }}>
             Purchasomatic
           </span>
@@ -733,19 +721,7 @@ function Footer() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div
-            style={{
-              width: 24,
-              height: 24,
-              background: '#2DB87A',
-              borderRadius: 6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <i className="ti ti-file-invoice" style={{ fontSize: 13, color: 'white' }} />
-          </div>
+          <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 24, height: 24 }} />
           <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Purchasomatic</span>
           <span style={{ fontSize: 13, color: '#4B5563', marginLeft: 8 }}>
             &copy; {new Date().getFullYear()} Heather Dillon

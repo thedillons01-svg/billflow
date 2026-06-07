@@ -27,7 +27,9 @@
 # dev scripts and local screenshots
 screenshot.mjs
 CUsers*.mjs
-*.png
+ss-*.png
+billscreen.png
+**/AppData/**
 
 # debug
 npm-debug.log*
