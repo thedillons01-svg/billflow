@@ -17,7 +17,7 @@ export default async function PODetailPage({
     .select(`
       po_id, company_id, vendor_name_raw, po_number, order_date, expected_delivery_date,
       job_id, status, qb_po_id, qb_sync_error, pdf_url, notes, created_at, deleted_at,
-      vendor_id,
+      vendor_id, job_name_extracted, customer_name_extracted,
       vendors(vendor_name_display, qb_vendor_id),
       po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, extended_cost, job_id, sort_order)
     `)
@@ -112,6 +112,8 @@ export default async function PODetailPage({
             qb_po_id: po.qb_po_id,
             qb_sync_error: po.qb_sync_error,
             notes: po.notes,
+            job_name_extracted: po.job_name_extracted ?? null,
+            customer_name_extracted: po.customer_name_extracted ?? null,
           }}
           lineItems={lineItems}
           matchedBills={(matchedBills ?? []) as {

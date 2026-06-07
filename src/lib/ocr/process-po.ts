@@ -69,9 +69,11 @@ export async function processPO(poId: string): Promise<void> {
   await supabase
     .from('purchase_orders')
     .update({
-      vendor_name_raw: result.vendor_name_raw,
-      po_number:       result.invoice_number,   // invoice_number field maps to PO number
-      order_date:      result.invoice_date,
+      vendor_name_raw:          result.vendor_name_raw,
+      po_number:                result.invoice_number,
+      order_date:               result.invoice_date,
+      job_name_extracted:       result.job_name_extracted ?? null,
+      customer_name_extracted:  result.customer_name_extracted ?? null,
     })
     .eq('po_id', poId)
 
@@ -132,15 +134,15 @@ export async function processPO(poId: string): Promise<void> {
   }
 
   // Job matching — combine all available reference fields
-  await tryMatchJobForPO(supabase, poId, po.company_id, {
+  const matchedJobId = await tryMatchJobForPO(supabase, poId, po.company_id, {
     poNumber:         result.invoice_number,
     poReference:      result.vendor_po_reference,
     jobName:          result.job_name_extracted,
     customerName:     result.customer_name_extracted,
   })
 
-  // Insert PO line items
-  await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount)
+  // Insert PO line items, propagating the matched job to every line
+  await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount, matchedJobId)
 
   // Deduct 1 credit for PO processing
   const { data: co } = await supabase
@@ -230,9 +232,9 @@ async function tryMatchJobForPO(
     jobName: string | null
     customerName: string | null
   },
-): Promise<void> {
+): Promise<string | null> {
   const sources = [fields.poNumber, fields.poReference, fields.jobName, fields.customerName].filter(Boolean) as string[]
-  if (!sources.length) return
+  if (!sources.length) return null
 
   const candidates = [...new Set(sources.flatMap(extractJobCandidates))]
 
@@ -253,7 +255,7 @@ async function tryMatchJobForPO(
     match = (freshJobs ?? []).find(j => jobMatchesCandidates(j, candidates))
   }
 
-  if (!match) return
+  if (!match) return null
 
   await supabase
     .from('purchase_orders')
@@ -261,6 +263,7 @@ async function tryMatchJobForPO(
     .eq('po_id', poId)
 
   console.log(`[ocr-po] PO ${poId} job-matched to ${match.qb_job_id}`)
+  return match.qb_job_id
 }
 
 // ---------------------------------------------------------------------------
@@ -327,7 +330,8 @@ async function insertPOLineItems(
   poId: string,
   companyId: string,
   lineItems: LineItem[],
-  taxAmount?: number | null
+  taxAmount?: number | null,
+  jobId?: string | null,
 ) {
   // Synthesize a tax line from tax_amount if the OCR captured tax as a scalar
   // and no line item already has a tax description
@@ -355,6 +359,7 @@ async function insertPOLineItems(
       extended_cost:    li.total ?? null,
       is_tax_line:      isTaxDescription(li.description),
       sort_order:       li.sort_order ?? i,
+      job_id:           jobId ?? null,
     }))
   )
 }
