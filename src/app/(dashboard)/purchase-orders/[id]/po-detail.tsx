@@ -26,6 +26,7 @@ type PO = {
   notes: string | null
   job_name_extracted: string | null
   customer_name_extracted: string | null
+  matched_customer_qb_id: string | null
 }
 
 type LineItem = {
@@ -412,22 +413,34 @@ export function PODetail({
           {showJobColumn && lineItems.length > 0 && (
             <Section title="Job">
               <div>
-                {(po.job_name_extracted || po.customer_name_extracted) && lineItems.every(li => !li.job_id) && (
-                  <div className="flex items-start gap-2 mb-3" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '8px 10px' }}>
-                    <i className="ti ti-search" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
-                    <div>
-                      <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
-                        Job reference found on PDF — no QuickBooks match
-                      </p>
-                      <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
-                        {[po.job_name_extracted, po.customer_name_extracted].filter(Boolean).join(' / ')}
-                      </p>
-                      <p style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
-                        Select a matching job below, or create a new one.
-                      </p>
+                {(po.job_name_extracted || po.customer_name_extracted) && lineItems.every(li => !li.job_id) && (() => {
+                  const customerFound = !!po.matched_customer_qb_id
+                  const matchedCustomer = customerFound
+                    ? (liveJobs.find(j => j.qb_job_id === po.matched_customer_qb_id) ?? liveClosedJobs.find(j => j.qb_job_id === po.matched_customer_qb_id))
+                    : null
+                  return (
+                    <div className="flex items-start gap-2 mb-3" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '8px 10px' }}>
+                      <i className="ti ti-search" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                      <div>
+                        <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
+                          {customerFound
+                            ? `Customer matched: ${matchedCustomer ? jobLabel(matchedCustomer) : po.matched_customer_qb_id} — no job found yet`
+                            : 'Job reference on PDF — no QuickBooks match found'}
+                        </p>
+                        {(po.job_name_extracted || po.customer_name_extracted) && (
+                          <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                            {[po.job_name_extracted, po.customer_name_extracted].filter(Boolean).join(' / ')}
+                          </p>
+                        )}
+                        <p style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
+                          {customerFound
+                            ? 'Select an existing job below, or use "Create new job" — the customer will be pre-filled.'
+                            : 'Select a matching job below, or create a new one.'}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )
+                })()}
                 <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                   Apply job to all line items at once. Individual lines can still be changed below.
                 </label>
@@ -467,7 +480,11 @@ export function PODetail({
                     {!showJobCreate ? (
                       <button
                         type="button"
-                        onClick={() => { setShowJobCreate(true); setNewJobName(''); setNewJobCustomerId('') }}
+                        onClick={() => {
+                          setShowJobCreate(true)
+                          setNewJobName(po.job_name_extracted ?? '')
+                          setNewJobCustomerId(po.matched_customer_qb_id ?? '')
+                        }}
                         style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                       >
                         <i className="ti ti-plus" style={{ fontSize: 12 }} />

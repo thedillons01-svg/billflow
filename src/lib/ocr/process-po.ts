@@ -193,31 +193,51 @@ export async function processPO(poId: string): Promise<void> {
 // Job matching — same fuzzy logic as bill processing, but updates PO header
 // ---------------------------------------------------------------------------
 
-function extractJobCandidates(poReference: string): string[] {
-  const raw = poReference.trim().toLowerCase()
-  const candidates = new Set<string>([raw])
+// Strip common label prefixes and extract numeric tokens from a reference string.
+function extractCandidates(raw: string): string[] {
+  const s = raw.trim().toLowerCase()
+  const candidates = new Set<string>([s])
 
-  const stripped = raw
-    .replace(/^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|#\s*)/, '')
-    .trim()
-  if (stripped && stripped !== raw) candidates.add(stripped)
+  const stripped = s.replace(
+    /^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|customer\s*[#:\-]?\s*|#\s*)/,
+    ''
+  ).trim()
+  if (stripped && stripped !== s) candidates.add(stripped)
 
-  const numbers = raw.match(/\b\d{4,}\b/g) ?? []
-  for (const n of numbers) candidates.add(n)
+  for (const n of s.match(/\b\d{4,}\b/g) ?? []) candidates.add(n)
 
   return [...candidates].filter(Boolean)
 }
 
-function jobMatchesCandidates(
-  job: { qb_job_id: string; job_number: string | null; job_name: string | null },
-  candidates: string[]
-): boolean {
+type CacheJob = {
+  qb_job_id: string
+  job_number: string | null
+  job_name: string | null
+  customer_name: string | null
+  is_customer: boolean
+}
+
+// Returns true if any candidate fuzzy-matches the job's number, name, or parent customer name.
+function jobMatchesCandidates(job: CacheJob, candidates: string[]): boolean {
   const num  = job.job_number?.trim().toLowerCase()
   const name = job.job_name?.trim().toLowerCase()
+  const cust = job.customer_name?.trim().toLowerCase()
   for (const c of candidates) {
     if (num === c || name === c) return true
-    if (num && num.length >= 4 && c.includes(num)) return true
+    if (num  && num.length  >= 4 && c.includes(num))                    return true
     if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
+    if (cust && cust.length >= 4 && (c.includes(cust) || cust.includes(c))) return true
+  }
+  return false
+}
+
+// Returns true if any candidate fuzzy-matches the customer record's name.
+function customerMatchesCandidates(customer: CacheJob, candidates: string[]): boolean {
+  const name = (customer.job_name ?? customer.customer_name ?? '').trim().toLowerCase()
+  if (!name || name.length < 3) return false
+  for (const c of candidates) {
+    if (name === c) return true
+    if (name.length >= 4 && (c.includes(name) || name.includes(c))) return true
   }
   return false
 }
@@ -233,37 +253,70 @@ async function tryMatchJobForPO(
     customerName: string | null
   },
 ): Promise<string | null> {
-  const sources = [fields.poNumber, fields.poReference, fields.jobName, fields.customerName].filter(Boolean) as string[]
-  if (!sources.length) return null
+  const allSources = [fields.poNumber, fields.poReference, fields.jobName, fields.customerName].filter(Boolean) as string[]
+  if (!allSources.length) return null
 
-  const candidates = [...new Set(sources.flatMap(extractJobCandidates))]
+  // Job candidates: PO number, reference, and job name field
+  const jobSources = [fields.poNumber, fields.poReference, fields.jobName].filter(Boolean) as string[]
+  const jobCandidates = [...new Set(jobSources.flatMap(extractCandidates))]
 
-  const { data: jobs } = await supabase
-    .from('qb_jobs_cache')
-    .select('qb_job_id, job_number, job_name')
-    .eq('company_id', companyId)
+  // Customer candidates: customer name field, plus job name as fallback
+  const custSources = [fields.customerName, fields.jobName].filter(Boolean) as string[]
+  const custCandidates = [...new Set(custSources.flatMap(extractCandidates))]
 
-  let match = (jobs ?? []).find(j => jobMatchesCandidates(j, candidates))
+  // Combined: all candidates for the broadest possible sweep
+  const allCandidates = [...new Set([...jobCandidates, ...custCandidates])]
 
-  // Cache miss — refresh from QB then retry once
-  if (!match) {
-    await syncJobsIfStale(companyId)
-    const { data: freshJobs } = await supabase
+  let allRows: CacheJob[] | null = null
+
+  const fetchRows = async () => {
+    const { data } = await supabase
       .from('qb_jobs_cache')
-      .select('qb_job_id, job_number, job_name')
+      .select('qb_job_id, job_number, job_name, customer_name, is_customer')
       .eq('company_id', companyId)
-    match = (freshJobs ?? []).find(j => jobMatchesCandidates(j, candidates))
+    return (data ?? []) as CacheJob[]
   }
 
-  if (!match) return null
+  allRows = await fetchRows()
 
-  await supabase
-    .from('purchase_orders')
-    .update({ job_id: match.qb_job_id })
-    .eq('po_id', poId)
+  // 1. Try to match a sub-customer (job) using job-focused candidates first,
+  //    then fall back to all candidates so customer_name on the row can help.
+  const subCustomers = allRows.filter(r => !r.is_customer)
+  let jobMatch = subCustomers.find(j => jobMatchesCandidates(j, jobCandidates))
+              ?? subCustomers.find(j => jobMatchesCandidates(j, allCandidates))
 
-  console.log(`[ocr-po] PO ${poId} job-matched to ${match.qb_job_id}`)
-  return match.qb_job_id
+  // Cache miss — sync once then retry
+  if (!jobMatch) {
+    await syncJobsIfStale(companyId)
+    allRows = await fetchRows()
+    const freshSubs = allRows.filter(r => !r.is_customer)
+    jobMatch = freshSubs.find(j => jobMatchesCandidates(j, jobCandidates))
+            ?? freshSubs.find(j => jobMatchesCandidates(j, allCandidates))
+  }
+
+  if (jobMatch) {
+    await supabase
+      .from('purchase_orders')
+      .update({ job_id: jobMatch.qb_job_id })
+      .eq('po_id', poId)
+    console.log(`[ocr-po] PO ${poId} job-matched to ${jobMatch.qb_job_id}`)
+    return jobMatch.qb_job_id
+  }
+
+  // 2. No job match — try to identify the customer so the UI can pre-populate the create form.
+  if (custCandidates.length) {
+    const customers = allRows.filter(r => r.is_customer)
+    const custMatch = customers.find(c => customerMatchesCandidates(c, custCandidates))
+    if (custMatch) {
+      await supabase
+        .from('purchase_orders')
+        .update({ matched_customer_qb_id: custMatch.qb_job_id })
+        .eq('po_id', poId)
+      console.log(`[ocr-po] PO ${poId} customer-matched to ${custMatch.qb_job_id} — no job found yet`)
+    }
+  }
+
+  return null
 }
 
 // ---------------------------------------------------------------------------
