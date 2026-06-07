@@ -58,8 +58,12 @@ function getClient(): Anthropic {
   return _client
 }
 
-export async function extractTier2(rawText: string, userComment?: string, documentType: 'invoice' | 'po' = 'invoice'): Promise<TierResult> {
+export async function extractTier2(rawText: string, userComment?: string, documentType: 'invoice' | 'po' = 'invoice', companyName?: string): Promise<TierResult> {
   const client = getClient()
+
+  const companyFilter = companyName
+    ? `The company placing this order is "${companyName}". Any "Bill To", "Sold To", or "Attention" field on a vendor document refers to this company or one of its employees — do NOT extract these as customer_name. customer_name should only be extracted when it clearly identifies the END CUSTOMER or project owner (i.e., the client for whom the work is being done), not the ordering company itself.`
+    : ''
 
   const docNote = documentType === 'po'
     ? `IMPORTANT: This document is a Purchase Order confirmation or order acknowledgement from a vendor/distributor. Apply these PO-specific rules:
@@ -67,10 +71,9 @@ export async function extractTier2(rawText: string, userComment?: string, docume
 - invoice_date: The order date or confirmation date.
 - due_date: Expected delivery or ship date, if shown.
 - vendor_po_reference: The CUSTOMER's PO number or reference — look for fields labeled "Customer PO", "Your PO #", "Customer Ref", "Reference", "Job #", "Work Order", or any field echoing the customer's own order number back to them.
-- job_name: Look broadly — any field that could indicate a job site, project, or work location. This includes fields labeled "Job", "Job Name", "Job #", "Project", "Work Order", "Ship To Name", "Attn", "Attention", "Site", or "Location". Also capture the name on a "Ship To" address block if it looks like a job site name rather than a company headquarters.
-- customer_name: The name of the contractor or end customer. Look for "Bill To", "Sold To", "Customer", "Ship To Company", "Attention", or the company name on a "Ship To" address block.
-- line_items: Include every line item found — part number, description, quantity, unit price, total. Include even if prices are missing.`
-    : ''
+- job_name: Any field that indicates a job site, project, or work location: "Job", "Job Name", "Job #", "Project", "Project Name", "Work Order", "Site", "Location". Also check the name line of a "Ship To" address block — if it looks like a job site or client name (not the ordering company), capture it here.
+- customer_name: The END CUSTOMER or project owner — the client for whom the work is being done. NOT the ordering company itself. ${companyFilter}`
+    : (companyFilter ? `Note: ${companyFilter}` : '')
 
   const userMessage = userComment
     ? `${docNote ? docNote + '\n\n' : ''}Extract data from this text.\n\nNote from reviewer: "${userComment}"\n\nText:\n\n${rawText}`

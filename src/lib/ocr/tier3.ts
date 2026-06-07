@@ -54,13 +54,17 @@ function getClient(): Anthropic {
   return _client
 }
 
-export async function extractTier3(pdfBuffer: Buffer, userComment?: string, documentType: 'invoice' | 'po' = 'invoice'): Promise<TierResult> {
+export async function extractTier3(pdfBuffer: Buffer, userComment?: string, documentType: 'invoice' | 'po' = 'invoice', companyName?: string): Promise<TierResult> {
   const client = getClient()
   const base64Pdf = pdfBuffer.toString('base64')
 
-  const docNote = documentType === 'po'
-    ? 'IMPORTANT: This document is a Purchase Order (PO). Map "PO Number"/"Order Number" → invoice_number, "Order Date" → invoice_date, "Expected Delivery"/"Ship Date" → due_date. Extract ALL line items even if extended totals are missing or do not sum to the order total.'
+  const companyFilter = companyName
+    ? `The company placing this order is "${companyName}". Any "Bill To", "Sold To", or "Attention" field refers to this company or its employees — do NOT extract these as customer_name. customer_name is the END CUSTOMER or project owner, not the ordering company.`
     : ''
+
+  const docNote = documentType === 'po'
+    ? `IMPORTANT: This document is a Purchase Order confirmation from a vendor/distributor. Map "PO Number"/"Order Number" → invoice_number, "Order Date" → invoice_date, "Expected Delivery"/"Ship Date" → due_date. Extract ALL line items even if totals are missing. For job_name: look for "Job", "Project", "Work Order", "Site", "Location", or the name on the Ship To address if it looks like a job site. ${companyFilter}`
+    : (companyFilter ? `Note: ${companyFilter}` : '')
 
   const extractText = userComment
     ? `${docNote ? docNote + '\n\n' : ''}Extract all data from this PDF and return the JSON.\n\nNote from reviewer: "${userComment}"\nUse this context to help extract difficult fields.`

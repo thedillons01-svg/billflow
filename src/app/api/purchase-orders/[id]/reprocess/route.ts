@@ -30,6 +30,13 @@ export async function POST(
   if (!po) return NextResponse.json({ error: 'PO not found' }, { status: 404 })
   if (!po.pdf_url) return NextResponse.json({ error: 'No PDF attached to this PO' }, { status: 400 })
 
+  const { data: companyRow } = await service
+    .from('companies')
+    .select('name')
+    .eq('company_id', po.company_id)
+    .single()
+  const companyName = companyRow?.name ?? undefined
+
   // Download PDF
   const { data: fileData, error: downloadErr } = await service.storage
     .from('bill-pdfs')
@@ -46,12 +53,12 @@ export async function POST(
   try {
     const tier1 = await extractTier1(pdfBuffer)
     if (!hasTextLayer(tier1.rawText)) {
-      const r = await extractTier3(pdfBuffer, undefined, 'po')
+      const r = await extractTier3(pdfBuffer, undefined, 'po', companyName)
       result = r; tier = 3
     } else {
       const incomplete = !tier1.invoice_number || !tier1.invoice_date || tier1.line_items.length === 0
       if (incomplete) {
-        const r = await extractTier2(tier1.rawText, undefined, 'po')
+        const r = await extractTier2(tier1.rawText, undefined, 'po', companyName)
         result = r; tier = 2
       } else {
         result = { ...tier1 }; tier = 1

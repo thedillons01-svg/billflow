@@ -38,6 +38,13 @@ export async function processPO(poId: string): Promise<void> {
     return
   }
 
+  const { data: companyRow } = await supabase
+    .from('companies')
+    .select('name')
+    .eq('company_id', po.company_id)
+    .single()
+  const companyName = companyRow?.name ?? undefined
+
   const { data: fileData, error: downloadErr } = await supabase.storage
     .from(STORAGE_BUCKET)
     .download(po.pdf_url)
@@ -55,7 +62,7 @@ export async function processPO(poId: string): Promise<void> {
   let tier: number
 
   try {
-    const extracted = await runTieredExtraction(pdfBuffer)
+    const extracted = await runTieredExtraction(pdfBuffer, companyName)
     result = extracted.result
     tier = extracted.tier
   } catch (err) {
@@ -323,18 +330,17 @@ async function tryMatchJobForPO(
 // Tiered extraction — Tier 1 → Tier 2 → Tier 3 with PO-specific logic
 // ---------------------------------------------------------------------------
 
-async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: ExtractionResult; tier: number }> {
+async function runTieredExtraction(pdfBuffer: Buffer, companyName?: string): Promise<{ result: ExtractionResult; tier: number }> {
   const tier1 = await extractTier1(pdfBuffer)
 
   // No text layer → Tier 3 (vision)
   if (!hasTextLayer(tier1.rawText)) {
     console.log('[ocr-po] No text layer → Tier 3 (vision)')
-    const tier3 = await extractTier3(pdfBuffer, undefined, 'po')
+    const tier3 = await extractTier3(pdfBuffer, undefined, 'po', companyName)
     return { result: { ...tier3, tier: 3 }, tier: 3 }
   }
 
-  // For POs we don't require line items to balance to a total — POs often omit extended costs.
-  // Escalate Tier 1→2 only if key header fields are missing or no line items found at all.
+  // Escalate Tier 1→2 if key header fields are missing or no line items found.
   const tier1Incomplete =
     tier1.invoice_number === null ||
     tier1.invoice_date === null ||
@@ -342,12 +348,12 @@ async function runTieredExtraction(pdfBuffer: Buffer): Promise<{ result: Extract
 
   if (tier1Incomplete) {
     console.log('[ocr-po] Tier 1 incomplete → Tier 2 (Claude Haiku)')
-    const tier2 = await extractTier2(tier1.rawText, undefined, 'po')
+    const tier2 = await extractTier2(tier1.rawText, undefined, 'po', companyName)
 
     // Escalate Tier 2→3 only if still no line items
     if (tier2.line_items.length === 0) {
       console.log('[ocr-po] Tier 2 found no line items → Tier 3 (vision)')
-      const tier3 = await extractTier3(pdfBuffer, undefined, 'po')
+      const tier3 = await extractTier3(pdfBuffer, undefined, 'po', companyName)
       return { result: { ...tier3, tier: 3 }, tier: 3 }
     }
 

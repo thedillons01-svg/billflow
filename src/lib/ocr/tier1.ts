@@ -26,9 +26,8 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
   const invoice_number     = extractInvoiceNumber(text)
   const invoice_date       = extractInvoiceDate(text)
   const due_date           = extractDueDate(text)
-  const vendor_po_reference       = extractPONumber(text)
-  const job_name_extracted        = extractJobName(text)
-  const customer_name_extracted   = extractCustomerName(text)
+  const vendor_po_reference     = extractPONumber(text)
+  const job_name_extracted      = extractJobName(text)
   const total              = extractTotal(text)
   const subtotal           = extractSubtotal(text)
   const tax_amount         = extractTax(text)
@@ -46,7 +45,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     due_date,
     vendor_po_reference,
     job_name_extracted,
-    customer_name_extracted,
+    customer_name_extracted: null,  // Tier 1 can't distinguish contractor from end customer — handled by Tier 2/3 with company context
     total,
     subtotal,
     tax_amount,
@@ -116,7 +115,6 @@ function extractJobName(text: string): string | null {
     /\bwork\s+order\s*(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
     /\bsite\s*[:–-]\s*(.+?)(?:\n|$)/i,
     /\blocation\s*[:–-]\s*(.+?)(?:\n|$)/i,
-    /\battn(?:ention)?\s*[:–-]\s*(.+?)(?:\n|$)/i,
   ]
   const val = firstMatch(text, patterns)
   return val ? val.trim().slice(0, 100) : null
