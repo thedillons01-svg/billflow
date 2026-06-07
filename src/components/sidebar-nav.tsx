@@ -59,7 +59,7 @@ export function SidebarNav({
           <NavItem href="/jobs" active={isActive('/jobs')} icon="ti-chart-bar">Job Profitability</NavItem>
         )}
         {jobCostingEnabled && (
-          <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">FSM Export</NavItem>
+          <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">Export</NavItem>
         )}
         <div className="mx-3 my-2" style={{ height: '1px', background: '#E8ECF0' }} />
         <NavItem href="/activity" active={isActive('/activity')} icon="ti-clock">Activity Log</NavItem>
