@@ -808,7 +808,7 @@ export function BillReviewForm({
                 <AutoSaveInput type="date" initialValue={bill.due_date ?? ''} onSave={v => updateBill(bill.bill_id, { due_date: v || null })} />
               </Field>
               <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum for auto-publish.">
-                <AutoSaveInput type="number" initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
+                <AutoSaveInput type="number" currency initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
               </Field>
               <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and optionally copied to QB Ref No field.">
                 <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
@@ -1755,20 +1755,23 @@ function Field({ label, helper, children }: { label: string; helper: string; chi
 type SaveState = 'idle' | 'saving' | 'saved' | 'error'
 
 function AutoSaveInput({
-  initialValue, onSave, type = 'text', placeholder, align,
+  initialValue, onSave, type = 'text', placeholder, align, currency,
 }: {
   initialValue: string
   onSave: (v: string) => Promise<void>
   type?: 'text' | 'date' | 'number'
   placeholder?: string
   align?: 'right'
+  currency?: boolean
 }) {
   const [value, setValue] = useState(initialValue)
+  const [focused, setFocused] = useState(false)
   const [state, setState] = useState<SaveState>('idle')
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => { setValue(initialValue) }, [initialValue])
 
   const handleBlur = async () => {
+    setFocused(false)
     if (timerRef.current) clearTimeout(timerRef.current)
     setState('saving')
     try {
@@ -1781,13 +1784,20 @@ function AutoSaveInput({
   }
 
   const borderColor = state === 'saving' ? '#F59E0B' : state === 'saved' ? '#2DB87A' : state === 'error' ? '#DC2626' : undefined
+  const displayValue = currency && !focused && value !== ''
+    ? `$${parseFloat(value || '0').toFixed(2)}`
+    : value
 
   return (
     <input
-      type={type}
+      type={currency && !focused ? 'text' : type}
       step={type === 'number' ? '0.01' : undefined}
-      value={value}
-      onChange={e => setValue(e.target.value)}
+      value={displayValue}
+      onChange={e => {
+        const raw = currency ? e.target.value.replace(/^\$/, '') : e.target.value
+        setValue(raw)
+      }}
+      onFocus={() => setFocused(true)}
       onBlur={handleBlur}
       placeholder={placeholder}
       style={{
