@@ -177,6 +177,7 @@ export function PODetail({
   }
 
   const totalOrdered = lineItems.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
+  const allAmountsMissing = lineItems.length > 0 && lineItems.every(l => !l.unit_cost && !l.extended_cost)
   const showJobColumn = jobCostingEnabled && (liveJobs.length > 0 || liveClosedJobs.length > 0)
 
   // Grid template: Description | Ord qty | Rcvd | Unit | Total | [Job]
@@ -245,6 +246,13 @@ export function PODetail({
           {/* Push error */}
           {pushError && (
             <Banner icon="ti-alert-circle" color="red">{pushError}</Banner>
+          )}
+
+          {/* Missing amounts warning */}
+          {allAmountsMissing && (
+            <Banner icon="ti-alert-triangle" color="yellow">
+              No unit costs or amounts on any line item — this PO will push to QuickBooks with $0.00 on every line. Enter prices before pushing, or push now and correct in QuickBooks.
+            </Banner>
           )}
 
           {/* Top action strip — receive only */}
@@ -498,9 +506,9 @@ export function PODetail({
                           <select
                             value={newJobCustomerId}
                             onChange={e => setNewJobCustomerId(e.target.value)}
-                            style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12, background: 'white' }}
+                            style={{ flex: 1, height: 28, border: `0.5px solid ${!newJobCustomerId ? '#FCA5A5' : 'var(--color-border-secondary)'}`, borderRadius: 5, padding: '0 8px', fontSize: 12, background: 'white' }}
                           >
-                            <option value="">Customer (optional)</option>
+                            <option value="">— Select customer (required) —</option>
                             {customers.map(c => (
                               <option key={c.qb_job_id} value={c.qb_job_id}>
                                 {c.job_name ?? c.customer_name ?? c.qb_job_id}
@@ -508,6 +516,11 @@ export function PODetail({
                             ))}
                           </select>
                         </div>
+                        {!newJobCustomerId && (
+                          <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>
+                            A customer is required — jobs in QuickBooks must belong to a customer.
+                          </p>
+                        )}
                         <div className="flex items-center gap-2">
                           <input
                             type="text"
@@ -519,7 +532,7 @@ export function PODetail({
                           />
                           <button
                             type="button"
-                            disabled={!newJobName.trim() || isPending}
+                            disabled={!newJobName.trim() || !newJobCustomerId || isPending}
                             onClick={() => {
                               setJobCreateError(null)
                               startTransition(async () => {
