@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: 'Privacy Policy — Purchasomatic',
 }
 
-const EFFECTIVE_DATE = 'June 5, 2026'
+const EFFECTIVE_DATE = 'June 7, 2026'
 const CONTACT_EMAIL  = 'privacy@purchasomatic.com'
 const COMPANY_NAME   = 'Heather Dillon'
 const APP_NAME       = 'Purchasomatic'
@@ -98,13 +98,44 @@ export default function PrivacyPage() {
             <p>If {COMPANY_NAME} is acquired or merges with another entity, your information may be transferred as part of that transaction. We will notify you before your data becomes subject to a different privacy policy.</p>
           </Section>
 
-          <Section title="5. QuickBooks Integration">
+          <Section title="5. QuickBooks Integration and Data Access">
             <p>
-              {APP_NAME} uses the Intuit QuickBooks API under Intuit&rsquo;s developer platform terms. When you connect your QuickBooks account, you authorize {APP_NAME} to read and write data on your behalf within the scopes you approve. You can revoke this authorization at any time from the Settings page in {APP_NAME} or directly within your Intuit account at{' '}
-              <a href="https://accounts.intuit.com" style={{ color: '#2DB87A' }} target="_blank" rel="noopener noreferrer">accounts.intuit.com</a>.
+              {APP_NAME} integrates with Intuit QuickBooks Online via the Intuit QuickBooks API, operating under Intuit&rsquo;s developer platform terms. When you connect your QuickBooks account, you authorize {APP_NAME} to read and write data on your behalf within the scopes you approve. This section describes exactly what data we access and why.
             </p>
-            <p style={{ marginTop: 12 }}>
-              Your QuickBooks access tokens are stored encrypted in our database and are never transmitted to any party other than Intuit&rsquo;s API servers.
+
+            <SubHeading>Data we read from QuickBooks</SubHeading>
+            <ul style={{ paddingLeft: 20, marginTop: 4 }}>
+              <li style={{ marginBottom: 6 }}><strong>Vendors</strong> — vendor names, default expense accounts, and payment terms, used to match incoming invoices to the correct QuickBooks vendor record</li>
+              <li style={{ marginBottom: 6 }}><strong>Chart of accounts</strong> — expense and cost-of-goods-sold account names and IDs, used to populate the GL account selection on bill line items</li>
+              <li style={{ marginBottom: 6 }}><strong>Customers and jobs</strong> — customer and sub-customer (job) names and IDs, used to match invoices and purchase orders to the correct job for cost coding</li>
+              <li style={{ marginBottom: 6 }}><strong>Classes</strong> — class names and IDs (if class tracking is enabled in your QuickBooks company), used for bill line item classification</li>
+              <li style={{ marginBottom: 6 }}><strong>Payment terms</strong> — vendor payment terms, used to pre-populate bill due dates</li>
+            </ul>
+
+            <SubHeading>Data we write to QuickBooks</SubHeading>
+            <ul style={{ paddingLeft: 20, marginTop: 4 }}>
+              <li style={{ marginBottom: 6 }}><strong>Bills (Accounts Payable)</strong> — we create vendor bill records in QuickBooks from processed invoices, including vendor reference, line items, GL account coding, job coding, and attached PDF</li>
+              <li style={{ marginBottom: 6 }}><strong>Purchase orders</strong> — we create purchase order records in QuickBooks from captured PO confirmations</li>
+              <li style={{ marginBottom: 6 }}><strong>Bill payments</strong> — when the &ldquo;Mark as Paid&rdquo; feature is enabled, we create a linked bill payment record against the designated payment account</li>
+              <li style={{ marginBottom: 6 }}><strong>Vendors</strong> — with your explicit confirmation, we can create new vendor records in QuickBooks for vendors that do not yet exist</li>
+              <li style={{ marginBottom: 6 }}><strong>Customers / Jobs</strong> — with your explicit confirmation, we can create new customer or job (sub-customer) records in QuickBooks</li>
+            </ul>
+
+            <SubHeading>Data we do not access</SubHeading>
+            <p>
+              {APP_NAME} does not access, read, or store your QuickBooks payroll data, employee records, banking credentials, bank transaction data, sales invoices, customer payment data, or any personal financial information beyond what is listed above. We request only the minimum OAuth scopes required to deliver the service.
+            </p>
+
+            <SubHeading>How your QuickBooks data is stored</SubHeading>
+            <p>
+              We maintain a local cache of vendor names, account names, and job names to enable fast matching without making a live API call for every action. This cached data is stored in our database and refreshed periodically from QuickBooks. Your QuickBooks OAuth access tokens are stored encrypted in our database and are never transmitted to any party other than Intuit&rsquo;s API servers.
+            </p>
+
+            <SubHeading>Revoking access</SubHeading>
+            <p>
+              You can disconnect {APP_NAME} from your QuickBooks account at any time from the Settings page within {APP_NAME}. This immediately revokes our access token with Intuit and clears all stored credentials. You can also revoke access directly from your Intuit account at{' '}
+              <a href="https://accounts.intuit.com" style={{ color: '#2DB87A' }} target="_blank" rel="noopener noreferrer">accounts.intuit.com</a>.
+              After disconnection, we retain cached QuickBooks reference data (vendor names, account names, job names) for up to 90 days to preserve your bill history, after which it is deleted. We do not retain any QuickBooks credentials or tokens after disconnection.
             </p>
           </Section>
 
