@@ -92,6 +92,8 @@ export function PODetail({
   const [isPending, startTransition] = useTransition()
   const [pushError, setPushError] = useState<string | null>(null)
   const [pushSuccess, setPushSuccess] = useState(false)
+  const [reprocessing, setReprocessing] = useState(false)
+  const [reprocessResult, setReprocessResult] = useState<string | null>(null)
   const [localStatus, setLocalStatus] = useState(po.status)
   const [localVendorId, setLocalVendorId] = useState(po.vendor_id ?? '')
   const [localVendorQbLinked, setLocalVendorQbLinked] = useState(po.vendor_qb_linked)
@@ -762,6 +764,10 @@ export function PODetail({
             </Section>
           )}
 
+          {reprocessResult && (
+            <Banner icon="ti-circle-check" color="green">{reprocessResult}</Banner>
+          )}
+
           {/* Bottom action bar */}
           <div className="flex items-center gap-2 flex-wrap" style={{ paddingTop: 8, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
             {pushPosToQb && !isQBPushed && !pushSuccess && vendorQbLinkedFromList && (
@@ -769,6 +775,34 @@ export function PODetail({
                 Push to QuickBooks
               </ActionButton>
             )}
+            <ActionButton
+              onClick={async () => {
+                setReprocessing(true)
+                setReprocessResult(null)
+                try {
+                  const res = await fetch(`/api/purchase-orders/${po.po_id}/reprocess`, { method: 'POST' })
+                  const json = await res.json()
+                  if (!res.ok) {
+                    setReprocessResult(`Reprocess failed: ${json.error ?? 'unknown error'}`)
+                  } else {
+                    setReprocessResult(
+                      json.matchedJobId
+                        ? 'Reprocessed — job matched and applied to all lines.'
+                        : json.matchedCustomerId
+                          ? 'Reprocessed — customer identified. No existing job matched; use "Create new job" below.'
+                          : 'Reprocessed — no job or customer match found. Check the PDF for a job reference and assign manually.'
+                    )
+                    router.refresh()
+                  }
+                } finally {
+                  setReprocessing(false)
+                }
+              }}
+              disabled={reprocessing || isPending}
+              icon="ti-scan"
+            >
+              {reprocessing ? 'Reprocessing…' : 'Reprocess PDF'}
+            </ActionButton>
             {lineItems.length > 0 && (
               <ActionButton
                 onClick={() => {

@@ -62,7 +62,14 @@ export async function extractTier2(rawText: string, userComment?: string, docume
   const client = getClient()
 
   const docNote = documentType === 'po'
-    ? 'IMPORTANT: This document is a Purchase Order (PO), not an invoice. Map "PO Number" or "Order Number" → invoice_number, "Order Date" → invoice_date, "Expected Delivery" or "Ship Date" → due_date, and extract all line items (item descriptions, quantities, unit prices). Even if line item totals are missing or do not add up to the order total, include every line item you can find.'
+    ? `IMPORTANT: This document is a Purchase Order confirmation or order acknowledgement from a vendor/distributor. Apply these PO-specific rules:
+- invoice_number: The vendor's order number or PO confirmation number (their reference, not the customer's).
+- invoice_date: The order date or confirmation date.
+- due_date: Expected delivery or ship date, if shown.
+- vendor_po_reference: The CUSTOMER's PO number or reference — look for fields labeled "Customer PO", "Your PO #", "Customer Ref", "Reference", "Job #", "Work Order", or any field echoing the customer's own order number back to them.
+- job_name: Look broadly — any field that could indicate a job site, project, or work location. This includes fields labeled "Job", "Job Name", "Job #", "Project", "Work Order", "Ship To Name", "Attn", "Attention", "Site", or "Location". Also capture the name on a "Ship To" address block if it looks like a job site name rather than a company headquarters.
+- customer_name: The name of the contractor or end customer. Look for "Bill To", "Sold To", "Customer", "Ship To Company", "Attention", or the company name on a "Ship To" address block.
+- line_items: Include every line item found — part number, description, quantity, unit price, total. Include even if prices are missing.`
     : ''
 
   const userMessage = userComment

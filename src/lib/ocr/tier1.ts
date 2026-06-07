@@ -26,8 +26,9 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
   const invoice_number     = extractInvoiceNumber(text)
   const invoice_date       = extractInvoiceDate(text)
   const due_date           = extractDueDate(text)
-  const vendor_po_reference = extractPONumber(text)
-  const job_name_extracted  = extractJobName(text)
+  const vendor_po_reference       = extractPONumber(text)
+  const job_name_extracted        = extractJobName(text)
+  const customer_name_extracted   = extractCustomerName(text)
   const total              = extractTotal(text)
   const subtotal           = extractSubtotal(text)
   const tax_amount         = extractTax(text)
@@ -45,7 +46,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     due_date,
     vendor_po_reference,
     job_name_extracted,
-    customer_name_extracted: null,   // Tier 1 regex doesn't extract customer name; Tier 2/3 handle it
+    customer_name_extracted,
     total,
     subtotal,
     tax_amount,
@@ -110,12 +111,29 @@ function extractPONumber(text: string): string | null {
 function extractJobName(text: string): string | null {
   const patterns = [
     /(?:job\s+name|job\s+title)\s*[:–-]\s*(.+?)(?:\n|$)/i,
-    /\bjob\s+(?:#|no\.?|number)\s*[:–-]?\s*([A-Z0-9\-]+)/i,
-    /\bproject\s+(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
-    /\bwork\s+order\s+(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
+    /\bjob\s*(?:#|no\.?|number)?\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    /\bproject\s*(?:name|#|no\.?)?\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    /\bwork\s+order\s*(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
+    /\bsite\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    /\blocation\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    /\battn(?:ention)?\s*[:–-]\s*(.+?)(?:\n|$)/i,
   ]
   const val = firstMatch(text, patterns)
   return val ? val.trim().slice(0, 100) : null
+}
+
+function extractCustomerName(text: string): string | null {
+  const patterns = [
+    /(?:bill(?:ing)?\s+to|sold\s+to)\s*[:–-]?\s*\n?\s*(.+?)(?:\n|$)/i,
+    /\bcustomer\s*(?:name)?\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    /(?:ship(?:ping)?\s+to|deliver(?:y)?\s+to)\s*[:–-]?\s*\n?\s*(.+?)(?:\n|$)/i,
+  ]
+  const val = firstMatch(text, patterns)
+  if (!val) return null
+  const cleaned = val.trim().slice(0, 100)
+  // Reject values that look like addresses (numbers at start) or are too short
+  if (/^\d/.test(cleaned) || cleaned.length < 3) return null
+  return cleaned
 }
 
 function extractTotal(text: string): number | null {
