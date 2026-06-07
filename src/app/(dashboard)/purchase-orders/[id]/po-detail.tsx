@@ -490,8 +490,7 @@ export function PODetail({
                     })
                   }}
                 />
-                {lineItems.every(li => !li.job_id) && (
-                  <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
 
                     {/* Create new customer */}
                     {!showCustomerCreate && !showJobCreate && (
@@ -626,8 +625,7 @@ export function PODetail({
                       </div>
                     )}
 
-                  </div>
-                )}
+                </div>
                 {headerJobPending && (
                   <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
                     <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
