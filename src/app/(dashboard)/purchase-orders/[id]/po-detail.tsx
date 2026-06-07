@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useTransition, useEffect } from 'react'
-import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem, applyJobToAllPOLines } from '../actions'
+import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem, applyJobToAllPOLines, recalculatePOLineTotals } from '../actions'
 import { reopenJob, createJob } from '../../jobs/actions'
 
 type Job = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
@@ -43,6 +43,7 @@ type MatchedBill = {
   total: number | null
   status: string
   vendor_name_raw: string | null
+  bill_line_items: { job_id: string | null }[]
 }
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
@@ -241,13 +242,8 @@ export function PODetail({
             <Banner icon="ti-alert-circle" color="red">{pushError}</Banner>
           )}
 
-          {/* Action buttons */}
+          {/* Top action strip — receive only */}
           <div className="flex items-center gap-2 flex-wrap">
-            {pushPosToQb && !isQBPushed && !pushSuccess && vendorQbLinkedFromList && (
-              <ActionButton onClick={handlePushToQB} disabled={isPending} primary icon="ti-upload">
-                Push to QuickBooks
-              </ActionButton>
-            )}
             {pushPosToQb && isQBPushed && (
               <span className="flex items-center gap-1.5" style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}>
                 <i className="ti ti-circle-check" style={{ fontSize: 14 }} />
@@ -270,10 +266,6 @@ export function PODetail({
                 Receive Items
               </Link>
             )}
-            {canClose && (
-              <ActionButton onClick={handleClose} disabled={isPending} icon="ti-lock">Close PO</ActionButton>
-            )}
-            <ActionButton onClick={handleDelete} disabled={isPending} danger icon="ti-trash">Delete</ActionButton>
           </div>
 
           {/* VENDOR */}
@@ -688,6 +680,12 @@ export function PODetail({
               <div className="space-y-2">
                 {matchedBills.map(bill => {
                   const billBadge = BILL_STATUS_BADGE[bill.status] ?? BILL_STATUS_BADGE.draft
+                  const allJobs = [...liveJobs, ...liveClosedJobs]
+                  const uniqueJobIds = [...new Set((bill.bill_line_items ?? []).map(li => li.job_id).filter((id): id is string => !!id))]
+                  const jobNames = uniqueJobIds.map(id => {
+                    const j = allJobs.find(j => j.qb_job_id === id)
+                    return j ? jobLabel(j) : null
+                  }).filter(Boolean)
                   return (
                     <Link
                       key={bill.bill_id}
@@ -703,7 +701,9 @@ export function PODetail({
                           {bill.invoice_number ? `Invoice #${bill.invoice_number}` : 'Invoice'}
                         </p>
                         <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                          {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : ''} · View in Bills
+                          {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : ''}
+                          {jobNames.length > 0 && ` · ${jobNames.join(', ')}`}
+                          {' · View in Bills'}
                         </p>
                       </div>
                       <span style={{
@@ -726,6 +726,39 @@ export function PODetail({
               </p>
             </Section>
           )}
+
+          {/* Bottom action bar */}
+          <div className="flex items-center gap-2 flex-wrap" style={{ paddingTop: 8, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+            {pushPosToQb && !isQBPushed && !pushSuccess && vendorQbLinkedFromList && (
+              <ActionButton onClick={handlePushToQB} disabled={isPending} primary icon="ti-upload">
+                Push to QuickBooks
+              </ActionButton>
+            )}
+            {lineItems.length > 0 && (
+              <ActionButton
+                onClick={() => {
+                  startTransition(async () => {
+                    const recalculated = lineItems.map(li => ({
+                      ...li,
+                      extended_cost: li.quantity_ordered != null && li.unit_cost != null
+                        ? +((li.quantity_ordered * li.unit_cost).toFixed(2))
+                        : li.extended_cost,
+                    }))
+                    setLineItems(recalculated)
+                    await recalculatePOLineTotals(po.po_id)
+                  })
+                }}
+                disabled={isPending}
+                icon="ti-refresh"
+              >
+                Recalculate
+              </ActionButton>
+            )}
+            {canClose && (
+              <ActionButton onClick={handleClose} disabled={isPending} icon="ti-lock">Close PO</ActionButton>
+            )}
+            <ActionButton onClick={handleDelete} disabled={isPending} danger icon="ti-trash">Delete</ActionButton>
+          </div>
 
         </div>
       </div>

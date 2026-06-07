@@ -30,7 +30,7 @@ export default async function PODetailPage({
   const [{ data: matchedBills }, { data: companySettings }, { data: jobRows }, { data: vendorRows }] = await Promise.all([
     supabase
       .from('bills')
-      .select('bill_id, invoice_number, total, status, vendor_name_raw')
+      .select('bill_id, invoice_number, total, status, vendor_name_raw, bill_line_items(job_id)')
       .eq('matched_po_id', id)
       .is('deleted_at', null),
     supabase
@@ -120,6 +120,7 @@ export default async function PODetailPage({
             total: number | null
             status: string
             vendor_name_raw: string | null
+            bill_line_items: { job_id: string | null }[]
           }[]}
           jobs={activeJobs}
           closedJobs={closedJobs}

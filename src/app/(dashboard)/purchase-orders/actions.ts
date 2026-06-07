@@ -41,6 +41,22 @@ export async function applyJobToAllPOLines(poId: string, jobId: string | null) {
   revalidatePath(`/purchase-orders/${poId}`)
 }
 
+export async function recalculatePOLineTotals(poId: string) {
+  const supabase = await createClient()
+  const { data: lines } = await supabase
+    .from('po_line_items')
+    .select('line_id, quantity_ordered, unit_cost')
+    .eq('po_id', poId)
+  if (!lines?.length) return
+  for (const l of lines) {
+    if (l.quantity_ordered != null && l.unit_cost != null) {
+      const extended_cost = +((l.quantity_ordered * l.unit_cost).toFixed(2))
+      await supabase.from('po_line_items').update({ extended_cost }).eq('line_id', l.line_id)
+    }
+  }
+  revalidatePath(`/purchase-orders/${poId}`)
+}
+
 export async function closePO(poId: string) {
   const supabase = await createClient()
   await supabase
