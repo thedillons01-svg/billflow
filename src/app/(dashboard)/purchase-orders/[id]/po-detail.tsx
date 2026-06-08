@@ -438,8 +438,9 @@ export function PODetail({
                       onClick={async () => {
                         const pending = headerJobPending
                         setHeaderJobPending(null)
-                        setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId })))
-                        await applyJobToAllPOLines(po.po_id, pending.jobId)
+                        const newJobId = pending.jobId || null
+                        setLineItems(ls => ls.map(li => ({ ...li, job_id: newJobId })))
+                        await applyJobToAllPOLines(po.po_id, newJobId)
                         router.refresh()
                       }}
                       style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
@@ -497,7 +498,15 @@ export function PODetail({
                     lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'No job assigned' : 'Mixed — select to apply all'
                   }
                   onSave={async v => {
-                    if (!v) return
+                    if (!v) {
+                      // Clearing job — prompt to clear all lines
+                      if (lineItems.length > 1) {
+                        setHeaderJobPending({ jobId: '', label: 'No job' })
+                      } else if (lineItems.length === 1) {
+                        await handleLineItemUpdate(lineItems[0].line_id, { job_id: null })
+                      }
+                      return
+                    }
                     const j = liveJobs.find(j => j.qb_job_id === v)
                     if (lineItems.length > 1) {
                       setHeaderJobPending({ jobId: v, label: j ? jobLabel(j) : v })

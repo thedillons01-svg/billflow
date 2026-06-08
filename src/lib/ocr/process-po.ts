@@ -239,16 +239,16 @@ type CacheJob = {
   is_customer: boolean
 }
 
-// Returns true if any candidate fuzzy-matches the job's number, name, or parent customer name.
+// Returns true if any candidate fuzzy-matches the job's number or name.
+// customer_name is intentionally excluded — a customer-name match alone is not
+// sufficient to identify a specific job. Customer matching is a separate fallback pass.
 function jobMatchesCandidates(job: CacheJob, candidates: string[]): boolean {
   const num  = job.job_number?.trim().toLowerCase()
   const name = job.job_name?.trim().toLowerCase()
-  const cust = job.customer_name?.trim().toLowerCase()
   for (const c of candidates) {
     if (num === c || name === c) return true
-    if (num  && num.length  >= 4 && c.includes(num))                    return true
+    if (num  && num.length  >= 4 && c.includes(num))                        return true
     if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
-    if (cust && cust.length >= 4 && (c.includes(cust) || cust.includes(c))) return true
   }
   return false
 }
