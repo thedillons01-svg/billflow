@@ -216,6 +216,8 @@ export async function processPO(poId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 // Strip common label prefixes and extract numeric tokens from a reference string.
+// Year-like numbers (2000-2099) are excluded — they appear in PO numbers like
+// "PO-2026-1061" and would cause false matches against jobs named "2026-*".
 function extractCandidates(raw: string): string[] {
   const s = raw.trim().toLowerCase()
   const candidates = new Set<string>([s])
@@ -226,7 +228,11 @@ function extractCandidates(raw: string): string[] {
   ).trim()
   if (stripped && stripped !== s) candidates.add(stripped)
 
-  for (const n of s.match(/\b\d{4,}\b/g) ?? []) candidates.add(n)
+  for (const n of s.match(/\b\d{4,}\b/g) ?? []) {
+    const num = parseInt(n, 10)
+    if (num >= 2000 && num <= 2099) continue   // skip year-like numbers
+    candidates.add(n)
+  }
 
   return [...candidates].filter(Boolean)
 }

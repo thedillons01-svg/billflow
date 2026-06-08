@@ -42,7 +42,7 @@ export default async function ReceivingPage() {
 
   const jobMap = new Map((jobs ?? []).map(j => [
     j.qb_job_id,
-    [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+    [j.customer_name, j.job_number, j.job_name].filter(Boolean).join(' – '),
   ]))
 
   return (

@@ -35,7 +35,7 @@ export default async function ReceivingDetailPage({
       .eq('qb_job_id', po.job_id)
       .single()
     jobLabel = job
-      ? [job.job_number, job.job_name, job.customer_name].filter(Boolean).join(' – ')
+      ? [job.customer_name, job.job_number, job.job_name].filter(Boolean).join(' – ')
       : po.job_id
   }
 

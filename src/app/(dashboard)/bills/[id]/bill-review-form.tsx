@@ -115,7 +115,7 @@ export function BillReviewForm({
         ? `  ${base}` // indent sub-customers when customers also appear
         : j.is_customer
         ? `${j.job_name ?? j.customer_name ?? ''}`
-        : [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – ')
+        : [j.customer_name, j.job_number, j.job_name].filter(Boolean).join(' – ')
       return { value: j.qb_job_id, label }
     })
   }
@@ -963,7 +963,7 @@ export function BillReviewForm({
                       onSave={async (v) => {
                         if (!v) return
                         const job = liveJobs.find(j => j.qb_job_id === v)
-                        const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
+                        const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || v
                         if (lineItems.length > 1) {
                           setHeaderJobPending({ jobId: v, jobLabel: label })
                         } else if (lineItems.length === 1) {
@@ -974,7 +974,7 @@ export function BillReviewForm({
                       onSaveClosed={async (v) => {
                         await handleReopenAndSelect(v, async (id) => {
                           const job = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
-                          const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || id
+                          const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || id
                           if (lineItems.length > 1) {
                             setHeaderJobPending({ jobId: id, jobLabel: label })
                           } else if (lineItems.length === 1) {
@@ -1178,7 +1178,7 @@ export function BillReviewForm({
                             await updateLineItem(item.line_id, { job_id: v || null })
                             if (v && lineItems.length > 1) {
                               const job = liveJobs.find(j => j.qb_job_id === v)
-                              const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || v
+                              const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || v
                               setJobApplyPrompt({ jobId: v, jobLabel: label })
                             }
                           }}
@@ -1187,7 +1187,7 @@ export function BillReviewForm({
                               await updateLineItem(item.line_id, { job_id: id })
                               if (lineItems.length > 1) {
                                 const job = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
-                                const label = [job?.job_number, job?.job_name, job?.customer_name].filter(Boolean).join(' – ') || id
+                                const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || id
                                 setJobApplyPrompt({ jobId: id, jobLabel: label })
                               }
                             })

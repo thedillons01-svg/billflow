@@ -50,7 +50,7 @@ export default async function ExportsPage() {
   type JobRow = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; status: string; is_customer: boolean }
   const jobOptions = (jobsWithActivity as JobRow[]).map(j => ({
     id: j.qb_job_id,
-    label: [j.job_number, j.job_name, j.customer_name].filter(Boolean).join(' – '),
+    label: [j.customer_name, j.job_number, j.job_name].filter(Boolean).join(' – '),
     status: j.status,
   }))
 

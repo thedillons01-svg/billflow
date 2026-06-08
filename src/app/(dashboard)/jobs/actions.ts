@@ -44,9 +44,12 @@ export async function createJob(
     }
   }
 
-  // Extract job number from name if present
-  const jobNumberMatch = displayName.match(/\b(\d{3,})\b/)
-  const jobNumber = jobNumberMatch?.[1] ?? null
+  // Extract job number from name — skip year-like numbers (2000-2099)
+  const jobNumberMatch = displayName.match(/\b(\d{3,})\b/g)
+  const jobNumber = jobNumberMatch?.find(n => {
+    const num = parseInt(n, 10)
+    return !(num >= 2000 && num <= 2099)
+  }) ?? null
 
   // Get parent customer name if sub-customer
   let customerName: string | null = null

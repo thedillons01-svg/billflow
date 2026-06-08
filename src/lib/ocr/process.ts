@@ -480,9 +480,14 @@ function extractJobCandidates(poReference: string): string[] {
     .trim()
   if (stripped && stripped !== raw) candidates.add(stripped)
 
-  // Extract every sequence of 4+ digits — handles "52256 Install", "Job 52256 and 52258", etc.
+  // Extract 4+ digit sequences, but skip year-like numbers (2000-2099) to prevent
+  // "PO-2026-1061" from matching a job named "2026-Riverside" via the year "2026".
   const numbers = raw.match(/\b\d{4,}\b/g) ?? []
-  for (const n of numbers) candidates.add(n)
+  for (const n of numbers) {
+    const num = parseInt(n, 10)
+    if (num >= 2000 && num <= 2099) continue
+    candidates.add(n)
+  }
 
   return [...candidates].filter(Boolean)
 }
