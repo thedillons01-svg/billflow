@@ -428,7 +428,33 @@ export function PODetail({
           {showJobColumn && lineItems.length > 0 && (
             <Section title="Job">
               <div>
-                {(po.job_name_extracted || po.customer_name_extracted) && lineItems.every(li => !li.job_id) && (() => {
+                {headerJobPending && (
+                  <div className="flex items-center gap-2 mb-3" style={{ padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
+                    <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#065F46', flex: 1 }}>
+                      Apply <strong>{headerJobPending.label}</strong> to all {lineItems.length} lines?
+                    </span>
+                    <button
+                      onClick={async () => {
+                        const pending = headerJobPending
+                        setHeaderJobPending(null)
+                        setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId })))
+                        await applyJobToAllPOLines(po.po_id, pending.jobId)
+                        router.refresh()
+                      }}
+                      style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                    >
+                      Yes, all {lineItems.length}
+                    </button>
+                    <button
+                      onClick={() => setHeaderJobPending(null)}
+                      style={{ fontSize: 12, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                    >
+                      No
+                    </button>
+                  </div>
+                )}
+                {!headerJobPending && (po.job_name_extracted || po.customer_name_extracted) && lineItems.every(li => !li.job_id) && (() => {
                   const customerFound = !!po.matched_customer_qb_id
                   const matchedCustomer = customerFound
                     ? (liveJobs.find(j => j.qb_job_id === po.matched_customer_qb_id) ?? liveClosedJobs.find(j => j.qb_job_id === po.matched_customer_qb_id))
@@ -629,32 +655,6 @@ export function PODetail({
                     )}
 
                 </div>
-                )}
-                {headerJobPending && (
-                  <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
-                    <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
-                    <span style={{ fontSize: 12, color: '#065F46', flex: 1 }}>
-                      Apply <strong>{headerJobPending.label}</strong> to all {lineItems.length} lines?
-                    </span>
-                    <button
-                      onClick={async () => {
-                        const pending = headerJobPending
-                        setHeaderJobPending(null)
-                        setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId })))
-                        await applyJobToAllPOLines(po.po_id, pending.jobId)
-                        router.refresh()
-                      }}
-                      style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
-                    >
-                      Yes, all {lineItems.length}
-                    </button>
-                    <button
-                      onClick={() => setHeaderJobPending(null)}
-                      style={{ fontSize: 12, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
-                    >
-                      No
-                    </button>
-                  </div>
                 )}
               </div>
             </Section>
