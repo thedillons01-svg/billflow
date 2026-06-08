@@ -20,15 +20,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (bill.status === 'published') {
     return NextResponse.json({ error: 'Cannot match a published bill' }, { status: 400 })
   }
-
-  // First sync jobs from QB to get latest
-  try {
-    await syncAll(bill.company_id)
-  } catch { /* non-fatal */ }
-
   if (!bill.vendor_po_reference) {
     return NextResponse.json({ matched: false, reason: 'No PO reference on bill' })
   }
+
+  // Sync jobs from QB before matching so newly created jobs are visible
+  try {
+    await syncAll(bill.company_id)
+  } catch { /* non-fatal */ }
 
   const serviceClient = createServiceClient()
   const matched = await tryMatchJob(serviceClient, bill.bill_id, bill.company_id, bill.vendor_po_reference)

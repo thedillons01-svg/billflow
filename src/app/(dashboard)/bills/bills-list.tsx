@@ -17,12 +17,18 @@ type Bill = {
   status: string
   autopublish_hold_reason: string | null
   mark_as_paid: boolean | null
-  bill_line_items?: { gl_account_id: string | null }[]
+  bill_line_items?: { gl_account_id: string | null; job_id: string | null }[]
 }
 
 type Account = {
   qb_account_id: string
   name: string | null
+}
+
+type Job = {
+  qb_job_id: string
+  job_name: string | null
+  customer_name: string | null
 }
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
@@ -38,10 +44,12 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
 export function BillsList({
   bills,
   accounts,
+  jobs,
   isInbox,
 }: {
   bills: Bill[]
   accounts: Account[]
+  jobs: Job[]
   isInbox: boolean
 }) {
   const router = useRouter()
@@ -182,7 +190,7 @@ export function BillsList({
       <div
         className="grid items-center px-5 py-2"
         style={{
-          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.6fr 0.9fr 0.7fr 0.9fr 1.2fr 36px 80px`,
+          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px`,
           borderBottom: '0.5px solid var(--color-border-tertiary)',
         }}
       >
@@ -194,7 +202,7 @@ export function BillsList({
             style={{ cursor: 'pointer', width: 14, height: 14 }}
           />
         )}
-        {['Vendor', 'Invoice #', 'Date', 'Total', 'GL Account', '', 'Status'].map(h => (
+        {['Vendor', 'Invoice #', 'Date', 'Total', 'GL Account', 'Job', '', 'Status'].map(h => (
           <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
             {h}
           </span>
@@ -213,7 +221,7 @@ export function BillsList({
             key={bill.bill_id}
             className="grid items-center px-5 py-[10px]"
             style={{
-              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.6fr 0.9fr 0.7fr 0.9fr 1.2fr 36px 80px`,
+              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px`,
               borderBottom: '0.5px solid var(--color-border-tertiary)',
               background: isChecked
                 ? '#EBF5EF'
@@ -338,6 +346,36 @@ export function BillsList({
                     </button>
                   )}
                 </div>
+              )
+            })()}
+
+            {/* Job */}
+            {(() => {
+              const lineJobIds = (bill.bill_line_items ?? []).map(li => li.job_id).filter(Boolean) as string[]
+              const allSame = lineJobIds.length > 0 && lineJobIds.every(id => id === lineJobIds[0])
+              const isMixed = lineJobIds.length > 0 && !allSame
+              const job = allSame ? jobs.find(j => j.qb_job_id === lineJobIds[0]) : null
+              const label = isMixed
+                ? 'Mixed'
+                : job
+                  ? (job.customer_name ? `${job.customer_name}: ${job.job_name}` : job.job_name)
+                  : null
+              return (
+                <Link href={`/bills/${bill.bill_id}`} style={{ textDecoration: 'none', overflow: 'hidden' }}>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: label ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+                      display: 'block',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={label ?? undefined}
+                  >
+                    {label ?? '—'}
+                  </span>
+                </Link>
               )
             })()}
 

@@ -27,7 +27,7 @@ export default async function BillsPage({
 
   let query = supabase
     .from('bills')
-    .select('bill_id, vendor_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason, mark_as_paid, bill_line_items(gl_account_id), vendors!bills_vendor_id_fkey(vendor_name_display)')
+    .select('bill_id, vendor_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason, mark_as_paid, bill_line_items(gl_account_id, job_id), vendors!bills_vendor_id_fkey(vendor_name_display)')
     .in('status', statuses)
     .is('deleted_at', null)
     .order('created_at', { ascending: activeTab === 'archive' })
@@ -36,16 +36,18 @@ export default async function BillsPage({
     query = query.or(`vendor_name_raw.ilike.%${search}%,invoice_number.ilike.%${search}%`)
   }
 
-  const [billsResult, reviewCountResult, pendingCountResult, accountsResult, companyResult] = await Promise.all([
+  const [billsResult, reviewCountResult, pendingCountResult, accountsResult, jobsResult, companyResult] = await Promise.all([
     query.limit(activeTab === 'archive' ? 200 : 500),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', REVIEW_STATUSES).is('deleted_at', null),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
     supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).eq('is_hidden', false).order('name'),
+    supabase.from('qb_jobs_cache').select('qb_job_id, job_name, customer_name').eq('is_customer', false).order('customer_name'),
     supabase.from('companies').select('credit_balance, subscription_status').single(),
   ])
 
   const bills = billsResult.data ?? []
   const accounts = accountsResult.data ?? []
+  const jobs = jobsResult.data ?? []
   const isInbox = activeTab !== 'archive'
   const creditBalance      = companyResult.data?.credit_balance      ?? 0
   const subscriptionStatus = companyResult.data?.subscription_status ?? 'trial'
@@ -146,7 +148,7 @@ export default async function BillsPage({
         {bills.length === 0 ? (
           <EmptyState tab={activeTab} search={search} />
         ) : (
-          <BillsList bills={bills as unknown as Parameters<typeof BillsList>[0]['bills']} accounts={accounts} isInbox={isInbox} />
+          <BillsList bills={bills as unknown as Parameters<typeof BillsList>[0]['bills']} accounts={accounts} jobs={jobs} isInbox={isInbox} />
         )}
       </div>
     </div>

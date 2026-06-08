@@ -631,42 +631,54 @@ export function BillReviewForm({
           )}
 
           {/* Banners */}
-          {localStatus === 'pending_job_match' && (
-            <div
-              className="flex items-center justify-between"
-              style={{ background: '#EDE9FE', border: '0.5px solid #C4B5FD', borderRadius: 6, padding: '10px 12px' }}
-            >
-              <div>
-                <p style={{ fontSize: 12, fontWeight: 500, color: '#5B21B6' }}>Waiting for job match</p>
-                <p style={{ fontSize: 11, color: '#6D28D9', marginTop: 2 }}>
-                  Retry checks every 2 hours during business hours. Use Find Match to retry now.
-                </p>
-              </div>
-              <button
-                onClick={() => {
-                  startTransition(async () => {
-                    const res = await fetch(`/api/bills/${bill.bill_id}/find-match`, { method: 'POST' })
-                    if (res.ok) {
-                      const json = await res.json()
-                      if (json.matched) {
-                        setLocalStatus('ready')
-                      }
-                      router.refresh()
-                    }
-                  })
-                }}
-                disabled={isPending}
-                style={{
-                  background: '#7C3AED', color: 'white',
-                  border: 'none', borderRadius: 6, padding: '5px 12px',
-                  fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
-                  opacity: isPending ? 0.6 : 1,
-                }}
+          {(() => {
+            const hasNoJob = lineItems.every(li => !li.job_id)
+            const showFindMatch = hasNoJob && !isPublished
+            if (!showFindMatch) return null
+            const isPending_ = localStatus === 'pending_job_match'
+            return (
+              <div
+                className="flex items-center justify-between"
+                style={{ background: '#EDE9FE', border: '0.5px solid #C4B5FD', borderRadius: 6, padding: '10px 12px' }}
               >
-                {isPending ? 'Searching…' : 'Find Match'}
-              </button>
-            </div>
-          )}
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: '#5B21B6' }}>
+                    {isPending_ ? 'Waiting for job match' : 'No job assigned'}
+                  </p>
+                  <p style={{ fontSize: 11, color: '#6D28D9', marginTop: 2 }}>
+                    {isPending_
+                      ? 'Retry checks every 2 hours during business hours. Use Find Match to retry now.'
+                      : bill.vendor_po_reference
+                        ? `Reference "${bill.vendor_po_reference}" found — click Find Match to search QuickBooks.`
+                        : 'No PO reference on this bill — Find Match requires a reference number to search.'}
+                  </p>
+                </div>
+                <button
+                  onClick={() => {
+                    startTransition(async () => {
+                      const res = await fetch(`/api/bills/${bill.bill_id}/find-match`, { method: 'POST' })
+                      if (res.ok) {
+                        const json = await res.json()
+                        if (json.matched) {
+                          setLocalStatus('ready')
+                        }
+                        router.refresh()
+                      }
+                    })
+                  }}
+                  disabled={isPending}
+                  style={{
+                    background: '#7C3AED', color: 'white',
+                    border: 'none', borderRadius: 6, padding: '5px 12px',
+                    fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+                    opacity: isPending ? 0.6 : 1,
+                  }}
+                >
+                  {isPending ? 'Searching…' : 'Find Match'}
+                </button>
+              </div>
+            )
+          })()}
           {localStatus === 'sync_error' && bill.qb_sync_error && (
             <div style={{ background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#991B1B' }}>
               <strong>QuickBooks sync failed: </strong>{bill.qb_sync_error}
