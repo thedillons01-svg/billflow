@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { syncAll } from '@/lib/quickbooks/sync'
+import { getIntuitEndpoints } from '@/lib/quickbooks/discovery'
 
 export async function disconnectQuickBooks(companyId: string) {
   const supabase = await createClient()
@@ -19,7 +20,8 @@ export async function disconnectQuickBooks(companyId: string) {
     const credentials = Buffer.from(
       `${process.env.QBO_CLIENT_ID}:${process.env.QBO_CLIENT_SECRET}`
     ).toString('base64')
-    await fetch('https://developer.api.intuit.com/v2/oauth2/tokens/revoke', {
+    const { revocation_endpoint } = await getIntuitEndpoints()
+    await fetch(revocation_endpoint, {
       method: 'POST',
       headers: {
         Authorization:  `Basic ${credentials}`,

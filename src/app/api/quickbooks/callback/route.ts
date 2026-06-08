@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { syncAll } from '@/lib/quickbooks/sync'
-
-const TOKEN_URL = 'https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer'
+import { getIntuitEndpoints } from '@/lib/quickbooks/discovery'
 
 function settingsRedirect(request: NextRequest, params: Record<string, string>) {
   const url = new URL('/settings', request.nextUrl.origin)
@@ -40,7 +39,8 @@ export async function GET(request: NextRequest) {
     `${process.env.QBO_CLIENT_ID}:${process.env.QBO_CLIENT_SECRET}`
   ).toString('base64')
 
-  const tokenRes = await fetch(TOKEN_URL, {
+  const { token_endpoint } = await getIntuitEndpoints()
+  const tokenRes = await fetch(token_endpoint, {
     method: 'POST',
     headers: {
       Authorization:  `Basic ${credentials}`,

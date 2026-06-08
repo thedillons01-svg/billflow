@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { randomBytes, createHash } from 'crypto'
-
-const INTUIT_AUTH_URL = 'https://appcenter.intuit.com/connect/oauth2'
+import { getIntuitEndpoints } from '@/lib/quickbooks/discovery'
 
 // Scopes required by Intuit app review: accounting + OpenID identity
 const SCOPES = 'com.intuit.quickbooks.accounting openid profile email'
@@ -10,10 +9,10 @@ const SCOPES = 'com.intuit.quickbooks.accounting openid profile email'
 export async function GET() {
   const supabase = await createClient()
 
-  const { data: company } = await supabase
-    .from('companies')
-    .select('company_id')
-    .single()
+  const [{ data: company }, { authorization_endpoint }] = await Promise.all([
+    supabase.from('companies').select('company_id').single(),
+    getIntuitEndpoints(),
+  ])
 
   if (!company) {
     return NextResponse.redirect(
@@ -40,7 +39,7 @@ export async function GET() {
     code_challenge_method: 'S256',
   })
 
-  const response = NextResponse.redirect(`${INTUIT_AUTH_URL}?${params}`)
+  const response = NextResponse.redirect(`${authorization_endpoint}?${params}`)
 
   const cookieOpts = {
     httpOnly: true,
