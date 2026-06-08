@@ -105,6 +105,11 @@ export async function getQBClient(companyId: string) {
   // QB API helpers
   // ---------------------------------------------------------------------------
 
+  function logTid(res: Response, context: string) {
+    const tid = res.headers.get('intuit_tid')
+    if (tid) console.log(`[qb-client] intuit_tid=${tid} (${context})`)
+  }
+
   async function qbQuery(query: string) {
     const url = new URL(`${QBO_BASE_URL}/v3/company/${realmId}/query`)
     url.searchParams.set('query', query)
@@ -114,7 +119,10 @@ export async function getQBClient(companyId: string) {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
     if (res.status === 401) return handleUnauthorized()
-    if (!res.ok) throw new Error(`QBO query failed (${res.status}): ${await res.text()}`)
+    if (!res.ok) {
+      logTid(res, `query: ${query.slice(0, 80)}`)
+      throw new Error(`QBO query failed (${res.status}): ${await res.text()}`)
+    }
     return res.json()
   }
 
@@ -144,7 +152,10 @@ export async function getQBClient(companyId: string) {
       body: JSON.stringify(body),
     })
     if (res.status === 401) return handleUnauthorized()
-    if (!res.ok) throw new Error(`QBO POST ${path} failed (${res.status}): ${await res.text()}`)
+    if (!res.ok) {
+      logTid(res, `POST ${path}`)
+      throw new Error(`QBO POST ${path} failed (${res.status}): ${await res.text()}`)
+    }
     return res.json()
   }
 
@@ -173,7 +184,10 @@ export async function getQBClient(companyId: string) {
       body,
     })
     if (res.status === 401) return handleUnauthorized()
-    if (!res.ok) throw new Error(`QBO upload failed (${res.status}): ${await res.text()}`)
+    if (!res.ok) {
+      logTid(res, 'upload')
+      throw new Error(`QBO upload failed (${res.status}): ${await res.text()}`)
+    }
     return res.json()
   }
 
@@ -185,7 +199,10 @@ export async function getQBClient(companyId: string) {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
     if (res.status === 401) return handleUnauthorized()
-    if (!res.ok) throw new Error(`QBO report ${reportType} failed (${res.status}): ${await res.text()}`)
+    if (!res.ok) {
+      logTid(res, `report ${reportType}`)
+      throw new Error(`QBO report ${reportType} failed (${res.status}): ${await res.text()}`)
+    }
     return res.json()
   }
 
