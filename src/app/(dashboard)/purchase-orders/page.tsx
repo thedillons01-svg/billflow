@@ -156,9 +156,17 @@ export default async function PurchaseOrdersPage({
                       <p style={{ fontSize: 11, color: '#DC2626' }}>{po.qb_sync_error}</p>
                     )}
                   </div>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
-                    {po.po_number ?? '—'}
-                  </span>
+                  <div>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
+                      {po.po_number ?? '—'}
+                    </span>
+                    {po.qb_po_id && (
+                      <p style={{ fontSize: 10, color: '#059669', marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <i className="ti ti-circle-check" style={{ fontSize: 10 }} />
+                        In QuickBooks
+                      </p>
+                    )}
+                  </div>
                   <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
                     {po.order_date ? new Date(po.order_date).toLocaleDateString() : '—'}
                   </span>
