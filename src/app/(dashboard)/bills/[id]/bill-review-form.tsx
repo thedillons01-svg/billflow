@@ -987,8 +987,8 @@ export function BillReviewForm({
                       emptyLabel="—"
                     />
 
-                    {/* Create customer / job forms — visible whenever any line is unassigned */}
-                    {lineItems.some(li => !li.job_id) && (
+                    {/* Create customer / job forms — visible whenever any line is unassigned or a form is open */}
+                    {(lineItems.some(li => !li.job_id) || showJobCreate || showCustomerCreate) && (
                       <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
 
                         {/* Create new customer */}

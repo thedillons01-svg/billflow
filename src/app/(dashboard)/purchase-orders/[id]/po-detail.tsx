@@ -516,7 +516,7 @@ export function PODetail({
                     })
                   }}
                 />
-                {lineItems.some(li => !li.job_id) && (
+                {(lineItems.some(li => !li.job_id) || showJobCreate || showCustomerCreate) && (
                 <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
 
                     {/* Create new customer */}
