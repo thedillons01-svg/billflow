@@ -100,6 +100,7 @@ export async function processPO(poId: string): Promise<void> {
   // Vendor matching — find existing vendor or create from QB cache match
   if (result.vendor_name_raw) {
     const vendorVariants = uniqueNameVariants(result.vendor_name_raw)
+      .filter(v => !v.includes(',')) // commas are OR-condition separators in Supabase — strip them out
     const orCondition = vendorVariants
       .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
       .join(',')

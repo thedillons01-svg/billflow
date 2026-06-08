@@ -93,6 +93,7 @@ export async function POST(
   if (!po.vendor_id && result.vendor_name_raw) {
     await syncVendorsIfStale(po.company_id)
     const variants = uniqueNameVariants(result.vendor_name_raw)
+      .filter(v => !v.includes(',')) // commas are OR-condition separators in Supabase
     const orCondition = variants
       .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
       .join(',')
