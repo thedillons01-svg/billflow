@@ -168,7 +168,13 @@ export function PODetail({
 
   const handleLineItemUpdate = async (lineId: string, fields: Partial<LineItem>) => {
     setLineItems(prev => prev.map(li => li.line_id === lineId ? { ...li, ...fields } : li))
-    await updatePOLineItem(lineId, po.po_id, fields)
+    try {
+      await updatePOLineItem(lineId, po.po_id, fields)
+    } catch (err) {
+      setPushError(`Failed to save: ${err instanceof Error ? err.message : String(err)}`)
+      // Roll back optimistic update
+      setLineItems(prev => prev.map(li => li.line_id === lineId ? { ...li, ...Object.fromEntries(Object.keys(fields).map(k => [k, (li as Record<string, unknown>)[k]])) } : li))
+    }
   }
 
   const handleLineJobChange = async (lineId: string, jobId: string) => {
@@ -755,10 +761,17 @@ export function PODetail({
                         }}
                       />
 
-                      {/* Extended cost */}
-                      <span style={{ fontSize: 12, textAlign: 'right', paddingRight: 4, color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                        {li.extended_cost != null ? `$${Number(li.extended_cost).toFixed(2)}` : '—'}
-                      </span>
+                      {/* Extended cost — editable directly if no unit cost */}
+                      <InlineInput
+                        initialValue={li.extended_cost != null ? String(li.extended_cost) : ''}
+                        placeholder="—"
+                        align="right"
+                        currency
+                        onSave={async v => {
+                          const ext = v ? parseFloat(v) : null
+                          await handleLineItemUpdate(li.line_id, { extended_cost: isNaN(ext!) ? null : ext })
+                        }}
+                      />
 
                       {/* Job */}
                       {showJobColumn && (
@@ -992,11 +1005,14 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: {
 }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
   useEffect(() => { setValue(initialValue) }, [initialValue])
 
   const displayValue = currency && !focused && value !== ''
     ? `$${parseFloat(value || '0').toFixed(2)}`
     : value
+
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
 
   return (
     <input
@@ -1008,13 +1024,18 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: {
       onFocus={() => setFocused(true)}
       onBlur={async () => {
         setFocused(false)
+        setHovered(false)
         try { await onSave(value) } catch { /* silent */ }
       }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       placeholder={placeholder}
       style={{
-        width: '100%', border: '0.5px solid transparent', borderRadius: 4,
-        padding: '3px 4px', fontSize: 12, background: 'transparent',
+        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '3px 4px', fontSize: 12,
+        background: focused ? 'white' : 'transparent',
         color: 'var(--color-text-primary)', textAlign: align === 'right' ? 'right' : 'left',
+        outline: 'none',
       }}
     />
   )

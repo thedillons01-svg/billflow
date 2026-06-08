@@ -31,7 +31,8 @@ export async function updatePOLineItem(
   }>
 ) {
   const supabase = await createClient()
-  await supabase.from('po_line_items').update(fields).eq('line_id', lineId)
+  const { error } = await supabase.from('po_line_items').update(fields).eq('line_id', lineId)
+  if (error) throw new Error(error.message)
   revalidatePath(`/purchase-orders/${poId}`)
 }
 
