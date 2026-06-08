@@ -527,8 +527,10 @@ export function PODetail({
                                   const newCust: Job = { qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: null }
                                   setLiveCustomers(prev => [...prev, newCust])
                                   setNewJobCustomerId(result.qbJobId)
+                                  setNewJobName(po.job_name_extracted ?? '')
                                   setShowCustomerCreate(false)
                                   setNewCustomerName('')
+                                  setShowJobCreate(true)
                                 }
                               })
                             }}
