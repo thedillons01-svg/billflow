@@ -77,6 +77,13 @@ export function SidebarNav({
             onMarkRead={markNotificationRead}
           />
         </div>
+        <a
+          href="mailto:support@purchasomatic.com"
+          style={{ display: 'block', fontSize: 11, color: '#9CA3AF', textDecoration: 'none', marginBottom: 6 }}
+        >
+          <i className="ti ti-help-circle" style={{ fontSize: 11, marginRight: 4 }} />
+          support@purchasomatic.com
+        </a>
         <form action={signout}>
           <button
             type="submit"
