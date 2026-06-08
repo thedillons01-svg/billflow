@@ -37,8 +37,12 @@ export async function updatePOLineItem(
 
 export async function applyJobToAllPOLines(poId: string, jobId: string | null) {
   const supabase = await createClient()
-  await supabase.from('po_line_items').update({ job_id: jobId }).eq('po_id', poId)
+  await Promise.all([
+    supabase.from('po_line_items').update({ job_id: jobId }).eq('po_id', poId),
+    supabase.from('purchase_orders').update({ job_id: jobId }).eq('po_id', poId),
+  ])
   revalidatePath(`/purchase-orders/${poId}`)
+  revalidatePath('/purchase-orders')
 }
 
 export async function recalculatePOLineTotals(poId: string) {
