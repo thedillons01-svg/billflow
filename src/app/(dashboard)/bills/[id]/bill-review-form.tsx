@@ -1886,16 +1886,14 @@ function AutoSaveInput({
 function InlineInput({ initialValue, onSave, placeholder, align, currency }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right'; currency?: boolean }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
   useEffect(() => { setValue(initialValue) }, [initialValue])
-
-  const handleBlur = async () => {
-    setFocused(false)
-    try { await onSave(value) } catch { /* silent */ }
-  }
 
   const displayValue = currency && !focused && value !== ''
     ? `$${parseFloat(value || '0').toFixed(2)}`
     : value
+
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
 
   return (
     <input
@@ -1905,13 +1903,21 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: { i
         setValue(raw)
       }}
       onFocus={() => setFocused(true)}
-      onBlur={handleBlur}
+      onBlur={async () => {
+        setFocused(false)
+        setHovered(false)
+        try { await onSave(value) } catch { /* silent */ }
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       placeholder={placeholder}
       style={{
-        width: '100%', border: '0.5px solid transparent', borderRadius: 4,
-        padding: '3px 4px', fontSize: 12, background: 'transparent',
+        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '3px 4px', fontSize: 12,
+        background: focused ? 'white' : 'transparent',
         color: 'var(--color-text-primary)',
         textAlign: align === 'right' ? 'right' : 'left',
+        outline: 'none',
       }}
     />
   )
@@ -1928,6 +1934,8 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
   title?: string
 }) {
   const [value, setValue] = useState(initialValue)
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
 
   useEffect(() => { setValue(initialValue) }, [initialValue])
 
@@ -1952,15 +1960,22 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
     } catch { setValue(initialValue) }
   }
 
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
+
   return (
     <select
       value={value}
       onChange={e => handleChange(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setHovered(false) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       title={title}
       style={{
-        width: '100%', border: '0.5px solid transparent', borderRadius: 4,
-        padding: '3px 4px', fontSize: 12, background: 'transparent',
-        color: 'var(--color-text-primary)',
+        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '3px 4px', fontSize: 12,
+        background: focused ? 'white' : 'transparent',
+        color: 'var(--color-text-primary)', outline: 'none',
       }}
     >
       <option value="">{placeholder}</option>
