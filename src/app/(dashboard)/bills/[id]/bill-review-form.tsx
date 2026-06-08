@@ -55,6 +55,9 @@ type Bill = {
   payment_ref_number: string | null
   reprocess_count: number | null
   ocr_tier: number | null
+  job_name_extracted: string | null
+  customer_name_extracted: string | null
+  matched_customer_qb_id: string | null
 }
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
@@ -101,6 +104,7 @@ export function BillReviewForm({
   const [stablePdfUrl] = useState(pdfSignedUrl)
   const [liveJobs, setLiveJobs] = useState<Job[]>(jobs)
   const [liveClosedJobs, setLiveClosedJobs] = useState<Job[]>(closedJobs)
+  const [liveCustomers, setLiveCustomers] = useState<Job[]>(customers)
 
   // Build select options. Sub-customers are indented under their parent customer name.
   const buildJobOptions = (jobList: Job[]) => {
@@ -187,6 +191,9 @@ export function BillReviewForm({
   const [newJobName, setNewJobName] = useState('')
   const [newJobCustomerId, setNewJobCustomerId] = useState('')
   const [jobCreateError, setJobCreateError] = useState<string | null>(null)
+  const [showCustomerCreate, setShowCustomerCreate] = useState(false)
+  const [newCustomerName, setNewCustomerName] = useState('')
+  const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
 
   // Invoice history popover
   const [showHistory, setShowHistory] = useState(false)
@@ -902,6 +909,49 @@ export function BillReviewForm({
               {jobCostingEnabled && lineItems.length > 0 && (
                 <div className="col-span-2">
                 <Field label="Job (all lines)" helper="Sets the job for all line items at once. Individual line items can still be changed after.">
+
+                    {/* Apply-to-all confirmation — top priority, shown first */}
+                    {headerJobPending && (
+                      <div className="flex items-center gap-2 mb-2" style={{ padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
+                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#065F46', flex: 1 }}>
+                          Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?
+                        </span>
+                        <button
+                          onClick={async () => {
+                            const pending = headerJobPending
+                            setHeaderJobPending(null)
+                            const updated = lineItems.map(li => ({ ...li, job_id: pending.jobId }))
+                            setLineItems(updated)
+                            await Promise.all(updated.map(li => updateLineItem(li.line_id, { job_id: pending.jobId })))
+                            router.refresh()
+                          }}
+                          style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                        >Yes, all {lineItems.length}</button>
+                        <button onClick={() => setHeaderJobPending(null)} style={{ fontSize: 12, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}>No</button>
+                      </div>
+                    )}
+
+                    {/* OCR extracted job/customer reference banner */}
+                    {!headerJobPending && (bill.job_name_extracted || bill.customer_name_extracted) && lineItems.every(li => !li.job_id) && (
+                      <div className="flex items-start gap-2 mb-2" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '8px 10px' }}>
+                        <i className="ti ti-search" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                        <div>
+                          <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
+                            {bill.matched_customer_qb_id
+                              ? `Customer matched — no job found yet`
+                              : 'Job reference on invoice — no QuickBooks match found'}
+                          </p>
+                          <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                            {[bill.job_name_extracted, bill.customer_name_extracted].filter(Boolean).join(' / ')}
+                          </p>
+                          <p style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
+                            Select a matching job below, or create a new one.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <InlineSelect
                       initialValue={
                         lineItems.every(li => li.job_id === lineItems[0].job_id)
@@ -936,53 +986,93 @@ export function BillReviewForm({
                       placeholder={lineItems.every(li => li.job_id === lineItems[0].job_id) ? 'Job…' : 'Mixed — select to apply all'}
                       emptyLabel="—"
                     />
-                    {lineItems.every(li => !li.job_id) && (
-                      <div style={{ marginTop: 6 }}>
-                        {!showJobCreate ? (
-                          <button
-                            type="button"
-                            onClick={() => { setShowJobCreate(true); setNewJobName(''); setNewJobCustomerId('') }}
-                            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+
+                    {/* Create customer / job forms — visible whenever any line is unassigned */}
+                    {lineItems.some(li => !li.job_id) && (
+                      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+
+                        {/* Create new customer */}
+                        {!showCustomerCreate && !showJobCreate && (
+                          <button type="button"
+                            onClick={() => { setShowCustomerCreate(true); setNewCustomerName(bill.customer_name_extracted ?? ''); setCustomerCreateError(null) }}
+                            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
+                          >
+                            <i className="ti ti-plus" style={{ fontSize: 12 }} />
+                            Create new customer in QuickBooks
+                          </button>
+                        )}
+                        {showCustomerCreate && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', background: 'var(--color-background-secondary)', borderRadius: 6, border: '0.5px solid var(--color-border-tertiary)' }}>
+                            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', margin: 0 }}>New customer</p>
+                            <div className="flex items-center gap-2">
+                              <input type="text" value={newCustomerName} onChange={e => setNewCustomerName(e.target.value)} placeholder="Customer name" autoFocus
+                                style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12 }}
+                              />
+                              <button type="button" disabled={!newCustomerName.trim() || isPending}
+                                onClick={() => {
+                                  setCustomerCreateError(null)
+                                  startTransition(async () => {
+                                    const result = await createJob(bill.company_id, newCustomerName.trim(), undefined)
+                                    if ('error' in result) {
+                                      setCustomerCreateError(result.error)
+                                    } else {
+                                      const newCust: Job = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: null, is_customer: true, status: 'active' }
+                                      setLiveCustomers(prev => [...prev, newCust])
+                                      setNewJobCustomerId(result.qbJobId)
+                                      setNewJobName(bill.job_name_extracted ?? '')
+                                      setShowCustomerCreate(false)
+                                      setNewCustomerName('')
+                                      setShowJobCreate(true)
+                                    }
+                                  })
+                                }}
+                                style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !newCustomerName.trim() || isPending ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                              >{isPending ? 'Creating…' : 'Create'}</button>
+                              <button type="button" onClick={() => { setShowCustomerCreate(false); setCustomerCreateError(null) }}
+                                style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
+                              >Cancel</button>
+                            </div>
+                            {customerCreateError && <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>{customerCreateError}</p>}
+                          </div>
+                        )}
+
+                        {/* Create new job */}
+                        {!showJobCreate && !showCustomerCreate && (
+                          <button type="button"
+                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.job_name_extracted ?? ''); setNewJobCustomerId(bill.matched_customer_qb_id ?? '') }}
+                            style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
                           >
                             <i className="ti ti-plus" style={{ fontSize: 12 }} />
                             Create new job in QuickBooks
                           </button>
-                        ) : (
-                          <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        )}
+                        {showJobCreate && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '8px 10px', background: 'var(--color-background-secondary)', borderRadius: 6, border: '0.5px solid var(--color-border-tertiary)' }}>
+                            <p style={{ fontSize: 11, fontWeight: 500, color: 'var(--color-text-secondary)', margin: 0 }}>New job</p>
+                            <select value={newJobCustomerId} onChange={e => setNewJobCustomerId(e.target.value)}
+                              style={{ height: 28, border: `0.5px solid ${!newJobCustomerId ? '#FCA5A5' : 'var(--color-border-secondary)'}`, borderRadius: 5, padding: '0 8px', fontSize: 12, background: 'white' }}
+                            >
+                              <option value="">— Customer (required) —</option>
+                              {liveCustomers.map(c => (
+                                <option key={c.qb_job_id} value={c.qb_job_id}>{c.job_name ?? c.customer_name ?? c.qb_job_id}</option>
+                              ))}
+                            </select>
+                            {!newJobCustomerId && (
+                              <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>Jobs must belong to a customer. Use "Create new customer" above if needed.</p>
+                            )}
                             <div className="flex items-center gap-2">
-                              <select
-                                value={newJobCustomerId}
-                                onChange={e => setNewJobCustomerId(e.target.value)}
-                                style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12, background: 'white' }}
-                              >
-                                <option value="">Customer (optional)</option>
-                                {customers.map(c => (
-                                  <option key={c.qb_job_id} value={c.qb_job_id}>
-                                    {c.job_name ?? c.customer_name ?? c.qb_job_id}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <input
-                                type="text"
-                                value={newJobName}
-                                onChange={e => setNewJobName(e.target.value)}
-                                placeholder="Job name"
-                                autoFocus
+                              <input type="text" value={newJobName} onChange={e => setNewJobName(e.target.value)} placeholder="Job name" autoFocus
                                 style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12 }}
                               />
-                              <button
-                                type="button"
-                                disabled={!newJobName.trim() || isPending}
+                              <button type="button" disabled={!newJobName.trim() || !newJobCustomerId || isPending}
                                 onClick={() => {
                                   setJobCreateError(null)
                                   startTransition(async () => {
-                                    const result = await createJob(bill.company_id, newJobName.trim(), newJobCustomerId || undefined)
+                                    const result = await createJob(bill.company_id, newJobName.trim(), newJobCustomerId)
                                     if ('error' in result) {
                                       setJobCreateError(result.error)
                                     } else {
-                                      const newJob = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: result.customerName, parent_id: newJobCustomerId || null, is_customer: !newJobCustomerId, status: 'active' }
+                                      const newJob: Job = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: result.customerName, parent_id: newJobCustomerId, is_customer: false, status: 'active' }
                                       setLiveJobs(prev => [...prev, newJob])
                                       setShowJobCreate(false)
                                       setNewJobName('')
@@ -991,54 +1081,20 @@ export function BillReviewForm({
                                     }
                                   })
                                 }}
-                                style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !newJobName.trim() || isPending ? 0.6 : 1, whiteSpace: 'nowrap' }}
-                              >
-                                {isPending ? 'Creating…' : 'Create'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => { setShowJobCreate(false); setJobCreateError(null) }}
+                                style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !newJobName.trim() || !newJobCustomerId || isPending ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                              >{isPending ? 'Creating…' : 'Create'}</button>
+                              <button type="button" onClick={() => { setShowJobCreate(false); setJobCreateError(null) }}
                                 style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}
-                              >
-                                Cancel
-                              </button>
+                              >Cancel</button>
                             </div>
                             {jobCreateError && (
-                              <p style={{ marginTop: 4, fontSize: 11, color: '#991B1B', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <p style={{ fontSize: 11, color: '#991B1B', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
                                 <i className="ti ti-circle-x" style={{ fontSize: 12 }} />
                                 {jobCreateError}
                               </p>
                             )}
                           </div>
                         )}
-                      </div>
-                    )}
-                    {headerJobPending && (
-                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #C7D2FE', borderRadius: 6 }}>
-                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#4338CA', flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: '#3730A3', flex: 1 }}>
-                          Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?
-                        </span>
-                        <button
-                          onClick={async () => {
-                            const pending = headerJobPending
-                            setHeaderJobPending(null)
-                            setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId })))
-                            for (const li of lineItems) {
-                              await updateLineItem(li.line_id, { job_id: pending.jobId })
-                            }
-                            router.refresh()
-                          }}
-                          style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#4338CA', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
-                        >
-                          Yes, all {lineItems.length}
-                        </button>
-                        <button
-                          onClick={() => setHeaderJobPending(null)}
-                          style={{ fontSize: 12, color: '#3730A3', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
-                        >
-                          No
-                        </button>
                       </div>
                     )}
                   </Field>

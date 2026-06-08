@@ -11,6 +11,14 @@ import { saveToStorage } from '@/lib/storage/save-to-storage'
 // Service-role Supabase client (bypasses RLS)
 // ---------------------------------------------------------------------------
 
+function uniqueNameVariants(name: string): string[] {
+  const variants = new Set<string>([name])
+  const noComma = name.replace(/,/g, '')
+  variants.add(noComma)
+  variants.add(noComma.replace(/\./g, '').replace(/\s+/g, ' ').trim())
+  return [...variants].filter(Boolean)
+}
+
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -122,6 +130,8 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       invoice_date:             result.invoice_date,
       due_date:                 result.due_date,
       vendor_po_reference:      result.vendor_po_reference,
+      job_name_extracted:       result.job_name_extracted ?? null,
+      customer_name_extracted:  result.customer_name_extracted ?? null,
       total:                    result.total,
       subtotal:                 result.subtotal,
       tax_amount:               result.tax_amount,
@@ -160,11 +170,16 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   let vendorEffectiveTerms: string | null = null
   let vendorDefaultDueDateSetting: string | null = null
   if (result.vendor_name_raw) {
+    const vendorVariants = uniqueNameVariants(result.vendor_name_raw)
+      .filter(v => !v.includes(','))
+    const vendorOrCondition = vendorVariants
+      .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
+      .join(',')
     const { data: vendor } = await supabase
       .from('vendors')
       .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match, default_due_date, qb_payment_terms, billflow_payment_terms')
       .eq('company_id', bill.company_id)
-      .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
+      .or(vendorOrCondition)
       .limit(1)
       .single()
 
@@ -368,11 +383,15 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   // skipJobMatch is set by the reprocess route when a job was already manually assigned.
   const jobMatchRef = result.vendor_po_reference ?? result.job_name_extracted
   if (!isDuplicate && jobMatchRef && !opts?.skipJobMatch) {
-    const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, jobMatchRef, result.job_name_extracted ?? undefined)
+    const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, jobMatchRef, result.job_name_extracted ?? undefined, result.customer_name_extracted ?? undefined)
     if (!jobMatched && vendorHoldForJobMatch) {
       await supabase.from('bills')
         .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — PO reference: ${result.vendor_po_reference}` })
         .eq('bill_id', billId)
+    }
+    // When no job matched, try to identify the customer so the UI can pre-populate the create form
+    if (!jobMatched && result.customer_name_extracted) {
+      await tryMatchCustomerForBill(supabase, billId, bill.company_id, result.customer_name_extracted, result.job_name_extracted ?? undefined)
     }
   }
 
@@ -490,53 +509,87 @@ function parsePaymentTermDays(terms: string): number | null {
   return null
 }
 
+type CacheJob = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; is_customer: boolean }
+
+function jobMatchesCandidatesFull(job: CacheJob, candidates: string[]): boolean {
+  const num  = job.job_number?.trim().toLowerCase()
+  const name = job.job_name?.trim().toLowerCase()
+  const cust = job.customer_name?.trim().toLowerCase()
+  for (const c of candidates) {
+    if (num === c || name === c) return true
+    if (num  && num.length  >= 4 && c.includes(num))                        return true
+    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
+    if (cust && cust.length >= 4 && (c.includes(cust) || cust.includes(c))) return true
+  }
+  return false
+}
+
 export async function tryMatchJob(
   supabase: SupabaseClient,
   billId: string,
   companyId: string,
   poReference: string,
   jobNameExtracted?: string,
+  customerNameExtracted?: string,
 ): Promise<boolean> {
   const candidates = [
     ...extractJobCandidates(poReference),
-    ...(jobNameExtracted ? extractJobCandidates(jobNameExtracted) : []),
+    ...(jobNameExtracted    ? extractJobCandidates(jobNameExtracted)    : []),
+    ...(customerNameExtracted ? extractJobCandidates(customerNameExtracted) : []),
   ]
 
-  const { data: jobs } = await supabase
+  const { data: rows } = await supabase
     .from('qb_jobs_cache')
-    .select('qb_job_id, job_number, job_name')
+    .select('qb_job_id, job_number, job_name, customer_name, is_customer')
     .eq('company_id', companyId)
 
-  if (!jobs || jobs.length === 0) return false
+  if (!rows || rows.length === 0) return false
 
-  let match = jobs.find(j => jobMatchesCandidates(j, candidates))
+  const subCustomers = (rows as CacheJob[]).filter(r => !r.is_customer)
+  let match = subCustomers.find(j => jobMatchesCandidatesFull(j, candidates))
 
-  // Cache miss — refresh from QB if stale (rate-limited to once per 5 min to prevent
-  // stampede when multiple invoices process simultaneously), then retry once
   if (!match) {
     await syncJobsIfStale(companyId)
-    const { data: freshJobs } = await supabase
+    const { data: freshRows } = await supabase
       .from('qb_jobs_cache')
-      .select('qb_job_id, job_number, job_name')
+      .select('qb_job_id, job_number, job_name, customer_name, is_customer')
       .eq('company_id', companyId)
-    match = (freshJobs ?? []).find(j => jobMatchesCandidates(j, candidates))
+    match = ((freshRows ?? []) as CacheJob[]).filter(r => !r.is_customer).find(j => jobMatchesCandidatesFull(j, candidates))
   }
 
   if (!match) return false
 
-  // Apply job to all line items for this bill
-  await supabase
-    .from('bill_line_items')
-    .update({ job_id: match.qb_job_id })
-    .eq('bill_id', billId)
-
-  await supabase
-    .from('bills')
-    .update({ status: 'ready', autopublish_hold_reason: null })
-    .eq('bill_id', billId)
-
+  await supabase.from('bill_line_items').update({ job_id: match.qb_job_id }).eq('bill_id', billId)
+  await supabase.from('bills').update({ status: 'ready', autopublish_hold_reason: null }).eq('bill_id', billId)
   console.log(`[ocr] Bill ${billId} job-matched to ${match.qb_job_id}`)
   return true
+}
+
+async function tryMatchCustomerForBill(
+  supabase: SupabaseClient,
+  billId: string,
+  companyId: string,
+  customerNameExtracted: string,
+  jobNameExtracted?: string,
+): Promise<void> {
+  const custCandidates = [
+    ...extractJobCandidates(customerNameExtracted),
+    ...(jobNameExtracted ? extractJobCandidates(jobNameExtracted) : []),
+  ]
+  const { data: rows } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id, job_number, job_name, customer_name, is_customer')
+    .eq('company_id', companyId)
+
+  const customers = ((rows ?? []) as CacheJob[]).filter(r => r.is_customer)
+  const match = customers.find(c => {
+    const name = (c.job_name ?? c.customer_name ?? '').trim().toLowerCase()
+    return custCandidates.some(s => name === s || (name.length >= 4 && (s.includes(name) || name.includes(s))))
+  })
+  if (match) {
+    await supabase.from('bills').update({ matched_customer_qb_id: match.qb_job_id }).eq('bill_id', billId)
+    console.log(`[ocr] Bill ${billId} customer-matched to ${match.qb_job_id}`)
+  }
 }
 
 // ---------------------------------------------------------------------------
