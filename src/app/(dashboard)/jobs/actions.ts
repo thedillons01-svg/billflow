@@ -17,7 +17,10 @@ export async function createJob(
   try {
     const { qbPost } = await getQBClient(companyId)
     const payload: Record<string, unknown> = { DisplayName: displayName }
-    if (parentCustomerId) payload.ParentRef = { value: parentCustomerId }
+    if (parentCustomerId) {
+      payload.ParentRef = { value: parentCustomerId }
+      payload.Job = true
+    }
     try {
       const result = await qbPost('customer', payload)
       qbJobId = result.Customer?.Id
