@@ -8,6 +8,14 @@ import { syncVendorsIfStale, syncJobsIfStale } from '@/lib/quickbooks/sync'
 
 export const maxDuration = 60
 
+function uniqueNameVariants(name: string): string[] {
+  const variants = new Set<string>([name])
+  const noComma = name.replace(/,/g, '')
+  variants.add(noComma)
+  variants.add(noComma.replace(/\./g, '').replace(/\s+/g, ' ').trim())
+  return [...variants].filter(Boolean)
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -84,11 +92,15 @@ export async function POST(
   // Vendor matching (only if not already matched)
   if (!po.vendor_id && result.vendor_name_raw) {
     await syncVendorsIfStale(po.company_id)
+    const variants = uniqueNameVariants(result.vendor_name_raw)
+    const orCondition = variants
+      .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
+      .join(',')
     const { data: vendor } = await service
       .from('vendors')
       .select('vendor_id')
       .eq('company_id', po.company_id)
-      .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
+      .or(orCondition)
       .limit(1)
       .single()
     if (vendor) {

@@ -7,6 +7,16 @@ import { sendNotification } from '@/lib/notifications/send-email'
 import { syncVendorsIfStale, syncJobsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 
+// Generate normalized variants of a vendor name to handle punctuation differences
+// e.g. "Gensco, Inc." → ["Gensco, Inc.", "Gensco Inc.", "Gensco Inc"]
+function uniqueNameVariants(name: string): string[] {
+  const variants = new Set<string>([name])
+  const noComma = name.replace(/,/g, '')
+  variants.add(noComma)
+  variants.add(noComma.replace(/\./g, '').replace(/\s+/g, ' ').trim())
+  return [...variants].filter(Boolean)
+}
+
 function getServiceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -89,11 +99,15 @@ export async function processPO(poId: string): Promise<void> {
 
   // Vendor matching — find existing vendor or create from QB cache match
   if (result.vendor_name_raw) {
+    const vendorVariants = uniqueNameVariants(result.vendor_name_raw)
+    const orCondition = vendorVariants
+      .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
+      .join(',')
     const { data: vendor } = await supabase
       .from('vendors')
       .select('vendor_id')
       .eq('company_id', po.company_id)
-      .or(`vendor_name_extracted.ilike.${result.vendor_name_raw},vendor_name_display.ilike.${result.vendor_name_raw}`)
+      .or(orCondition)
       .limit(1)
       .single()
 

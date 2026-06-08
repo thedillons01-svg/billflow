@@ -496,7 +496,7 @@ export function PODetail({
                     {/* Create new customer */}
                     {!showCustomerCreate && !showJobCreate && (
                       <button type="button"
-                        onClick={() => { setShowCustomerCreate(true); setNewCustomerName(''); setCustomerCreateError(null) }}
+                        onClick={() => { setShowCustomerCreate(true); setNewCustomerName(po.customer_name_extracted ?? ''); setCustomerCreateError(null) }}
                         style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
                       >
                         <i className="ti ti-plus" style={{ fontSize: 12 }} />
