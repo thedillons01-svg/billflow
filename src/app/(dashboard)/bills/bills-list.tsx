@@ -62,6 +62,7 @@ export function BillsList({
   const [glOverrides, setGlOverrides] = useState<Record<string, string>>({})
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [bulkErrors, setBulkErrors] = useState<{ billId: string; invoiceNumber: string | null; reason: string }[]>([])
+  const [isPublishing, setIsPublishing] = useState(false)
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
@@ -103,26 +104,29 @@ export function BillsList({
     })
   }
 
-  function handleBulkPublish() {
-    startTransition(async () => {
-      const ids = Array.from(selected)
+  async function handleBulkPublish() {
+    const ids = Array.from(selected)
+    setIsPublishing(true)
+    setSelected(new Set())
+    try {
       const result = await bulkPublish(ids)
-      setSelected(new Set())
       setBulkErrors(result.errors)
       setBulkMessage(
         result.success === ids.length
           ? `Published ${result.success} bill${result.success !== 1 ? 's' : ''} to QuickBooks.`
           : result.success === 0
-            ? `All ${ids.length} bills failed to publish.`
+            ? `All ${ids.length} bill${ids.length !== 1 ? 's' : ''} failed to publish.`
             : `Published ${result.success} of ${ids.length} bills. ${result.failed} failed.`
       )
-      // Only refresh immediately on full success — router.refresh() inside a transition
-      // races with setBulkMessage and wipes it before it renders. On partial/full failure
-      // we refresh when the user dismisses the banner so sync_error badges appear then.
       if (result.errors.length === 0) {
         router.refresh()
       }
-    })
+    } catch (err) {
+      setBulkMessage('Something went wrong — please try again.')
+      setBulkErrors(ids.map(id => ({ billId: id, invoiceNumber: null, reason: err instanceof Error ? err.message : 'Unexpected error' })))
+    } finally {
+      setIsPublishing(false)
+    }
   }
 
   function startVendorEdit(bill: Bill, e: React.MouseEvent) {
@@ -170,7 +174,7 @@ export function BillsList({
             {isInbox && (
               <>
                 <BulkButton onClick={handleBulkReady} disabled={isPending} label="Mark Ready" />
-                <BulkButton onClick={handleBulkPublish} disabled={isPending} label="Publish to QB" primary />
+                <BulkButton onClick={handleBulkPublish} disabled={isPending || isPublishing} label={isPublishing ? 'Publishing…' : 'Publish to QB'} primary />
               </>
             )}
             <BulkButton onClick={handleBulkDelete} disabled={isPending} label="Delete" danger />
