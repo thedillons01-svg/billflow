@@ -1734,11 +1734,20 @@ export function BillReviewForm({
           }}
           onClick={e => { if (e.target === e.currentTarget) { setShowReprocessModal(false); setReprocessComment('') } }}
         >
-          <div style={{
-            background: 'white', borderRadius: 10,
-            width: 440, padding: '24px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
-          }}>
+          <div
+            style={{
+              background: 'white', borderRadius: 10,
+              width: 440, padding: '24px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            }}
+            onKeyDown={e => {
+              if (e.key === 'Escape') { setShowReprocessModal(false); setReprocessComment('') }
+              if (e.key === 'Enter' && !(e.target instanceof HTMLTextAreaElement)) {
+                e.preventDefault()
+                handleReprocessSubmit(reprocessComment)
+              }
+            }}
+          >
             <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>
               Reprocess Invoice
             </h2>
@@ -1767,6 +1776,12 @@ export function BillReviewForm({
             <textarea
               value={reprocessComment}
               onChange={e => setReprocessComment(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault()
+                  handleReprocessSubmit(reprocessComment)
+                }
+              }}
               placeholder="e.g. Wrong vendor matched, invoice total is $1,234.56 not $123.45, line items are missing…"
               rows={4}
               style={{
