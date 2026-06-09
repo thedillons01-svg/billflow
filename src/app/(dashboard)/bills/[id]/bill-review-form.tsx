@@ -134,6 +134,11 @@ export function BillReviewForm({
   const [swapped, setSwapped] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [isReprocessing, setIsReprocessing] = useState(false)
+  const reprocessCount = bill.reprocess_count ?? 0
+  const nextTier = reprocessCount === 0 ? 2 : 3
+  const tierLabel = nextTier === 2
+    ? 'Tier 2 — Claude Haiku (enhanced text extraction)'
+    : 'Tier 3 — Claude Opus (vision / scanned document)'
   const [publishError, setPublishError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState(initialLineItems)
   const [markAsPaid, setMarkAsPaid] = useState(bill.mark_as_paid ?? false)
@@ -389,6 +394,7 @@ export function BillReviewForm({
       <div
         ref={formRef}
       style={{
+        position: 'relative',
         width: formWidth, flexShrink: 0,
         display: 'flex', flexDirection: 'column',
         height: '100%', minHeight: 0, overflow: 'hidden',
@@ -396,6 +402,25 @@ export function BillReviewForm({
         order: swapped ? 2 : 0,
       }}
     >
+      {isReprocessing && (
+        <div style={{
+          position: 'absolute', inset: 0, zIndex: 20,
+          background: 'rgba(255,255,255,0.93)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: 14,
+        }}>
+          <i className="ti ti-loader-2" style={{ fontSize: 36, color: '#2DB87A', animation: 'spin 1s linear infinite' }} />
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 6 }}>
+              Reprocessing invoice…
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+              Running {nextTier === 2 ? 'Tier 2 — Claude Haiku' : 'Tier 3 — Claude Vision'}<br />
+              This usually takes 20–30 seconds
+            </p>
+          </div>
+        </div>
+      )}
       {/* Fixed header */}
       <div
         className="flex-none px-5 py-3"
@@ -699,15 +724,16 @@ export function BillReviewForm({
               </div>
               <button
                 onClick={() => setShowReprocessModal(true)}
-                disabled={isPending}
+                disabled={isPending || isReprocessing}
                 style={{
                   background: '#DC2626', color: 'white',
                   border: 'none', borderRadius: 6, padding: '5px 12px',
-                  fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
-                  opacity: isPending ? 0.6 : 1,
+                  fontSize: 12, fontWeight: 500, flexShrink: 0,
+                  cursor: isPending || isReprocessing ? 'not-allowed' : 'pointer',
+                  opacity: isPending || isReprocessing ? 0.6 : 1,
                 }}
               >
-                {isPending ? 'Reprocessing…' : 'Reprocess'}
+                {isReprocessing ? 'Reprocessing…' : 'Reprocess'}
               </button>
             </div>
           )}
@@ -1517,17 +1543,19 @@ export function BillReviewForm({
           {canReprocess && (
             <button
               onClick={() => setShowReprocessModal(true)}
-              disabled={isPending}
+              disabled={isPending || isReprocessing}
               title="Re-run OCR or re-apply vendor defaults. No credit charge."
               style={{
-                background: 'white', color: 'var(--color-text-secondary)',
-                border: '0.5px solid var(--color-border-secondary)',
+                background: 'white', color: isReprocessing ? '#2DB87A' : 'var(--color-text-secondary)',
+                border: `0.5px solid ${isReprocessing ? '#2DB87A' : 'var(--color-border-secondary)'}`,
                 borderRadius: 6, padding: '7px 12px',
-                fontSize: 12, cursor: 'pointer',
+                fontSize: 12, cursor: isPending || isReprocessing ? 'not-allowed' : 'pointer',
                 opacity: isPending ? 0.6 : 1,
               }}
             >
-              {isPending ? 'Reprocessing…' : 'Reprocess (free)'}
+              {isReprocessing
+                ? <><i className="ti ti-loader-2" style={{ fontSize: 11, marginRight: 4 }} />Reprocessing…</>
+                : 'Reprocess (free)'}
             </button>
           )}
         </div>
@@ -1673,12 +1701,6 @@ export function BillReviewForm({
       </div>
     </div>
   )
-
-  const reprocessCount = bill.reprocess_count ?? 0
-  const nextTier = reprocessCount === 0 ? 2 : 3
-  const tierLabel = nextTier === 2
-    ? 'Tier 2 — Claude Haiku (enhanced text extraction)'
-    : 'Tier 3 — Claude Opus (vision / scanned document)'
 
   const dragHandle = (
     <div
