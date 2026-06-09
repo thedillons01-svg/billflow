@@ -36,12 +36,15 @@ export default async function PurchaseOrdersPage({
 
   const { data: pos } = await query
 
-  // Counts for tab badges + jobs lookup
-  const [{ count: openCount }, { count: partialCount }, { data: jobs }] = await Promise.all([
+  // Counts for tab badges + jobs lookup + credit status
+  const [{ count: openCount }, { count: partialCount }, { data: jobs }, { data: company }] = await Promise.all([
     supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('status', 'open').is('deleted_at', null),
     supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('status', 'partially_received').is('deleted_at', null),
     supabase.from('qb_jobs_cache').select('qb_job_id, job_number, job_name, customer_name'),
+    supabase.from('companies').select('credit_balance, subscription_status').single(),
   ])
+  const creditBalance = company?.credit_balance ?? 1
+  const subscriptionStatus = company?.subscription_status ?? 'trial'
 
   const jobMap = new Map((jobs ?? []).map(j => [
     j.qb_job_id,
@@ -69,7 +72,7 @@ export default async function PurchaseOrdersPage({
             PO confirmations captured via email, pushed to QuickBooks
           </p>
         </div>
-        <PoUploadButton />
+        <PoUploadButton creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
       </div>
 
       {/* Tab bar */}

@@ -1,15 +1,24 @@
 ﻿'use client'
 
+import Link from 'next/link'
 import { useRef, useState, useTransition, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function UploadButton() {
+function blockedInfo(creditBalance: number, subscriptionStatus: string): { message: string; cta: string } | null {
+  if (creditBalance > 0 || subscriptionStatus === 'active') return null
+  if (subscriptionStatus === 'past_due') return { message: 'Payment failed — invoices cannot be processed until billing is updated.', cta: 'Fix billing →' }
+  if (subscriptionStatus === 'canceled') return { message: 'Subscription canceled — resubscribe to continue processing invoices.', cta: 'Resubscribe →' }
+  return { message: 'Your 25 trial credits are used up. Subscribe to keep processing invoices.', cta: 'Subscribe →' }
+}
+
+export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }: { creditBalance?: number; subscriptionStatus?: string }) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [isPending, startTransition] = useTransition()
   const [status, setStatus] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragCounterRef = useRef(0)
   const router = useRouter()
+  const blocked = blockedInfo(creditBalance, subscriptionStatus)
 
   const upload = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files)
@@ -114,7 +123,7 @@ export function UploadButton() {
 
   return (
     <>
-      {dragging && (
+      {dragging && !blocked && (
         <div
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
@@ -138,42 +147,70 @@ export function UploadButton() {
       )}
 
       <div className="flex items-center gap-3">
-        {status && (
-          <span style={{ fontSize: 12, color: isPending ? 'var(--color-text-secondary)' : status.startsWith('Error:') ? '#DC2626' : '#065F46' }}>
-            {status}
-          </span>
+        {blocked ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              background: '#FEF2F2', border: '0.5px solid #FECACA',
+              borderRadius: 6, padding: '6px 10px', maxWidth: 340,
+            }}>
+              <i className="ti ti-alert-circle" style={{ fontSize: 13, color: '#DC2626', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: '#991B1B' }}>{blocked.message}</span>
+              <Link
+                href="/billing"
+                style={{ fontSize: 12, fontWeight: 600, color: '#DC2626', whiteSpace: 'nowrap', textDecoration: 'none' }}
+              >
+                {blocked.cta}
+              </Link>
+            </div>
+            <button
+              type="button"
+              disabled
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                height: 32, paddingLeft: 12, paddingRight: 14,
+                background: '#E5E7EB', color: '#9CA3AF',
+                borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 500,
+                cursor: 'not-allowed',
+              }}
+            >
+              <i className="ti ti-upload" style={{ fontSize: 13 }} />
+              Upload PDFs
+            </button>
+          </div>
+        ) : (
+          <>
+            {status && (
+              <span style={{ fontSize: 12, color: isPending ? 'var(--color-text-secondary)' : status.startsWith('Error:') ? '#DC2626' : '#065F46' }}>
+                {status}
+              </span>
+            )}
+            <input
+              ref={inputRef}
+              type="file"
+              accept=".pdf,application/pdf"
+              multiple
+              className="hidden"
+              onChange={handleChange}
+            />
+            <button
+              type="button"
+              onClick={handleClick}
+              disabled={isPending}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                height: 32, paddingLeft: 12, paddingRight: 14,
+                background: isPending ? '#E5E7EB' : '#2DB87A',
+                color: isPending ? 'var(--color-text-secondary)' : 'white',
+                borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 500,
+                cursor: isPending ? 'not-allowed' : 'pointer',
+              }}
+            >
+              <i className={`ti ${isPending ? 'ti-loader-2' : 'ti-upload'}`} style={{ fontSize: 13 }} />
+              {isPending ? 'Processing…' : 'Upload PDFs'}
+            </button>
+          </>
         )}
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,application/pdf"
-          multiple
-          className="hidden"
-          onChange={handleChange}
-        />
-        <button
-          type="button"
-          onClick={handleClick}
-          disabled={isPending}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            height: 32,
-            paddingLeft: 12,
-            paddingRight: 14,
-            background: isPending ? '#E5E7EB' : '#2DB87A',
-            color: isPending ? 'var(--color-text-secondary)' : 'white',
-            borderRadius: 6,
-            border: 'none',
-            fontSize: 12,
-            fontWeight: 500,
-            cursor: isPending ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <i className={`ti ${isPending ? 'ti-loader-2' : 'ti-upload'}`} style={{ fontSize: 13 }} />
-          {isPending ? 'Processing…' : 'Upload PDFs'}
-        </button>
       </div>
     </>
   )

@@ -72,7 +72,7 @@ export default async function BillsPage({
             Vendor invoices captured via email
           </p>
         </div>
-        <UploadButton />
+        <UploadButton creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
       </div>
 
       {/* Tab bar */}
