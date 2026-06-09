@@ -17,6 +17,7 @@ type Bill = {
   status: string
   autopublish_hold_reason: string | null
   mark_as_paid: boolean | null
+  published_at?: string | null
   bill_line_items?: { gl_account_id: string | null; job_id: string | null }[]
 }
 
@@ -190,7 +191,7 @@ export function BillsList({
       <div
         className="grid items-center px-5 py-2"
         style={{
-          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px`,
+          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px${!isInbox ? ' 90px' : ''}`,
           borderBottom: '0.5px solid var(--color-border-tertiary)',
         }}
       >
@@ -202,7 +203,7 @@ export function BillsList({
             style={{ cursor: 'pointer', width: 14, height: 14 }}
           />
         )}
-        {['Vendor', 'Invoice #', 'Date', 'Total', 'GL Account', 'Job', '', 'Status'].map(h => (
+        {['Vendor', 'Invoice #', 'Date', 'Total', 'GL Account', 'Job', '', 'Status', ...(!isInbox ? ['Sent to QB'] : [])].map(h => (
           <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
             {h}
           </span>
@@ -221,7 +222,7 @@ export function BillsList({
             key={bill.bill_id}
             className="grid items-center px-5 py-[10px]"
             style={{
-              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px`,
+              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px${!isInbox ? ' 90px' : ''}`,
               borderBottom: '0.5px solid var(--color-border-tertiary)',
               background: isChecked
                 ? '#EBF5EF'
@@ -408,6 +409,15 @@ export function BillsList({
                 {badge.label}
               </span>
             </Link>
+
+            {/* Sent to QB — archive only */}
+            {!isInbox && (
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', fontVariantNumeric: 'tabular-nums' }}>
+                {bill.published_at
+                  ? new Date(bill.published_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+                  : '—'}
+              </span>
+            )}
           </div>
         )
       })}
