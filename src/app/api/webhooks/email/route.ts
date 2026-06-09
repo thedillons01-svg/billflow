@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
 
   const { data: company } = await supabase
     .from('companies')
-    .select('company_id, capture_email_prefix, credit_balance')
+    .select('company_id, capture_email_prefix, credit_balance, subscription_status')
     .eq('capture_email_prefix', companyPrefix)
     .single()
 
@@ -190,14 +190,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ skipped: true, reason: 'unknown_recipient' })
   }
 
-  if ((company.credit_balance ?? 0) <= 0) {
+  if ((company.credit_balance ?? 0) <= 0 && company.subscription_status !== 'active') {
     await sendNotification({
       companyId: company.company_id,
       event:     'auto_publish_disabled',
       subject:   'Invoice received but not processed — no credits remaining',
-      body:      `An email from ${payload.From} arrived but could not be processed because your credit balance is zero. Subscribe or purchase more credits, then reprocess from your inbox. No charge was applied.`,
+      body:      `An email from ${payload.From} arrived but could not be processed because your credit balance is zero and you do not have an active subscription. Subscribe at purchasomatic.com to continue — active subscribers are billed for overages on their next billing date. No charge was applied for this email.`,
     })
-    console.warn(`[email-webhook] Rejected — company ${company.company_id} has 0 credits`)
+    console.warn(`[email-webhook] Rejected — company ${company.company_id} has 0 credits and no active subscription`)
     return NextResponse.json({ skipped: true, reason: 'no_credits' })
   }
 

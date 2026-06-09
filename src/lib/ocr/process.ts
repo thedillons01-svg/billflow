@@ -81,9 +81,9 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
 
   // Backstop credit check — primary gates are in the upload route and email webhook
   if (!opts?.skipCredits) {
-    const { data: co } = await supabase.from('companies').select('credit_balance').eq('company_id', bill.company_id).single()
-    if ((co?.credit_balance ?? 0) <= 0) {
-      console.warn(`[ocr] Skipping bill ${billId} — company ${bill.company_id} has 0 credits`)
+    const { data: co } = await supabase.from('companies').select('credit_balance, subscription_status').eq('company_id', bill.company_id).single()
+    if ((co?.credit_balance ?? 0) <= 0 && co?.subscription_status !== 'active') {
+      console.warn(`[ocr] Skipping bill ${billId} — company ${bill.company_id} has 0 credits and no active subscription`)
       return
     }
   }
@@ -412,7 +412,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       .eq('company_id', bill.company_id)
       .single()
 
-    const newBalance = Math.max(0, (co?.credit_balance ?? 0) - 1)
+    const newBalance = (co?.credit_balance ?? 0) - 1
     await Promise.all([
       supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', bill.company_id),
       supabase.from('credit_ledger').insert({

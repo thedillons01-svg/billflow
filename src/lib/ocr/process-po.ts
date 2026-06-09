@@ -50,14 +50,14 @@ export async function processPO(poId: string): Promise<void> {
 
   const { data: companyRow } = await supabase
     .from('companies')
-    .select('name, credit_balance')
+    .select('name, credit_balance, subscription_status')
     .eq('company_id', po.company_id)
     .single()
   const companyName = companyRow?.name ?? undefined
 
   // Backstop credit check — primary gate is in the upload route and email webhook
-  if ((companyRow?.credit_balance ?? 0) <= 0) {
-    console.warn(`[ocr-po] Skipping PO ${poId} — company ${po.company_id} has 0 credits`)
+  if ((companyRow?.credit_balance ?? 0) <= 0 && companyRow?.subscription_status !== 'active') {
+    console.warn(`[ocr-po] Skipping PO ${poId} — company ${po.company_id} has 0 credits and no active subscription`)
     return
   }
 
@@ -179,7 +179,7 @@ export async function processPO(poId: string): Promise<void> {
     .eq('company_id', po.company_id)
     .single()
 
-  const newBalance = Math.max(0, (co?.credit_balance ?? 0) - 1)
+  const newBalance = (co?.credit_balance ?? 0) - 1
   await Promise.all([
     supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', po.company_id),
     supabase.from('credit_ledger').insert({
