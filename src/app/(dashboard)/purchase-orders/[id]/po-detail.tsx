@@ -1050,6 +1050,8 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
   placeholder: string
 }) {
   const [value, setValue] = useState(initialValue)
+  const [focused, setFocused] = useState(false)
+  const [hovered, setHovered] = useState(false)
   useEffect(() => { setValue(initialValue) }, [initialValue])
 
   if (options.length === 0 && !closedOptions?.length) {
@@ -1068,14 +1070,21 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
     } catch { setValue(initialValue) }
   }
 
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
+
   return (
     <select
       value={value}
       onChange={e => handleChange(e.target.value)}
+      onFocus={() => setFocused(true)}
+      onBlur={() => { setFocused(false); setHovered(false) }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       style={{
-        width: '100%', border: '0.5px solid transparent', borderRadius: 4,
-        padding: '3px 4px', fontSize: 12, background: 'transparent',
-        color: 'var(--color-text-primary)',
+        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '3px 4px', fontSize: 12,
+        background: focused ? 'white' : 'transparent',
+        color: 'var(--color-text-primary)', outline: 'none',
       }}
     >
       <option value="">{placeholder}</option>
