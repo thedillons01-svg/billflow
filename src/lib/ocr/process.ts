@@ -179,18 +179,43 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   let vendorEffectiveTerms: string | null = null
   let vendorDefaultDueDateSetting: string | null = null
   if (result.vendor_name_raw) {
-    const vendorVariants = uniqueNameVariants(result.vendor_name_raw)
-      .filter(v => !v.includes(','))
-    const vendorOrCondition = vendorVariants
-      .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
-      .join(',')
-    const { data: vendor } = await supabase
-      .from('vendors')
-      .select('vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match, default_due_date, qb_payment_terms, billflow_payment_terms')
-      .eq('company_id', bill.company_id)
-      .or(vendorOrCondition)
-      .limit(1)
-      .single()
+    const rawName = result.vendor_name_raw
+    const vendorCols = 'vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match, default_due_date, qb_payment_terms, billflow_payment_terms'
+
+    const vendor = await (async () => {
+      // Tier 1: OR query with comma-free variants (Supabase .or() breaks if value contains commas)
+      const commaFreeVariants = uniqueNameVariants(rawName).filter(v => !v.includes(','))
+      if (commaFreeVariants.length > 0) {
+        const orCond = commaFreeVariants
+          .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
+          .join(',')
+        const { data } = await supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).or(orCond).limit(1).maybeSingle()
+        if (data) return data
+      }
+
+      // Tier 2: direct ilike on original name — handles names with commas (e.g. "Ferguson Enterprises, LLC")
+      const [{ data: byExtracted }, { data: byDisplay }] = await Promise.all([
+        supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).ilike('vendor_name_extracted', rawName).limit(1).maybeSingle(),
+        supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).ilike('vendor_name_display', rawName).limit(1).maybeSingle(),
+      ])
+      if (byExtracted) return byExtracted
+      if (byDisplay) return byDisplay
+
+      // Tier 3: strip legal suffixes (LLC, Inc., etc.) and do a contains search
+      const baseName = rawName
+        .replace(/,?\s*(llc|l\.l\.c\.|inc\.?|corp\.?|co\.|ltd\.?|limited)\.?\s*$/i, '')
+        .replace(/[.,]/g, '').replace(/\s+/g, ' ').trim()
+      if (baseName.length >= 5 && baseName.toLowerCase() !== rawName.replace(/[.,]/g, '').trim().toLowerCase()) {
+        const [{ data: byExtracted2 }, { data: byDisplay2 }] = await Promise.all([
+          supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).ilike('vendor_name_extracted', `%${baseName}%`).limit(1).maybeSingle(),
+          supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).ilike('vendor_name_display', `%${baseName}%`).limit(1).maybeSingle(),
+        ])
+        if (byExtracted2) return byExtracted2
+        if (byDisplay2) return byDisplay2
+      }
+
+      return null
+    })()
 
     if (vendor) {
       vendorId = vendor.vendor_id
