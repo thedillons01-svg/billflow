@@ -15,9 +15,13 @@ export async function POST(request: NextRequest) {
 
   const { data: company } = await supabaseUser
     .from('companies')
-    .select('company_id')
+    .select('company_id, credit_balance')
     .single()
   if (!company) return NextResponse.json({ error: 'No company found' }, { status: 400 })
+
+  if ((company.credit_balance ?? 0) <= 0) {
+    return NextResponse.json({ error: 'No credits remaining. Please subscribe or purchase more credits to continue processing purchase orders.' }, { status: 402 })
+  }
 
   const formData = await request.formData()
   const files = formData.getAll('files') as File[]

@@ -50,10 +50,16 @@ export async function processPO(poId: string): Promise<void> {
 
   const { data: companyRow } = await supabase
     .from('companies')
-    .select('name')
+    .select('name, credit_balance')
     .eq('company_id', po.company_id)
     .single()
   const companyName = companyRow?.name ?? undefined
+
+  // Backstop credit check — primary gate is in the upload route and email webhook
+  if ((companyRow?.credit_balance ?? 0) <= 0) {
+    console.warn(`[ocr-po] Skipping PO ${poId} — company ${po.company_id} has 0 credits`)
+    return
+  }
 
   const { data: fileData, error: downloadErr } = await supabase.storage
     .from(STORAGE_BUCKET)

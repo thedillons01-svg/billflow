@@ -79,6 +79,15 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     return
   }
 
+  // Backstop credit check — primary gates are in the upload route and email webhook
+  if (!opts?.skipCredits) {
+    const { data: co } = await supabase.from('companies').select('credit_balance').eq('company_id', bill.company_id).single()
+    if ((co?.credit_balance ?? 0) <= 0) {
+      console.warn(`[ocr] Skipping bill ${billId} — company ${bill.company_id} has 0 credits`)
+      return
+    }
+  }
+
   // 2. Download PDF from storage
   const { data: fileData, error: downloadErr } = await supabase.storage
     .from(STORAGE_BUCKET)

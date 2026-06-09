@@ -139,7 +139,7 @@ export function UploadButton() {
 
       <div className="flex items-center gap-3">
         {status && (
-          <span style={{ fontSize: 12, color: isPending ? 'var(--color-text-secondary)' : '#065F46' }}>
+          <span style={{ fontSize: 12, color: isPending ? 'var(--color-text-secondary)' : status.startsWith('Error:') ? '#DC2626' : '#065F46' }}>
             {status}
           </span>
         )}
