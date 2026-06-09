@@ -83,6 +83,7 @@ export function BillReviewForm({
   jobCostingEnabled = false,
   classTrackingEnabled = false,
   showFieldTips = true,
+  qbType = 'qbo',
   pdfSignedUrl = null,
 }: {
   bill: Bill
@@ -97,6 +98,7 @@ export function BillReviewForm({
   jobCostingEnabled?: boolean
   classTrackingEnabled?: boolean
   showFieldTips?: boolean
+  qbType?: 'qbo' | 'qbd'
   pdfSignedUrl?: string | null
 }) {
   const router = useRouter()
@@ -829,10 +831,17 @@ export function BillReviewForm({
               <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum for auto-publish.">
                 <AutoSaveInput type="number" currency initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
               </Field>
-              <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and optionally copied to QB Ref No field.">
-                <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
-              </Field>
-              <Field label="Memo / Description" helper="Sent to the QB bill memo field. If left blank, the full Vendor PO / Reference is used instead — useful since the Ref No. field in QB is limited to 21 characters.">
+              {qbType === 'qbd' && (
+                <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and copied to the QB Desktop Ref No. field.">
+                  <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
+                </Field>
+              )}
+              <Field
+                label="Memo / Description"
+                helper={qbType === 'qbd'
+                  ? "Sent to the QB bill memo field. If left blank, the Vendor PO / Reference is used instead — useful since the Ref No. field in QB Desktop is limited to 21 characters."
+                  : "Sent to the QB bill memo field. The matched job name is automatically appended when the bill is published."}
+              >
                 <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
               </Field>
               {lineItems.length > 0 && (

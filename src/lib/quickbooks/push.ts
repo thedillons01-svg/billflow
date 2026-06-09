@@ -51,11 +51,12 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
 
   const { data: companySettings } = await supabase
     .from('companies')
-    .select('default_due_date, push_pdf_to_qb')
+    .select('default_due_date, push_pdf_to_qb, qb_type')
     .eq('company_id', companyId)
     .single()
   const companyDueDateSetting = companySettings?.default_due_date ?? 'not_required'
   const pushPdfToQb = companySettings?.push_pdf_to_qb ?? true
+  const qbType = companySettings?.qb_type ?? 'qbo'
 
   // Fetch vendor's due date override
   const { data: vendorSettings } = bill.vendor_id ? await supabase
@@ -115,8 +116,31 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     // DocNumber = QB "Bill No." field (vendor invoice number), max 21 chars
     const invoiceNum = (b.qb_reference_number as string | null) ?? (b.invoice_number as string | null)
     if (invoiceNum) payload.DocNumber = invoiceNum.slice(0, 21)
-    // PrivateNote = QB memo field: use description if set, else full vendor_po_reference
-    const memo = (b.description as string | null) || (b.vendor_po_reference as string | null)
+    // PrivateNote = QB memo field
+    // QBD: description if set, else vendor_po_reference (Ref No. field is limited to 21 chars)
+    // QBO: description + job name(s) — job name shows on QB bill list when Memo column is enabled
+    let memo: string | null = null
+    if (qbType === 'qbo') {
+      const uniqueJobIds = [...new Set(lineItems.map(li => li.job_id).filter(Boolean))] as string[]
+      let jobLabel: string | null = null
+      if (uniqueJobIds.length > 0) {
+        const { data: jobRows } = await supabase
+          .from('qb_jobs_cache')
+          .select('qb_job_id, job_name, customer_name')
+          .eq('company_id', companyId)
+          .in('qb_job_id', uniqueJobIds)
+        if (jobRows?.length) {
+          jobLabel = jobRows
+            .map(j => [j.customer_name, j.job_name].filter(Boolean).join(': '))
+            .filter(Boolean)
+            .join(', ')
+        }
+      }
+      const desc = b.description as string | null
+      memo = desc && jobLabel ? `${desc} — ${jobLabel}` : jobLabel ?? desc ?? null
+    } else {
+      memo = (b.description as string | null) || (b.vendor_po_reference as string | null)
+    }
     if (memo) payload.PrivateNote = memo
 
     const isCreditNote = b.bill_type === 'credit_note'

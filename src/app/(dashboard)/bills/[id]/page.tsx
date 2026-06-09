@@ -63,7 +63,7 @@ export default async function BillDetailPage({
       .order('name'),
     supabase
       .from('companies')
-      .select('job_costing_enabled, class_tracking_enabled, job_tagging_level, show_field_tips')
+      .select('job_costing_enabled, class_tracking_enabled, job_tagging_level, show_field_tips, qb_type')
       .single(),
     supabase
       .from('vendors')
@@ -101,6 +101,7 @@ export default async function BillDetailPage({
   const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
   const classTrackingEnabled = companySettings?.class_tracking_enabled ?? false
   const showFieldTips = companySettings?.show_field_tips ?? true
+  const qbType = (companySettings?.qb_type ?? 'qbo') as 'qbo' | 'qbd'
 
   let pdfSignedUrl: string | null = null
   if (bill.pdf_url) {
@@ -137,6 +138,7 @@ export default async function BillDetailPage({
         jobCostingEnabled={jobCostingEnabled}
         classTrackingEnabled={classTrackingEnabled}
         showFieldTips={showFieldTips}
+        qbType={qbType}
         pdfSignedUrl={pdfSignedUrl}
       />
     </div>
