@@ -1767,10 +1767,6 @@ export function BillReviewForm({
             }}
             onKeyDown={e => {
               if (e.key === 'Escape') { setShowReprocessModal(false); setReprocessComment('') }
-              if (e.key === 'Enter' && !(e.target instanceof HTMLTextAreaElement)) {
-                e.preventDefault()
-                handleReprocessSubmit(reprocessComment)
-              }
             }}
           >
             <h2 style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>
@@ -1835,6 +1831,8 @@ export function BillReviewForm({
                 Cancel
               </button>
               <button
+                // eslint-disable-next-line jsx-a11y/no-autofocus
+                autoFocus
                 onClick={() => handleReprocessSubmit(reprocessComment)}
                 disabled={isReprocessing}
                 style={{
