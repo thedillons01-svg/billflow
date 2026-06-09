@@ -193,7 +193,7 @@ export async function POST(request: NextRequest) {
   if ((company.credit_balance ?? 0) <= 0 && company.subscription_status !== 'active') {
     await sendNotification({
       companyId: company.company_id,
-      event:     'auto_publish_disabled',
+      event:     'autopublish_disabled',
       subject:   'Invoice received but not processed — no credits remaining',
       body:      `An email from ${payload.From} arrived but could not be processed because your credit balance is zero and you do not have an active subscription. Subscribe at purchasomatic.com to continue — active subscribers are billed for overages on their next billing date. No charge was applied for this email.`,
     })

@@ -555,9 +555,15 @@ type CacheJob = { qb_job_id: string; job_number: string | null; job_name: string
 function jobMatchesCandidatesFull(job: CacheJob, candidates: string[]): boolean {
   const num  = job.job_number?.trim().toLowerCase()
   const name = job.job_name?.trim().toLowerCase()
+  // Year-like job_numbers (2000-2099) appear frequently in job names like "2026 Riverside HVAC".
+  // The regex in buildJobRow extracts the first number it finds, so "2026 Riverside" → job_number="2026".
+  // Using that as a "contained in" signal causes false matches against any PO-2026-XXXX reference.
+  // Exact match (num === c) is still allowed — if someone explicitly references "2026" as a job number.
+  const numInt = num ? parseInt(num, 10) : NaN
+  const numIsYear = !isNaN(numInt) && numInt >= 2000 && numInt <= 2099
   for (const c of candidates) {
     if (num === c || name === c) return true
-    if (num  && num.length  >= 4 && c.includes(num))                        return true
+    if (num && !numIsYear && num.length >= 4 && c.includes(num)) return true
     if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
   }
   return false
@@ -571,9 +577,14 @@ export async function tryMatchJob(
   jobNameExtracted?: string,
   customerNameExtracted?: string,
 ): Promise<boolean> {
+  // When a job name was explicitly extracted (e.g. from a "Project" or "Job" field on
+  // the invoice), use it as the sole primary signal. PO reference candidates (like "0887"
+  // from "PO-2026-0887") are unreliable when a job name is present — the PO sequence
+  // number can accidentally match an unrelated QB job number.
+  // PO reference candidates are only used when no job name was extracted.
+  const primaryRef = jobNameExtracted ?? poReference
   const candidates = [
-    ...extractJobCandidates(poReference),
-    ...(jobNameExtracted    ? extractJobCandidates(jobNameExtracted)    : []),
+    ...extractJobCandidates(primaryRef),
     ...(customerNameExtracted ? extractJobCandidates(customerNameExtracted) : []),
   ]
 
