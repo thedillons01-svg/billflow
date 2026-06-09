@@ -169,7 +169,7 @@ export function BillReviewForm({
     glAccountId: string; accountName: string
   } | null>(null)
   const [headerJobPending, setHeaderJobPending] = useState<{
-    jobId: string; jobLabel: string
+    jobId: string | null; jobLabel: string
   } | null>(null)
   // Remember vendor default GL after header apply-to-all
   const [vendorGlRemember, setVendorGlRemember] = useState<{
@@ -959,23 +959,36 @@ export function BillReviewForm({
 
                     {/* Apply-to-all confirmation — top priority, shown first */}
                     {headerJobPending && (
-                      <div className="flex items-center gap-2 mb-2" style={{ padding: '6px 10px', background: '#EBF5EF', border: '0.5px solid #A7F3D0', borderRadius: 6 }}>
-                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#059669', flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: '#065F46', flex: 1 }}>
-                          Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?
+                      <div className="flex items-center gap-2 mb-2" style={{
+                        padding: '6px 10px',
+                        background: headerJobPending.jobId ? '#EBF5EF' : '#FEF2F2',
+                        border: `0.5px solid ${headerJobPending.jobId ? '#A7F3D0' : '#FECACA'}`,
+                        borderRadius: 6,
+                      }}>
+                        <i className={`ti ${headerJobPending.jobId ? 'ti-corner-down-right' : 'ti-x'}`} style={{ fontSize: 12, color: headerJobPending.jobId ? '#059669' : '#DC2626', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: headerJobPending.jobId ? '#065F46' : '#991B1B', flex: 1 }}>
+                          {headerJobPending.jobId
+                            ? <>Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?</>
+                            : <>Clear job from all {lineItems.filter(li => li.job_id).length} lines?</>}
                         </span>
                         <button
                           onClick={async () => {
                             const pending = headerJobPending
                             setHeaderJobPending(null)
-                            const updated = lineItems.map(li => ({ ...li, job_id: pending.jobId }))
+                            const updated = lineItems.map(li => ({ ...li, job_id: pending.jobId ?? null }))
                             setLineItems(updated)
-                            await Promise.all(updated.map(li => updateLineItem(li.line_id, { job_id: pending.jobId })))
+                            await Promise.all(updated.map(li => updateLineItem(li.line_id, { job_id: pending.jobId ?? null })))
                             router.refresh()
                           }}
-                          style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
-                        >Yes, all {lineItems.length}</button>
-                        <button onClick={() => setHeaderJobPending(null)} style={{ fontSize: 12, color: '#065F46', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}>No</button>
+                          style={{
+                            fontSize: 12, fontWeight: 500, color: 'white',
+                            background: headerJobPending.jobId ? '#059669' : '#DC2626',
+                            border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0,
+                          }}
+                        >
+                          {headerJobPending.jobId ? `Yes, all ${lineItems.length}` : `Clear all ${lineItems.filter(li => li.job_id).length}`}
+                        </button>
+                        <button onClick={() => setHeaderJobPending(null)} style={{ fontSize: 12, color: headerJobPending.jobId ? '#065F46' : '#991B1B', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}>No</button>
                       </div>
                     )}
 
@@ -1008,7 +1021,19 @@ export function BillReviewForm({
                       options={buildJobOptions(liveJobs)}
                       closedOptions={buildJobOptions(liveClosedJobs)}
                       onSave={async (v) => {
-                        if (!v) return
+                        if (!v) {
+                          // Clearing the job — offer to clear from all lines that have one
+                          const linesWithJob = lineItems.filter(li => li.job_id)
+                          if (linesWithJob.length > 1) {
+                            setHeaderJobPending({ jobId: null, jobLabel: '' })
+                          } else if (linesWithJob.length === 1) {
+                            const updated = lineItems.map(li => ({ ...li, job_id: null }))
+                            setLineItems(updated)
+                            await updateLineItem(linesWithJob[0].line_id, { job_id: null })
+                            router.refresh()
+                          }
+                          return
+                        }
                         const job = liveJobs.find(j => j.qb_job_id === v)
                         const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || v
                         if (lineItems.length > 1) {
