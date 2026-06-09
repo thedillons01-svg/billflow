@@ -4,10 +4,16 @@ import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { pushBillToQBO } from '@/lib/quickbooks/push'
 
-export async function bulkPublish(billIds: string[]): Promise<{ success: number; failed: number }> {
+type BulkPublishResult = {
+  success: number
+  failed: number
+  errors: { billId: string; invoiceNumber: string | null; reason: string }[]
+}
+
+export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { success: 0, failed: billIds.length }
+  if (!user) return { success: 0, failed: billIds.length, errors: [] }
 
   const { data: company } = await supabase
     .from('companies')
@@ -15,39 +21,51 @@ export async function bulkPublish(billIds: string[]): Promise<{ success: number;
     .single()
 
   if (!company || company.qb_connection_status !== 'connected') {
-    return { success: 0, failed: billIds.length }
+    return {
+      success: 0,
+      failed: billIds.length,
+      errors: billIds.map(id => ({ billId: id, invoiceNumber: null, reason: 'QuickBooks is not connected.' })),
+    }
   }
 
   const service = createServiceClient()
   let success = 0
-  let failed = 0
+  const errors: BulkPublishResult['errors'] = []
 
   for (const billId of billIds) {
     try {
-      // Verify bill belongs to this company
       const { data: bill } = await supabase
         .from('bills')
-        .select('bill_id, status')
+        .select('bill_id, status, invoice_number')
         .eq('bill_id', billId)
         .eq('company_id', company.company_id)
         .single()
 
       if (!bill || !['ready', 'sync_error'].includes(bill.status)) {
-        failed++
+        errors.push({ billId, invoiceNumber: null, reason: 'Bill is not in a publishable state.' })
         continue
       }
 
-      // Set publish_method before push so autopublish confidence tracking works correctly
       await service.from('bills')
         .update({ publish_method: 'manual' })
         .eq('bill_id', billId)
 
       await pushBillToQBO(billId, company.company_id)
       success++
-    } catch {
-      failed++
+    } catch (err) {
+      // Re-fetch the sync error that push.ts wrote to the DB — cleaner than parsing the thrown message
+      const { data: errBill } = await supabase
+        .from('bills')
+        .select('invoice_number, qb_sync_error')
+        .eq('bill_id', billId)
+        .single()
+      errors.push({
+        billId,
+        invoiceNumber: errBill?.invoice_number ?? null,
+        reason: errBill?.qb_sync_error ?? (err instanceof Error ? err.message : 'Unknown error'),
+      })
     }
   }
 
-  return { success, failed }
+  return { success, failed: errors.length, errors }
 }

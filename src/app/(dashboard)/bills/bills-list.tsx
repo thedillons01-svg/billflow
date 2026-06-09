@@ -61,6 +61,7 @@ export function BillsList({
   const [editingGl, setEditingGl] = useState<string | null>(null)
   const [glOverrides, setGlOverrides] = useState<Record<string, string>>({})
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
+  const [bulkErrors, setBulkErrors] = useState<{ billId: string; invoiceNumber: string | null; reason: string }[]>([])
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
@@ -106,7 +107,14 @@ export function BillsList({
     startTransition(async () => {
       const ids = Array.from(selected)
       const result = await bulkPublish(ids)
-      setBulkMessage(`Published ${result.success} of ${ids.length} bills. ${result.failed > 0 ? `${result.failed} failed — check sync errors.` : ''}`)
+      setBulkErrors(result.errors)
+      setBulkMessage(
+        result.success === ids.length
+          ? `Published ${result.success} bill${result.success !== 1 ? 's' : ''} to QuickBooks.`
+          : result.success === 0
+            ? `All ${ids.length} bills failed to publish.`
+            : `Published ${result.success} of ${ids.length} bills. ${result.failed} failed.`
+      )
       setSelected(new Set())
       router.refresh()
     })
@@ -174,16 +182,37 @@ export function BillsList({
       {/* Bulk result message */}
       {bulkMessage && (
         <div
-          className="flex items-center justify-between px-5 py-2"
-          style={{ background: '#D1FAE5', borderBottom: '0.5px solid #6EE7B7' }}
+          style={{
+            background: bulkErrors.length > 0 ? '#FEF2F2' : '#D1FAE5',
+            borderBottom: `0.5px solid ${bulkErrors.length > 0 ? '#FECACA' : '#6EE7B7'}`,
+          }}
         >
-          <span style={{ fontSize: 12, color: '#065F46' }}>{bulkMessage}</span>
-          <button
-            onClick={() => setBulkMessage(null)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: '#065F46' }}
-          >
-            ✕
-          </button>
+          <div className="flex items-center justify-between px-5 py-2">
+            <span style={{ fontSize: 12, color: bulkErrors.length > 0 ? '#991B1B' : '#065F46' }}>
+              {bulkMessage}
+            </span>
+            <button
+              onClick={() => { setBulkMessage(null); setBulkErrors([]) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: bulkErrors.length > 0 ? '#991B1B' : '#065F46' }}
+            >
+              ✕
+            </button>
+          </div>
+          {bulkErrors.length > 0 && (
+            <div className="px-5 pb-3 flex flex-col gap-1">
+              {bulkErrors.map(e => (
+                <div key={e.billId} className="flex items-baseline gap-2">
+                  <i className="ti ti-arrow-right" style={{ fontSize: 10, color: '#DC2626', flexShrink: 0 }} />
+                  <span style={{ fontSize: 11, color: '#991B1B' }}>
+                    <Link href={`/bills/${e.billId}`} style={{ fontWeight: 500, color: '#DC2626' }}>
+                      {e.invoiceNumber ?? 'Bill'}
+                    </Link>
+                    {' — '}{e.reason}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

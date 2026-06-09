@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState } from 'react'
 
@@ -22,6 +22,33 @@ export function NotificationBell({
   onMarkRead: (id: string) => Promise<void>
 }) {
   const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState<string | null>(null)
+
+  function handleNotificationClick(n: Notification) {
+    // Don't close if the user just finished selecting text to copy
+    if (window.getSelection()?.toString()) return
+    onMarkRead(n.id)
+    setOpen(false)
+  }
+
+  async function handleCopy(e: React.MouseEvent, n: Notification) {
+    e.stopPropagation()
+    const text = [n.title, n.body].filter(Boolean).join('\n')
+    await navigator.clipboard.writeText(text)
+    setCopied(n.id)
+    setTimeout(() => setCopied(null), 2000)
+  }
+
+  function reportHref(n: Notification) {
+    const subject = encodeURIComponent(`Error Report: ${n.title}`)
+    const lines = [
+      `Error: ${n.title}`,
+      n.body ? `Details: ${n.body}` : null,
+      n.bill_id ? `Bill ID: ${n.bill_id}` : null,
+      `Time: ${new Date(n.created_at).toLocaleString()}`,
+    ].filter(Boolean).join('\n')
+    return `mailto:support@purchasomatic.com?subject=${subject}&body=${encodeURIComponent(lines)}`
+  }
 
   return (
     <div className="relative">
@@ -61,9 +88,9 @@ export function NotificationBell({
           <div
             className="absolute left-0 bottom-8 z-50 overflow-hidden rounded-[6px] bg-white shadow-lg"
             style={{
-              width: 320,
+              width: 340,
               border: '0.5px solid var(--color-border-tertiary)',
-              maxHeight: 400,
+              maxHeight: 420,
               overflowY: 'auto',
             }}
           >
@@ -93,34 +120,62 @@ export function NotificationBell({
                 {notifications.map(n => (
                   <div
                     key={n.id}
-                    className="flex items-start gap-3 px-4 py-3 cursor-pointer"
+                    className="flex items-start gap-3 px-4 py-3"
                     style={{
                       borderBottom: '0.5px solid var(--color-border-tertiary)',
-                      background: n.is_read ? 'white' : '#EBF5EF',
+                      background: n.is_read ? 'white' : (n.type === 'error' ? '#FEF2F2' : '#EBF5EF'),
+                      cursor: 'default',
                     }}
-                    onClick={() => { onMarkRead(n.id); setOpen(false) }}
+                    onClick={() => handleNotificationClick(n)}
                   >
                     <i
                       className={`ti ${n.type === 'error' ? 'ti-alert-triangle' : n.type === 'success' ? 'ti-circle-check' : 'ti-info-circle'}`}
                       style={{
                         fontSize: 14,
                         marginTop: 1,
-                        color: n.type === 'error' ? '#DC2626' : n.type === 'success' ? '#2DB87A' : '#2DB87A',
+                        color: n.type === 'error' ? '#DC2626' : '#2DB87A',
                         flexShrink: 0,
                       }}
                     />
-                    <div className="min-w-0">
-                      <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)' }}>
+                    <div className="min-w-0 flex-1">
+                      <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-primary)', userSelect: 'text' }}>
                         {n.title}
                       </p>
                       {n.body && (
-                        <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                        <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2, userSelect: 'text' }}>
                           {n.body}
                         </p>
                       )}
                       <p style={{ fontSize: 10, color: 'var(--color-text-tertiary)', marginTop: 3 }}>
                         {new Date(n.created_at).toLocaleString()}
                       </p>
+                      {n.type === 'error' && (
+                        <div className="flex items-center gap-3 mt-2">
+                          <button
+                            onClick={e => handleCopy(e, n)}
+                            title="Copy error text"
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 3,
+                              background: 'none', border: 'none', cursor: 'pointer',
+                              padding: 0, fontSize: 10, color: copied === n.id ? '#2DB87A' : '#DC2626',
+                            }}
+                          >
+                            <i className={`ti ${copied === n.id ? 'ti-check' : 'ti-clipboard'}`} style={{ fontSize: 11 }} />
+                            {copied === n.id ? 'Copied' : 'Copy'}
+                          </button>
+                          <a
+                            href={reportHref(n)}
+                            onClick={e => e.stopPropagation()}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 3,
+                              fontSize: 10, color: '#DC2626', textDecoration: 'none',
+                            }}
+                          >
+                            <i className="ti ti-send" style={{ fontSize: 11 }} />
+                            Report this problem
+                          </a>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
