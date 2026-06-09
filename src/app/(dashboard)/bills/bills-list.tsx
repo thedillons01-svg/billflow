@@ -107,6 +107,7 @@ export function BillsList({
     startTransition(async () => {
       const ids = Array.from(selected)
       const result = await bulkPublish(ids)
+      setSelected(new Set())
       setBulkErrors(result.errors)
       setBulkMessage(
         result.success === ids.length
@@ -115,8 +116,12 @@ export function BillsList({
             ? `All ${ids.length} bills failed to publish.`
             : `Published ${result.success} of ${ids.length} bills. ${result.failed} failed.`
       )
-      setSelected(new Set())
-      router.refresh()
+      // Only refresh immediately on full success — router.refresh() inside a transition
+      // races with setBulkMessage and wipes it before it renders. On partial/full failure
+      // we refresh when the user dismisses the banner so sync_error badges appear then.
+      if (result.errors.length === 0) {
+        router.refresh()
+      }
     })
   }
 
@@ -192,7 +197,12 @@ export function BillsList({
               {bulkMessage}
             </span>
             <button
-              onClick={() => { setBulkMessage(null); setBulkErrors([]) }}
+              onClick={() => {
+                const hadErrors = bulkErrors.length > 0
+                setBulkMessage(null)
+                setBulkErrors([])
+                if (hadErrors) router.refresh()
+              }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: bulkErrors.length > 0 ? '#991B1B' : '#065F46' }}
             >
               ✕
