@@ -203,6 +203,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       qb_bill_id:    qbBillId,
       qb_payment_id: qbPaymentId,
       qb_sync_error: null,
+      published_at:  new Date().toISOString(),
     }).eq('bill_id', billId)
 
     // Update matched PO status when bill publishes
