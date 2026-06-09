@@ -100,7 +100,8 @@ function extractDueDate(text: string): string | null {
 
 function extractPONumber(text: string): string | null {
   const patterns = [
-    /(?:purchase\s+order|p\.?o\.?)\s*(?:#|no\.?|number)?\s*[:–-]?\s*([A-Z0-9\-]+)/i,
+    // (?=[^A-Za-z]) prevents "p\.?o\.?" from matching the "Po" inside city names like "Portland"
+    /(?:purchase\s+order|p\.?o\.?)(?=[^A-Za-z])\s*(?:#|no\.?|number)?\s*[:–-]?\s*([A-Z0-9\-]+)/i,
     /(?:your\s+)?(?:ref|reference|job)\s*(?:#|no\.?)?\s*[:–-]?\s*([A-Z0-9\-]+)/i,
     /customer\s+po\s*[:–-]?\s*([A-Z0-9\-]+)/i,
   ]
