@@ -108,6 +108,8 @@ export function BillsList({
     const ids = Array.from(selected)
     setIsPublishing(true)
     setSelected(new Set())
+    setBulkMessage(`Publishing ${ids.length} bill${ids.length !== 1 ? 's' : ''}…`)
+    setBulkErrors([])
     try {
       const result = await bulkPublish(ids)
       setBulkErrors(result.errors)
