@@ -37,8 +37,9 @@ export default async function BillsPage({
     query = query.or(`vendor_name_raw.ilike.%${search}%,invoice_number.ilike.%${search}%`)
   }
 
-  const [billsResult, reviewCountResult, pendingCountResult, accountsResult, jobsResult, companyResult] = await Promise.all([
+  const [billsResult, allInboxCountResult, reviewCountResult, pendingCountResult, accountsResult, jobsResult, companyResult] = await Promise.all([
     query.limit(activeTab === 'archive' ? 200 : 500),
+    supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', ALL_INBOX_STATUSES).is('deleted_at', null),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', REVIEW_STATUSES).is('deleted_at', null),
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
     supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).eq('is_hidden', false).order('name'),
@@ -54,7 +55,7 @@ export default async function BillsPage({
   const subscriptionStatus = companyResult.data?.subscription_status ?? 'trial'
 
   const tabs = [
-    { id: 'all',     label: 'All Inbox',          count: (reviewCountResult.count ?? 0) + (pendingCountResult.count ?? 0) },
+    { id: 'all',     label: 'All Inbox',          count: allInboxCountResult.count ?? 0 },
     { id: 'review',  label: 'Needs Review',       count: reviewCountResult.count ?? 0 },
     { id: 'pending', label: 'Pending Job Match',  count: pendingCountResult.count ?? 0 },
     { id: 'archive', label: 'Archive',            count: null },
