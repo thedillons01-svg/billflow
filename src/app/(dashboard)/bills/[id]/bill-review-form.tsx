@@ -2038,7 +2038,7 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
     } catch { setValue(initialValue) }
   }
 
-  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'var(--color-border-secondary)'
 
   return (
     <select
@@ -2051,8 +2051,8 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
       title={title}
       style={{
         width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
-        padding: '3px 4px', fontSize: 12,
-        background: focused ? 'white' : 'transparent',
+        padding: '3px 6px', fontSize: 12,
+        background: 'white',
         color: 'var(--color-text-primary)', outline: 'none',
       }}
     >
