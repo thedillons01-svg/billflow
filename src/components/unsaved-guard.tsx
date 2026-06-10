@@ -1,15 +1,31 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { useConfirm } from '@/components/confirm-dialog'
+import { useUnsavedPrompt } from '@/components/confirm-dialog'
 
-type DirtyCtx = { isDirty: boolean; setDirty: (v: boolean) => void }
+type SaveFn = () => Promise<void>
+type DirtyCtx = {
+  isDirty: boolean
+  setDirty: (v: boolean) => void
+  saveFn: SaveFn | null
+  registerSaveFn: (fn: SaveFn | null) => void
+}
 
-export const DirtyContext = createContext<DirtyCtx>({ isDirty: false, setDirty: () => {} })
+export const DirtyContext = createContext<DirtyCtx>({
+  isDirty: false,
+  setDirty: () => {},
+  saveFn: null,
+  registerSaveFn: () => {},
+})
 
 export function DirtyProvider({ children }: { children: ReactNode }) {
   const [isDirty, setDirty] = useState(false)
+  const [saveFn, setSaveFn] = useState<SaveFn | null>(null)
+
+  const registerSaveFn = useCallback((fn: SaveFn | null) => {
+    setSaveFn(() => fn)
+  }, [])
 
   useEffect(() => {
     if (!isDirty) return
@@ -19,7 +35,7 @@ export function DirtyProvider({ children }: { children: ReactNode }) {
   }, [isDirty])
 
   return (
-    <DirtyContext.Provider value={{ isDirty, setDirty }}>
+    <DirtyContext.Provider value={{ isDirty, setDirty, saveFn, registerSaveFn }}>
       {children}
     </DirtyContext.Provider>
   )
@@ -30,13 +46,15 @@ export function useDirty() {
 }
 
 export function useGuardedNavigate() {
-  const { isDirty, setDirty } = useDirty()
+  const { isDirty, setDirty, saveFn } = useDirty()
   const router = useRouter()
-  const confirm = useConfirm()
+  const promptUnsaved = useUnsavedPrompt()
   return async (href: string) => {
-    if (!isDirty || await confirm('You have unsaved changes. If you leave now your changes will be lost.')) {
-      setDirty(false)
-      router.push(href)
-    }
+    if (!isDirty) { router.push(href); return }
+    const result = await promptUnsaved(!!saveFn)
+    if (result === 'cancel') return
+    if (result === 'save' && saveFn) await saveFn()
+    setDirty(false)
+    router.push(href)
   }
 }

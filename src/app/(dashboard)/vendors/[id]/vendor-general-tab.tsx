@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect, useRef } from 'react'
 import { updateVendor, createVendorInQB } from './actions'
 import { useDirty } from '@/components/unsaved-guard'
 
@@ -46,7 +46,7 @@ export function VendorGeneralTab({
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [qbCreateError, setQbCreateError] = useState<string | null>(null)
-  const { setDirty } = useDirty()
+  const { setDirty, registerSaveFn } = useDirty()
 
   const [form, setForm] = useState({
     vendor_name_extracted: vendor.vendor_name_extracted,
@@ -66,34 +66,44 @@ export function VendorGeneralTab({
     default_due_date: vendor.default_due_date ?? 'not_set',
   })
 
-  const handleSave = () => {
-    startTransition(async () => {
-      const selectedQbVendor = qbVendors.find(v => v.qb_vendor_id === form.qb_vendor_id)
-      await updateVendor(vendor.vendor_id, {
-        vendor_name_extracted:      form.vendor_name_extracted || null,
-        vendor_name_display:        form.vendor_name_display || null,
-        qb_vendor_id:               form.qb_vendor_id || null,
-        qb_vendor_name:             selectedQbVendor?.name ?? null,
-        is_visible:                 form.is_visible,
-        auto_publish_enabled:       form.auto_publish_enabled,
-        hold_for_job_match:         form.hold_for_job_match,
-        mark_as_paid_default:       form.mark_as_paid_default,
-        default_description:        form.default_description || null,
-        default_payment_account_id: form.default_payment_account_id || null,
-        default_payment_method:     form.default_payment_method || null,
-        billflow_gl_account_id:     form.billflow_gl_account_id || null,
-        gl_account_source:          form.billflow_gl_account_id ? 'billflow_override' : vendor.qb_default_gl_account_id ? 'qb_default' : 'not_set',
-        billflow_payment_terms:     form.billflow_payment_terms || null,
-        payment_terms_source:       form.billflow_payment_terms ? 'billflow_override' : vendor.qb_payment_terms ? 'qb_default' : 'not_set',
-        billflow_class_id:          form.billflow_class_id || null,
-        class_source:               form.billflow_class_id ? 'Purchasomatic_override' : 'not_set',
-        copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
-        default_due_date:           form.default_due_date,
-      })
-      setDirty(false)
-      setSaved(true)
-      setTimeout(() => setSaved(false), 2000)
+  // saveFnRef always closes over the latest form values — registered once on mount
+  // so the unsaved-changes dialog can save without requiring the user to cancel first.
+  const saveFnRef = useRef<() => Promise<void>>(async () => {})
+  useEffect(() => {
+    registerSaveFn(() => saveFnRef.current())
+    return () => registerSaveFn(null)
+  }, [registerSaveFn])
+
+  saveFnRef.current = async () => {
+    const selectedQbVendor = qbVendors.find(v => v.qb_vendor_id === form.qb_vendor_id)
+    await updateVendor(vendor.vendor_id, {
+      vendor_name_extracted:      form.vendor_name_extracted || null,
+      vendor_name_display:        form.vendor_name_display || null,
+      qb_vendor_id:               form.qb_vendor_id || null,
+      qb_vendor_name:             selectedQbVendor?.name ?? null,
+      is_visible:                 form.is_visible,
+      auto_publish_enabled:       form.auto_publish_enabled,
+      hold_for_job_match:         form.hold_for_job_match,
+      mark_as_paid_default:       form.mark_as_paid_default,
+      default_description:        form.default_description || null,
+      default_payment_account_id: form.default_payment_account_id || null,
+      default_payment_method:     form.default_payment_method || null,
+      billflow_gl_account_id:     form.billflow_gl_account_id || null,
+      gl_account_source:          form.billflow_gl_account_id ? 'billflow_override' : vendor.qb_default_gl_account_id ? 'qb_default' : 'not_set',
+      billflow_payment_terms:     form.billflow_payment_terms || null,
+      payment_terms_source:       form.billflow_payment_terms ? 'billflow_override' : vendor.qb_payment_terms ? 'qb_default' : 'not_set',
+      billflow_class_id:          form.billflow_class_id || null,
+      class_source:               form.billflow_class_id ? 'Purchasomatic_override' : 'not_set',
+      copy_po_to_qb_reference:    form.copy_po_to_qb_reference,
+      default_due_date:           form.default_due_date,
     })
+    setDirty(false)
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  const handleSave = () => {
+    startTransition(() => saveFnRef.current())
   }
 
   const set = (k: string, v: string | boolean) => {
@@ -174,6 +184,7 @@ export function VendorGeneralTab({
                   qb_vendor_id: e.target.value,
                   vendor_name_display: selected?.name ?? '',
                 }))
+                setDirty(true)
               }}
               style={inputStyle}
             >

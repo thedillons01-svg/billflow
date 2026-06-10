@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { type ReactNode } from 'react'
-import { DirtyProvider, useGuardedNavigate } from '@/components/unsaved-guard'
+import { useGuardedNavigate } from '@/components/unsaved-guard'
 
 type Tab = { id: string; label: string; count?: number }
 
@@ -94,20 +94,18 @@ export function VendorPageClient({ vendorName, ocrName, id, tabs, currentTab, fr
   children: ReactNode
 }) {
   return (
-    <DirtyProvider>
-      <div className="flex flex-col h-full">
-        <VendorHeader
-          vendorName={vendorName}
-          ocrName={ocrName}
-          id={id}
-          tabs={tabs}
-          currentTab={currentTab}
-          from={from}
-        />
-        <div className="flex-1 overflow-auto px-5 py-5">
-          {children}
-        </div>
+    <div className="flex flex-col h-full">
+      <VendorHeader
+        vendorName={vendorName}
+        ocrName={ocrName}
+        id={id}
+        tabs={tabs}
+        currentTab={currentTab}
+        from={from}
+      />
+      <div className="flex-1 overflow-auto px-5 py-5">
+        {children}
       </div>
-    </DirtyProvider>
+    </div>
   )
 }

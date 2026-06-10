@@ -1,10 +1,10 @@
 'use client'
 
-import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { signout } from '@/app/actions/auth'
 import { markNotificationRead } from '@/app/actions/notifications'
 import { NotificationBell } from '@/components/notification-bell'
+import { useGuardedNavigate } from '@/components/unsaved-guard'
 
 type Notification = {
   id: string
@@ -110,10 +110,11 @@ function NavItem({
   icon: string
   children: React.ReactNode
 }) {
+  const navigate = useGuardedNavigate()
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 mx-2 rounded-[5px]"
+    <button
+      onClick={() => navigate(href)}
+      className="flex items-center gap-2 mx-2 rounded-[5px] w-full text-left"
       style={{
         padding: '7px 10px',
         fontSize: 13,
@@ -121,11 +122,12 @@ function NavItem({
         color: active ? '#1A3D2B' : '#3D4856',
         background: active ? '#E6F4ED' : 'transparent',
         borderLeft: active ? '3px solid #2DB87A' : '3px solid transparent',
-        textDecoration: 'none',
+        border: 'none',
+        cursor: 'pointer',
       }}
     >
       <i className={`ti ${icon}`} style={{ fontSize: 15, lineHeight: 1, opacity: active ? 1 : 0.7 }} />
       {children}
-    </Link>
+    </button>
   )
 }
