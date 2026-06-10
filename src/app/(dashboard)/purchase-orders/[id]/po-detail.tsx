@@ -328,6 +328,7 @@ export function PODetail({
               <div>
                 <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                   Vendor record
+                  <Tip text="The Purchasomatic vendor record that links this PO to a QuickBooks vendor. Required to push the PO to QuickBooks." />
                 </label>
                 <select
                   value={localVendorId}
@@ -431,21 +432,30 @@ export function PODetail({
           {/* DETAILS */}
           <Section title="Details">
             <div className="grid gap-y-3" style={{ gridTemplateColumns: '140px 1fr' }}>
-              <span style={labelStyle}>PO number</span>
+              <span style={labelStyle}>
+                PO number
+                <Tip text="The vendor's PO confirmation number. Used to automatically match incoming invoices to this PO." />
+              </span>
               <InlineInput
                 initialValue={form.po_number}
                 placeholder="—"
                 onSave={v => { setForm(f => ({ ...f, po_number: v })); setDirty(true) }}
               />
 
-              <span style={labelStyle}>Order date</span>
+              <span style={labelStyle}>
+                Order date
+                <Tip text="The date the purchase order was placed with the vendor." />
+              </span>
               <InlineInput
                 initialValue={form.order_date}
                 placeholder="—"
                 onSave={v => { setForm(f => ({ ...f, order_date: v })); setDirty(true) }}
               />
 
-              <span style={labelStyle}>Expected delivery</span>
+              <span style={labelStyle}>
+                Expected delivery
+                <Tip text="Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation." />
+              </span>
               <span style={{ fontSize: 12, color: 'var(--color-text-primary)', padding: '3px 4px' }}>
                 {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : '—'}
               </span>
@@ -518,6 +528,7 @@ export function PODetail({
                 })()}
                 <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                   Apply job to all line items at once. Individual lines can still be changed below.
+                  <Tip text="Job costing links this purchase to a QuickBooks job so material costs roll up to job profitability reports." />
                 </label>
                 <InlineSelect
                   initialValue={
@@ -715,19 +726,21 @@ export function PODetail({
                   borderBottom: '0.5px solid var(--color-border-tertiary)',
                 }}>
                   {([
-                    { label: 'Description', align: 'left' },
-                    { label: 'Ord',         align: 'right' },
-                    { label: 'Rcvd',        align: 'right' },
-                    { label: 'Unit',        align: 'right' },
-                    { label: 'Total',       align: 'right' },
-                    ...(showJobColumn ? [{ label: 'Job', align: 'left' }] : []),
-                  ] as { label: string; align: 'left' | 'right' }[]).map((h, i) => (
+                    { label: 'Description', align: 'left',  tip: null },
+                    { label: 'Ord',         align: 'right', tip: 'Quantity ordered — edit to correct OCR errors.' },
+                    { label: 'Rcvd',        align: 'right', tip: 'Quantity received so far. Updated via the Receive Items screen.' },
+                    { label: 'Unit',        align: 'right', tip: 'Unit cost per item. Multiplied by quantity to calculate the line total.' },
+                    { label: 'Total',       align: 'right', tip: 'Extended cost (unit × qty). Edit directly if no unit price is available.' },
+                    ...(showJobColumn ? [{ label: 'Job', align: 'left', tip: 'QuickBooks job to charge this line to.' }] : []),
+                  ] as { label: string; align: 'left' | 'right'; tip: string | null }[]).map((h, i) => (
                     <span key={i} style={{
                       fontSize: 9, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em',
                       color: 'var(--color-text-secondary)', textAlign: h.align,
                       paddingRight: h.align === 'right' ? 4 : 0,
+                      display: 'inline-flex', alignItems: 'center', justifyContent: h.align === 'right' ? 'flex-end' : 'flex-start',
                     }}>
                       {h.label}
+                      {h.tip && <Tip text={h.tip} />}
                     </span>
                   ))}
                 </div>
@@ -781,10 +794,12 @@ export function PODetail({
                         placeholder="—"
                         align="right"
                         currency
+                        warn={li.unit_cost == null && li.extended_cost == null}
                         onSave={async v => {
                           const cost = v ? parseFloat(v) : null
-                          const ext = cost != null && li.quantity_ordered != null ? +(li.quantity_ordered * cost).toFixed(2) : li.extended_cost
-                          await handleLineItemUpdate(li.line_id, { unit_cost: isNaN(cost!) ? null : cost, extended_cost: ext })
+                          const parsed = isNaN(cost!) ? null : cost
+                          const ext = parsed != null && li.quantity_ordered != null ? +(li.quantity_ordered * parsed).toFixed(2) : li.extended_cost
+                          handleLineItemUpdate(li.line_id, { unit_cost: parsed, extended_cost: ext })
                         }}
                       />
 
@@ -794,9 +809,10 @@ export function PODetail({
                         placeholder="—"
                         align="right"
                         currency
+                        warn={li.unit_cost == null && li.extended_cost == null}
                         onSave={async v => {
                           const ext = v ? parseFloat(v) : null
-                          await handleLineItemUpdate(li.line_id, { extended_cost: isNaN(ext!) ? null : ext })
+                          handleLineItemUpdate(li.line_id, { extended_cost: isNaN(ext!) ? null : ext })
                         }}
                       />
 
@@ -969,6 +985,33 @@ const selectStyle: React.CSSProperties = {
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
+function Tip({ text }: { text: string }) {
+  const [show, setShow] = useState(false)
+  return (
+    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 4, verticalAlign: 'middle' }}>
+      <i
+        className="ti ti-info-circle"
+        style={{ fontSize: 11, color: 'var(--color-text-tertiary)', cursor: 'help' }}
+        onMouseEnter={() => setShow(true)}
+        onMouseLeave={() => setShow(false)}
+      />
+      {show && (
+        <span style={{
+          position: 'absolute', left: '50%', bottom: 'calc(100% + 6px)',
+          transform: 'translateX(-50%)',
+          background: '#1F2937', color: 'white', fontSize: 11,
+          padding: '6px 9px', borderRadius: 5,
+          width: 200, textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.45,
+          zIndex: 100, pointerEvents: 'none',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+        }}>
+          {text}
+        </span>
+      )}
+    </span>
+  )
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
@@ -1023,23 +1066,28 @@ function ActionButton({ onClick, disabled, children, primary, danger, icon }: {
   )
 }
 
-function InlineInput({ initialValue, onSave, placeholder, align, currency }: {
+function InlineInput({ initialValue, onSave, placeholder, align, currency, warn }: {
   initialValue: string
   onSave: (v: string) => Promise<void> | void
   placeholder?: string
   align?: 'right'
   currency?: boolean
+  warn?: boolean
 }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
-  useEffect(() => { setValue(initialValue) }, [initialValue])
+  // Only sync from parent when not focused — prevents the race condition where
+  // setFocused(false) triggers a re-render before onSave updates parent state,
+  // which would cause the useEffect to reset the typed value back to "".
+  useEffect(() => { if (!focused) setValue(initialValue) }, [initialValue, focused])
 
   const displayValue = currency && !focused && value !== ''
     ? `$${parseFloat(value || '0').toFixed(2)}`
     : value
 
-  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : warn ? '#FCA5A5' : 'transparent'
+  const bgColor = focused ? 'white' : warn && !value ? '#FEF2F2' : 'transparent'
 
   return (
     <input
@@ -1060,8 +1108,9 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: {
       style={{
         width: '100%', height: 28, border: `0.5px solid ${borderColor}`, borderRadius: 4,
         padding: '0 6px', fontSize: 12,
-        background: focused ? 'white' : 'transparent',
-        color: 'var(--color-text-primary)', textAlign: align === 'right' ? 'right' : 'left',
+        background: bgColor,
+        color: warn && !value && !focused ? '#DC2626' : 'var(--color-text-primary)',
+        textAlign: align === 'right' ? 'right' : 'left',
         outline: 'none',
       }}
     />

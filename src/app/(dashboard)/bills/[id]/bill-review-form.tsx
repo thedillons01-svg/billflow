@@ -1247,9 +1247,23 @@ export function BillReviewForm({
                     }}
                   >
                     <InlineInput initialValue={item.description ?? ''} onSave={v => updateLineItem(item.line_id, { description: v || null })} placeholder="Description" />
-                    <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={v => updateLineItem(item.line_id, { quantity: v ? parseFloat(v) : null })} align="right" placeholder="—" />
-                    <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={v => updateLineItem(item.line_id, { unit_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
-                    <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="enter amount" currency warn={item.extended_cost == null} />
+                    <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={async v => {
+                      const qty = v ? parseFloat(v) : null
+                      const ext = qty != null && item.unit_cost != null ? +(qty * item.unit_cost).toFixed(2) : item.extended_cost
+                      setLineItems(ls => ls.map(li => li.line_id === item.line_id ? { ...li, quantity: qty, extended_cost: ext ?? li.extended_cost } : li))
+                      await updateLineItem(item.line_id, { quantity: qty, ...(ext != null ? { extended_cost: ext } : {}) })
+                    }} align="right" placeholder="—" />
+                    <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={async v => {
+                      const cost = v ? parseFloat(v) : null
+                      const ext = cost != null && item.quantity != null ? +(item.quantity * cost).toFixed(2) : item.extended_cost
+                      setLineItems(ls => ls.map(li => li.line_id === item.line_id ? { ...li, unit_cost: cost, extended_cost: ext ?? li.extended_cost } : li))
+                      await updateLineItem(item.line_id, { unit_cost: cost, ...(ext != null ? { extended_cost: ext } : {}) })
+                    }} align="right" placeholder="—" />
+                    <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={async v => {
+                      const ext = v ? parseFloat(v) : null
+                      setLineItems(ls => ls.map(li => li.line_id === item.line_id ? { ...li, extended_cost: ext } : li))
+                      await updateLineItem(item.line_id, { extended_cost: ext })
+                    }} align="right" placeholder="enter amount" currency warn={item.extended_cost == null} />
                     <div style={{ paddingLeft: 8 }}>
                       <InlineSelect
                         initialValue={item.gl_account_id ?? ''}
@@ -1972,7 +1986,7 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency, warn 
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
-  useEffect(() => { setValue(initialValue) }, [initialValue])
+  useEffect(() => { if (!focused) setValue(initialValue) }, [initialValue, focused])
 
   const displayValue = currency && !focused && value !== ''
     ? `$${parseFloat(value || '0').toFixed(2)}`
