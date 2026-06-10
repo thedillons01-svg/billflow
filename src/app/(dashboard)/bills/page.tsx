@@ -3,10 +3,11 @@ import Link from 'next/link'
 import { BillsList } from './bills-list'
 import { UploadButton } from './upload-button'
 
-const REVIEW_STATUSES = ['draft', 'ready', 'sync_error', 'ocr_error']
+// Needs Review: bills with actual problems requiring user action
+const REVIEW_STATUSES = ['draft', 'sync_error', 'ocr_error', 'fingerprint_duplicate']
 const PENDING_STATUSES = ['pending_job_match']
 const ARCHIVE_STATUSES = ['published']
-const ALL_INBOX_STATUSES = [...REVIEW_STATUSES, ...PENDING_STATUSES, 'publishing']
+const ALL_INBOX_STATUSES = [...REVIEW_STATUSES, 'ready', ...PENDING_STATUSES, 'publishing']
 
 export default async function BillsPage({
   searchParams,
