@@ -9,6 +9,14 @@ import { reopenJob, createJob } from '../../jobs/actions'
 
 const FieldTipsContext = createContext(true)
 
+// Omit job_number from the label when job_name already starts with it.
+// Prevents "Metro Property Group – 1052 – 1052 — Riverside Apartments" when
+// the user names the job "1052 — Riverside Apartments".
+function buildJobLabel(j: { customer_name?: string | null; job_number?: string | null; job_name?: string | null }, fallback = ''): string {
+  const numInName = !!(j.job_number && j.job_name && new RegExp(`^${j.job_number}\\b`).test(j.job_name))
+  return [j.customer_name, numInName ? null : j.job_number, j.job_name].filter(Boolean).join(' – ') || fallback
+}
+
 type Account = { id: string; qb_account_id: string; name: string | null; account_type: string | null }
 type Job = { id: string; qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; parent_id?: string | null; is_customer?: boolean; status?: string }
 type QBClass = { id: string; qb_class_id: string; name: string | null }
@@ -113,12 +121,11 @@ export function BillReviewForm({
   const buildJobOptions = (jobList: Job[]) => {
     const hasCustomers = jobList.some(j => j.is_customer)
     return jobList.map(j => {
-      const base = [j.job_number, j.job_name].filter(Boolean).join(' · ')
       const label = hasCustomers && !j.is_customer
-        ? `  ${base}` // indent sub-customers when customers also appear
+        ? `  ${buildJobLabel(j)}`
         : j.is_customer
         ? `${j.job_name ?? j.customer_name ?? ''}`
-        : [j.customer_name, j.job_number, j.job_name].filter(Boolean).join(' – ')
+        : buildJobLabel(j)
       return { value: j.qb_job_id, label }
     })
   }
@@ -1059,7 +1066,7 @@ export function BillReviewForm({
                           return
                         }
                         const job = liveJobs.find(j => j.qb_job_id === v)
-                        const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || v
+                        const label = job ? buildJobLabel(job, v) : v
                         if (lineItems.length > 1) {
                           setHeaderJobPending({ jobId: v, jobLabel: label })
                         } else if (lineItems.length === 1) {
@@ -1070,7 +1077,7 @@ export function BillReviewForm({
                       onSaveClosed={async (v) => {
                         await handleReopenAndSelect(v, async (id) => {
                           const job = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
-                          const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || id
+                          const label = job ? buildJobLabel(job, id) : id
                           if (lineItems.length > 1) {
                             setHeaderJobPending({ jobId: id, jobLabel: label })
                           } else if (lineItems.length === 1) {
@@ -1274,7 +1281,7 @@ export function BillReviewForm({
                             await updateLineItem(item.line_id, { job_id: v || null })
                             if (v && lineItems.length > 1) {
                               const job = liveJobs.find(j => j.qb_job_id === v)
-                              const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || v
+                              const label = job ? buildJobLabel(job, v) : v
                               setJobApplyPrompt({ jobId: v, jobLabel: label })
                             }
                           }}
@@ -1283,7 +1290,7 @@ export function BillReviewForm({
                               await updateLineItem(item.line_id, { job_id: id })
                               if (lineItems.length > 1) {
                                 const job = [...liveJobs, ...liveClosedJobs].find(j => j.qb_job_id === id)
-                                const label = [job?.customer_name, job?.job_number, job?.job_name].filter(Boolean).join(' – ') || id
+                                const label = job ? buildJobLabel(job, id) : id
                                 setJobApplyPrompt({ jobId: id, jobLabel: label })
                               }
                             })

@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import type { JobProfitabilityRow } from '@/lib/quickbooks/profitability'
-import { closeJob, reopenJob } from './actions'
+import { closeJob, reopenJob, renameJob } from './actions'
 
 type ClosedJob = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
 
@@ -16,15 +16,43 @@ export function JobsTable({
   rows,
   closedJobs,
   showClosed,
+  companyId,
 }: {
   rows: JobProfitabilityRow[]
   closedJobs: ClosedJob[]
   showClosed: boolean
+  companyId: string
 }) {
   const router = useRouter()
   const [search, setSearch] = useState('')
   const [isPending, startTransition] = useTransition()
   const [actionId, setActionId] = useState<string | null>(null)
+  const [renameId, setRenameId] = useState<string | null>(null)
+  const [renameValue, setRenameValue] = useState('')
+  const [renameError, setRenameError] = useState<string | null>(null)
+
+  const startRename = (jobId: string, currentName: string) => {
+    setRenameId(jobId)
+    setRenameValue(currentName)
+    setRenameError(null)
+  }
+
+  const cancelRename = () => { setRenameId(null); setRenameValue(''); setRenameError(null) }
+
+  const submitRename = (companyId: string) => {
+    if (!renameId || !renameValue.trim()) return
+    setRenameError(null)
+    startTransition(async () => {
+      const result = await renameJob(companyId, renameId, renameValue.trim())
+      if ('error' in result) {
+        setRenameError(result.error)
+      } else {
+        setRenameId(null)
+        setRenameValue('')
+        router.refresh()
+      }
+    })
+  }
 
   const handleClose = (jobId: string) => {
     setActionId(jobId)
@@ -80,31 +108,55 @@ export function JobsTable({
               ))}
             </div>
             {filtered.map((job, i) => (
-              <div key={job.qb_job_id} className="grid items-center px-4 py-3" style={{
-                gridTemplateColumns: '2fr 1.5fr 1fr',
+              <div key={job.qb_job_id} style={{
                 borderBottom: i < filtered.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
                 background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
               }}>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                    {job.job_number ? `#${job.job_number}` : ''}{job.job_number && job.job_name ? ' · ' : ''}{job.job_name ?? ''}
-                  </p>
-                </div>
-                <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{job.customer_name ?? '—'}</span>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => handleReopen(job.qb_job_id)}
-                    disabled={isPending && actionId === job.qb_job_id}
-                    style={{
-                      fontSize: 12, fontWeight: 500, color: '#2DB87A',
-                      background: 'none', border: '0.5px solid #C3DEC9', borderRadius: 5,
-                      padding: '4px 12px', cursor: 'pointer',
-                      opacity: isPending && actionId === job.qb_job_id ? 0.5 : 1,
-                    }}
-                  >
-                    {isPending && actionId === job.qb_job_id ? 'Reopening…' : 'Reopen'}
-                  </button>
-                </div>
+                {renameId === job.qb_job_id ? (
+                  <div className="px-4 py-3 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') submitRename(companyId); if (e.key === 'Escape') cancelRename() }}
+                        style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 13 }}
+                      />
+                      <button onClick={() => submitRename(companyId)} disabled={!renameValue.trim() || isPending}
+                        style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !renameValue.trim() || isPending ? 0.6 : 1 }}
+                      >{isPending ? 'Saving…' : 'Save'}</button>
+                      <button onClick={cancelRename} style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                    {renameError && <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>{renameError}</p>}
+                  </div>
+                ) : (
+                  <div className="grid items-center px-4 py-3" style={{ gridTemplateColumns: '2fr 1.5fr 1fr' }}>
+                    <div className="flex items-center gap-2">
+                      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0 }}>
+                        {job.job_number ? `#${job.job_number}` : ''}{job.job_number && job.job_name ? ' · ' : ''}{job.job_name ?? ''}
+                      </p>
+                      <button onClick={() => startRename(job.qb_job_id, job.job_name ?? '')} title="Rename job"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-tertiary)', lineHeight: 1, flexShrink: 0 }}>
+                        <i className="ti ti-pencil" style={{ fontSize: 12 }} />
+                      </button>
+                    </div>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{job.customer_name ?? '—'}</span>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleReopen(job.qb_job_id)}
+                        disabled={isPending && actionId === job.qb_job_id}
+                        style={{
+                          fontSize: 12, fontWeight: 500, color: '#2DB87A',
+                          background: 'none', border: '0.5px solid #C3DEC9', borderRadius: 5,
+                          padding: '4px 12px', cursor: 'pointer',
+                          opacity: isPending && actionId === job.qb_job_id ? 0.5 : 1,
+                        }}
+                      >
+                        {isPending && actionId === job.qb_job_id ? 'Reopening…' : 'Reopen'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -154,37 +206,60 @@ export function JobsTable({
               : row.margin_pct >= 10 ? '#92400E'
               : '#991B1B'
             return (
-              <div key={row.qb_job_id} className="grid items-center" style={{
-                gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 80px',
+              <div key={row.qb_job_id} style={{
                 borderBottom: i < filtered.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
-                padding: '10px 16px',
                 background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
               }}>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                    {row.job_number ? `#${row.job_number}` : ''}{row.job_number && row.job_name ? ' · ' : ''}{row.job_name ?? ''}
-                  </p>
-                </div>
-                <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{row.customer_name ?? '—'}</span>
-                <span style={{ fontSize: 13, color: 'var(--color-text-primary)', textAlign: 'right' }}>{fmt(row.revenue)}</span>
-                <span style={{ fontSize: 13, color: 'var(--color-text-primary)', textAlign: 'right' }}>{fmt(row.material_cost)}</span>
-                <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', textAlign: 'right' }}>{fmt(row.gross_profit)}</span>
-                <span style={{ fontSize: 13, fontWeight: 600, color: marginColor, textAlign: 'right' }}>{fmtPct(row.margin_pct)}</span>
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => handleClose(row.qb_job_id)}
-                    disabled={isPending && actionId === row.qb_job_id}
-                    title="Close this job — hides it from tagging dropdowns"
-                    style={{
-                      fontSize: 11, color: 'var(--color-text-secondary)',
-                      background: 'none', border: '0.5px solid var(--color-border-secondary)', borderRadius: 5,
-                      padding: '3px 10px', cursor: 'pointer',
-                      opacity: isPending && actionId === row.qb_job_id ? 0.5 : 1,
-                    }}
-                  >
-                    {isPending && actionId === row.qb_job_id ? '…' : 'Close'}
-                  </button>
-                </div>
+                {renameId === row.qb_job_id ? (
+                  <div className="px-4 py-3 flex flex-col gap-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        value={renameValue}
+                        onChange={e => setRenameValue(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') submitRename(companyId); if (e.key === 'Escape') cancelRename() }}
+                        style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 13 }}
+                      />
+                      <button onClick={() => submitRename(companyId)} disabled={!renameValue.trim() || isPending}
+                        style={{ height: 28, padding: '0 12px', fontSize: 12, fontWeight: 500, color: 'white', background: '#2DB87A', border: 'none', borderRadius: 5, cursor: 'pointer', opacity: !renameValue.trim() || isPending ? 0.6 : 1 }}
+                      >{isPending ? 'Saving…' : 'Save'}</button>
+                      <button onClick={cancelRename} style={{ height: 28, padding: '0 8px', fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                    {renameError && <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>{renameError}</p>}
+                  </div>
+                ) : (
+                  <div className="grid items-center" style={{ gridTemplateColumns: '2fr 1.5fr 1fr 1fr 1fr 1fr 80px', padding: '10px 16px' }}>
+                    <div className="flex items-center gap-2">
+                      <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0 }}>
+                        {row.job_number ? `#${row.job_number}` : ''}{row.job_number && row.job_name ? ' · ' : ''}{row.job_name ?? ''}
+                      </p>
+                      <button onClick={() => startRename(row.qb_job_id, row.job_name ?? '')} title="Rename job"
+                        style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--color-text-tertiary)', lineHeight: 1, flexShrink: 0 }}>
+                        <i className="ti ti-pencil" style={{ fontSize: 12 }} />
+                      </button>
+                    </div>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{row.customer_name ?? '—'}</span>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-primary)', textAlign: 'right' }}>{fmt(row.revenue)}</span>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-primary)', textAlign: 'right' }}>{fmt(row.material_cost)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', textAlign: 'right' }}>{fmt(row.gross_profit)}</span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: marginColor, textAlign: 'right' }}>{fmtPct(row.margin_pct)}</span>
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => handleClose(row.qb_job_id)}
+                        disabled={isPending && actionId === row.qb_job_id}
+                        title="Close this job — hides it from tagging dropdowns"
+                        style={{
+                          fontSize: 11, color: 'var(--color-text-secondary)',
+                          background: 'none', border: '0.5px solid var(--color-border-secondary)', borderRadius: 5,
+                          padding: '3px 10px', cursor: 'pointer',
+                          opacity: isPending && actionId === row.qb_job_id ? 0.5 : 1,
+                        }}
+                      >
+                        {isPending && actionId === row.qb_job_id ? '…' : 'Close'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )
           })

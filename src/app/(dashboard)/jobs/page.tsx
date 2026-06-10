@@ -86,7 +86,7 @@ export default async function JobsPage({
 
       <div className="flex-1 overflow-auto px-5 py-5">
         {showClosed ? (
-          <JobsTable rows={[]} closedJobs={closedJobs} showClosed />
+          <JobsTable rows={[]} closedJobs={closedJobs} showClosed companyId={company?.company_id ?? ''} />
         ) : company?.qb_connection_status !== 'connected' ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <i className="ti ti-plug" style={{ fontSize: 48, color: 'var(--color-text-tertiary)' }} />
@@ -106,7 +106,7 @@ export default async function JobsPage({
             <p style={{ fontSize: 13, color: '#991B1B' }}>{errorMsg}</p>
           </div>
         ) : (
-          <JobsTable rows={rows} closedJobs={closedJobs} showClosed={false} />
+          <JobsTable rows={rows} closedJobs={closedJobs} showClosed={false} companyId={company?.company_id ?? ''} />
         )}
       </div>
     </div>

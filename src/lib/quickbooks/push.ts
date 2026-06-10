@@ -90,9 +90,12 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       }
     }
 
+    const isCreditNote = (b.bill_type as string | null) === 'credit_note'
+
     const qboLines = lineItems.map(li => ({
       DetailType: 'AccountBasedExpenseLineDetail',
-      Amount: li.extended_cost!,
+      // VendorCredit requires positive amounts; bills can be negative for adjustments
+      Amount: isCreditNote ? Math.abs(li.extended_cost!) : li.extended_cost!,
       ...(li.description ? { Description: li.description } : {}),
       AccountBasedExpenseLineDetail: {
         AccountRef: { value: li.gl_account_id! },
@@ -108,18 +111,20 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }
     if (b.invoice_date) payload.TxnDate = b.invoice_date
 
-    // Apply due date: use explicit bill due_date first, then fall back to vendor/company setting
-    if (b.due_date) {
-      payload.DueDate = b.due_date
-    } else if (vendorDueDateSetting === 'same_as_invoice_date' && b.invoice_date) {
-      payload.DueDate = b.invoice_date
-    } else if (vendorDueDateSetting === 'from_payment_terms') {
-      const terms = vendorSettings?.billflow_payment_terms ?? vendorSettings?.qb_payment_terms ?? null
-      const termDays = terms ? parseInt(terms.replace(/\D/g, ''), 10) : NaN
-      if (b.invoice_date && !isNaN(termDays) && termDays > 0) {
-        const due = new Date(b.invoice_date as string)
-        due.setDate(due.getDate() + termDays)
-        payload.DueDate = due.toISOString().slice(0, 10)
+    // VendorCredit has no due date; only set DueDate for regular bills
+    if (!isCreditNote) {
+      if (b.due_date) {
+        payload.DueDate = b.due_date
+      } else if (vendorDueDateSetting === 'same_as_invoice_date' && b.invoice_date) {
+        payload.DueDate = b.invoice_date
+      } else if (vendorDueDateSetting === 'from_payment_terms') {
+        const terms = vendorSettings?.billflow_payment_terms ?? vendorSettings?.qb_payment_terms ?? null
+        const termDays = terms ? parseInt(terms.replace(/\D/g, ''), 10) : NaN
+        if (b.invoice_date && !isNaN(termDays) && termDays > 0) {
+          const due = new Date(b.invoice_date as string)
+          due.setDate(due.getDate() + termDays)
+          payload.DueDate = due.toISOString().slice(0, 10)
+        }
       }
     }
     // DocNumber = QB "Bill No." field (vendor invoice number), max 21 chars
@@ -152,7 +157,6 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }
     if (memo) payload.PrivateNote = memo
 
-    const isCreditNote = b.bill_type === 'credit_note'
     const endpoint = isCreditNote ? 'vendorcredit' : 'bill'
     const result = await qbPost(endpoint, payload)
     const qbBillId = isCreditNote

@@ -103,7 +103,7 @@ export default async function DashboardPage() {
                 <p style={{ fontSize: 11, color: '#B91C1C' }}>Review and retry from the Bills inbox.</p>
               </div>
               <Link
-                href="/bills?tab=review"
+                href="/bills?status=sync_error"
                 style={{
                   fontSize: 12, fontWeight: 500, color: '#DC2626',
                   textDecoration: 'none',

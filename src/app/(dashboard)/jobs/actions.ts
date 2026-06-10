@@ -79,6 +79,54 @@ export async function createJob(
   return { qbJobId, jobName: returnedName, jobNumber, customerName }
 }
 
+export async function renameJob(
+  companyId: string,
+  qbJobId: string,
+  newDisplayName: string
+): Promise<{ jobName: string; jobNumber: string | null } | { error: string }> {
+  const supabase = await createClient()
+
+  try {
+    const { qbFetchAll, qbPost } = await getQBClient(companyId)
+
+    // QB requires a SyncToken to update a record — fetch current state first
+    type QBCustomer = { Id: string; SyncToken: string; DisplayName: string }
+    const rows = await qbFetchAll<QBCustomer>('Customer', `SELECT * FROM Customer WHERE Id = '${qbJobId}'`)
+    const current = rows[0]
+    if (!current?.SyncToken) return { error: 'Could not fetch current job record from QuickBooks.' }
+
+    const result = await qbPost('customer', {
+      Id: qbJobId,
+      SyncToken: current.SyncToken,
+      DisplayName: newDisplayName,
+      sparse: true,
+    })
+    const returnedName: string = result.Customer?.DisplayName ?? newDisplayName
+    if (!result.Customer?.Id) return { error: 'QuickBooks did not confirm the rename.' }
+
+    const jobNumberMatch = newDisplayName.match(/\b(\d{3,})\b/g)
+    const jobNumber = jobNumberMatch?.find(n => {
+      const num = parseInt(n, 10)
+      return !(num >= 2000 && num <= 2099)
+    }) ?? null
+
+    await supabase.from('qb_jobs_cache')
+      .update({ job_name: returnedName, job_number: jobNumber })
+      .eq('company_id', companyId)
+      .eq('qb_job_id', qbJobId)
+
+    revalidatePath('/jobs')
+    return { jobName: returnedName, jobNumber }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : ''
+    return {
+      error: msg.includes('not connected')
+        ? 'QuickBooks is not connected.'
+        : `Could not rename job: ${msg || 'unknown error'}`,
+    }
+  }
+}
+
 export async function closeJob(qbJobId: string): Promise<void> {
   const supabase = await createClient()
   const { data: company } = await supabase.from('companies').select('company_id').single()

@@ -65,7 +65,8 @@ const BILL_STATUS_BADGE: Record<string, { bg: string; color: string; label: stri
 }
 
 function jobLabel(j: Job): string {
-  return [j.customer_name, j.job_number, j.job_name].filter(Boolean).join(' – ')
+  const numInName = !!(j.job_number && j.job_name && new RegExp(`^${j.job_number}\\b`).test(j.job_name))
+  return [j.customer_name, numInName ? null : j.job_number, j.job_name].filter(Boolean).join(' – ')
 }
 
 export function PODetail({

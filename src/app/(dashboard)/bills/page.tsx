@@ -12,16 +12,19 @@ const ALL_INBOX_STATUSES = [...REVIEW_STATUSES, 'ready', ...PENDING_STATUSES, 'p
 export default async function BillsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; q?: string }>
+  searchParams: Promise<{ tab?: string; q?: string; status?: string }>
 }) {
-  const { tab, q } = await searchParams
+  const { tab, q, status: statusFilter } = await searchParams
   const activeTab = tab === 'review' ? 'review' : tab === 'pending' ? 'pending' : tab === 'archive' ? 'archive' : 'all'
   const search = q?.trim() ?? ''
 
   const supabase = await createClient()
 
+  // ?status=sync_error (from the home page sync error alert) overrides tab filtering
   let statuses: string[]
-  if (activeTab === 'review') statuses = REVIEW_STATUSES
+  if (statusFilter) {
+    statuses = [statusFilter]
+  } else if (activeTab === 'review') statuses = REVIEW_STATUSES
   else if (activeTab === 'pending') statuses = PENDING_STATUSES
   else if (activeTab === 'all') statuses = ALL_INBOX_STATUSES
   else statuses = ARCHIVE_STATUSES
