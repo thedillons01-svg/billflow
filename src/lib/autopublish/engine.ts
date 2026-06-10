@@ -59,24 +59,6 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
     }
   }
 
-  // 4. Zero errors on last 3 invoices for this vendor
-  const { data: recentBills } = await supabase
-    .from('bills')
-    .select('status')
-    .eq('vendor_id', (bill as Record<string, unknown>).vendor_id as string)
-    .eq('company_id', companyId)
-    .in('status', ['published', 'sync_error'])
-    .order('created_at', { ascending: false })
-    .limit(3)
-
-  const hasRecentError = recentBills?.some(b => b.status === 'sync_error') ?? false
-  if (hasRecentError) {
-    return {
-      eligible: false,
-      reason: 'A recent invoice from this vendor had a sync error. Resolve the error before auto-publish can resume.',
-    }
-  }
-
   // 5. Required fields present
   const b = bill as Record<string, unknown>
   const missing: string[] = []
@@ -202,27 +184,11 @@ export async function runAutopublishForCompany(companyId: string): Promise<{ att
       await pushBillToQBO(bill_id, companyId)
       published++
     } catch {
-      // pushBillToQBO already sets sync_error on the bill
-      // Auto-disable vendor auto-publish on error
-      const { data: billData } = await supabase
-        .from('bills')
-        .select('vendor_id')
-        .eq('bill_id', bill_id)
-        .single()
-      if (billData?.vendor_id) {
-        const { data: vendorData } = await supabase.from('vendors').select('vendor_name_display, vendor_name_extracted').eq('vendor_id', billData.vendor_id).single()
-        const vendorName = vendorData?.vendor_name_display ?? vendorData?.vendor_name_extracted ?? 'this vendor'
-        await supabase.from('vendors')
-          .update({ auto_publish_enabled: false })
-          .eq('vendor_id', billData.vendor_id)
-        await sendNotification({
-          companyId,
-          event:   'autopublish_disabled',
-          subject: `Auto-publish disabled for ${vendorName}`,
-          body:    `Auto-publish was disabled for ${vendorName} after a QuickBooks sync error. Review the bill and re-enable auto-publish in vendor settings once the issue is resolved.`,
-          billId:  bill_id,
-        })
-      }
+      // pushBillToQBO already marks the bill as sync_error and the user is notified.
+      // Don't auto-disable the vendor — a single bill failure (e.g. a credit note with
+      // a negative amount, a duplicate, a transient QB error) should not stop all future
+      // invoices from that vendor from auto-publishing. The sync_error badge on the bill
+      // is sufficient to require the user's attention on that specific bill.
       failed++
     }
   }
