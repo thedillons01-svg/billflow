@@ -2050,8 +2050,8 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
       onMouseLeave={() => setHovered(false)}
       title={title}
       style={{
-        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
-        padding: '3px 6px', fontSize: 12,
+        width: '100%', height: 28, border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '0 6px', fontSize: 12,
         background: 'white',
         color: 'var(--color-text-primary)', outline: 'none',
       }}
