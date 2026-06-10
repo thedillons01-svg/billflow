@@ -42,7 +42,18 @@ export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult>
         .single()
 
       if (!bill || !['ready', 'sync_error'].includes(bill.status)) {
-        errors.push({ billId, invoiceNumber: null, reason: 'Bill is not in a publishable state.' })
+        const statusReasons: Record<string, string> = {
+          draft:             'Bill is still in draft — open it and click Mark Ready first.',
+          published:         'Bill is already published to QuickBooks.',
+          pending_job_match: 'Bill is waiting for a QuickBooks job match.',
+          publishing:        'Bill is currently being pushed to QuickBooks.',
+          ocr_error:         'Bill has an OCR error — reprocess it first.',
+        }
+        errors.push({
+          billId,
+          invoiceNumber: bill?.invoice_number ?? null,
+          reason: (bill ? statusReasons[bill.status] : null) ?? 'Bill cannot be published in its current state.',
+        })
         continue
       }
 

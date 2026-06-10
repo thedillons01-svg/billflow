@@ -196,6 +196,7 @@ export function BillsList({
           style={{
             background: bulkErrors.length > 0 ? '#FEF2F2' : '#D1FAE5',
             borderBottom: `0.5px solid ${bulkErrors.length > 0 ? '#FECACA' : '#6EE7B7'}`,
+            position: 'sticky', top: 0, zIndex: 10,
           }}
         >
           <div className="flex items-center justify-between px-5 py-2">
