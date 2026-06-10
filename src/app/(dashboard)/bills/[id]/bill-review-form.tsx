@@ -1249,7 +1249,7 @@ export function BillReviewForm({
                     <InlineInput initialValue={item.description ?? ''} onSave={v => updateLineItem(item.line_id, { description: v || null })} placeholder="Description" />
                     <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={v => updateLineItem(item.line_id, { quantity: v ? parseFloat(v) : null })} align="right" placeholder="—" />
                     <InlineInput initialValue={item.unit_cost != null ? String(item.unit_cost) : ''} onSave={v => updateLineItem(item.line_id, { unit_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" />
-                    <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="—" currency />
+                    <InlineInput initialValue={item.extended_cost != null ? String(item.extended_cost) : ''} onSave={v => updateLineItem(item.line_id, { extended_cost: v ? parseFloat(v) : null })} align="right" placeholder="enter amount" currency warn={item.extended_cost == null} />
                     <div style={{ paddingLeft: 8 }}>
                       <InlineSelect
                         initialValue={item.gl_account_id ?? ''}
@@ -1968,7 +1968,7 @@ function AutoSaveInput({
 
 // ── Inline table inputs ────────────────────────────────────────────────────────
 
-function InlineInput({ initialValue, onSave, placeholder, align, currency }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right'; currency?: boolean }) {
+function InlineInput({ initialValue, onSave, placeholder, align, currency, warn }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right'; currency?: boolean; warn?: boolean }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
@@ -1978,7 +1978,8 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: { i
     ? `$${parseFloat(value || '0').toFixed(2)}`
     : value
 
-  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : warn ? '#FCA5A5' : 'transparent'
+  const bgColor = focused ? 'white' : warn && !value ? '#FEF2F2' : 'transparent'
 
   return (
     <input
@@ -1999,8 +2000,8 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: { i
       style={{
         width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
         padding: '3px 4px', fontSize: 12,
-        background: focused ? 'white' : 'transparent',
-        color: 'var(--color-text-primary)',
+        background: bgColor,
+        color: warn && !value && !focused ? '#DC2626' : 'var(--color-text-primary)',
         textAlign: align === 'right' ? 'right' : 'left',
         outline: 'none',
       }}

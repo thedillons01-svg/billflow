@@ -25,6 +25,7 @@ export async function refreshBillStatus(billId: string) {
   if (newStatus !== bill.status) {
     await supabase.from('bills').update({ status: newStatus }).eq('bill_id', billId)
   }
+  revalidatePath(`/bills/${billId}`)
 }
 
 export async function updateBill(
@@ -61,7 +62,7 @@ export async function updateLineItem(
   const supabase = await createClient()
   const { error } = await supabase.from('bill_line_items').update(updates).eq('line_id', lineId)
   if (error) throw new Error(error.message)
-  if ('gl_account_id' in updates) {
+  if ('gl_account_id' in updates || 'extended_cost' in updates || 'quantity' in updates || 'unit_cost' in updates) {
     const { data: li } = await supabase.from('bill_line_items').select('bill_id').eq('line_id', lineId).single()
     if (li?.bill_id) await refreshBillStatus(li.bill_id)
   }

@@ -77,7 +77,13 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       .sort((a, b) => a.sort_order - b.sort_order)
       .filter(li => li.gl_account_id != null && li.extended_cost != null)
 
-    if (lineItems.length === 0) throw new Error('No line items with GL accounts to push.')
+    if (lineItems.length === 0) {
+      const hasLines = ((bill as Record<string, unknown>).bill_line_items as LineItem[]).length > 0
+      if (hasLines) {
+        throw new Error('Line items are missing amounts. Enter an amount for each line item on the bill review screen before publishing.')
+      }
+      throw new Error('No line items found. Add at least one line item with a GL account and amount before publishing.')
+    }
 
     const b = bill as Record<string, unknown>
     const invoiceTotal = b.total as number | null
