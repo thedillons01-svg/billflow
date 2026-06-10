@@ -1,11 +1,11 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { login, type AuthState } from '@/app/actions/auth'
 
-export default function LoginPage() {
+function LoginForm() {
   const [state, formAction, isPending] = useActionState<AuthState, FormData>(login, null)
   const [showPassword, setShowPassword] = useState(false)
   const searchParams = useSearchParams()
@@ -121,5 +121,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }

@@ -1,11 +1,6 @@
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
 
-export default async function AuthLayout({ children }: { children: React.ReactNode }) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (user) redirect('/home')
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ minHeight: '100vh', background: '#F7F9F8', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>
       <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(to right, #1A3D2B, #2DB87A)' }} />
