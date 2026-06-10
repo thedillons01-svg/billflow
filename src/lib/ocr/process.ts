@@ -420,7 +420,14 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, jobMatchRef, result.job_name_extracted ?? undefined, result.customer_name_extracted ?? undefined)
     if (!jobMatched && vendorHoldForJobMatch) {
       await supabase.from('bills')
-        .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — PO reference: ${result.vendor_po_reference}` })
+        .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — reference: ${jobMatchRef}` })
+        .eq('bill_id', billId)
+    } else if (!jobMatched) {
+      const refLabel = result.job_name_extracted
+        ? `job "${result.job_name_extracted}"`
+        : `PO reference "${jobMatchRef}"`
+      await supabase.from('bills')
+        .update({ autopublish_hold_reason: `Found ${refLabel} on invoice — no matching QuickBooks job. Assign a job manually if needed.` })
         .eq('bill_id', billId)
     }
     // When no job matched, try to identify the customer so the UI can pre-populate the create form

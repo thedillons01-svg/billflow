@@ -238,7 +238,7 @@ export function BillsList({
       <div
         className="grid items-center px-5 py-2"
         style={{
-          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px${!isInbox ? ' 90px' : ''}`,
+          gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 110px${!isInbox ? ' 90px' : ''}`,
           borderBottom: '0.5px solid var(--color-border-tertiary)',
         }}
       >
@@ -269,7 +269,7 @@ export function BillsList({
             key={bill.bill_id}
             className="grid items-center px-5 py-[10px]"
             style={{
-              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 80px${!isInbox ? ' 90px' : ''}`,
+              gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 110px${!isInbox ? ' 90px' : ''}`,
               borderBottom: '0.5px solid var(--color-border-tertiary)',
               background: isChecked
                 ? '#EBF5EF'
@@ -455,6 +455,19 @@ export function BillsList({
               >
                 {badge.label}
               </span>
+              {bill.autopublish_hold_reason && bill.status !== 'pending_job_match' && (
+                <span
+                  style={{
+                    display: 'block',
+                    fontSize: 9, color: 'var(--color-text-tertiary)',
+                    marginTop: 2, lineHeight: 1.3,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}
+                  title={bill.autopublish_hold_reason}
+                >
+                  {bill.autopublish_hold_reason}
+                </span>
+              )}
             </Link>
 
             {/* Sent to QB — archive only */}
