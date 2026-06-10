@@ -229,7 +229,7 @@ export function BillsList({
                       <button
                         onClick={async () => {
                           await setBillStatus(e.billId, 'ready')
-                          setBulkErrors(prev => prev.map(x => x.billId === e.billId ? { ...x, reason: 'Marked Ready — select it and publish again.', canMarkReady: false } : x))
+                          setBulkErrors(prev => prev.map(x => x.billId === e.billId ? { ...x, reason: 'Marked Ready — select and publish again.', canMarkReady: false } : x))
                         }}
                         style={{
                           marginLeft: 8,
