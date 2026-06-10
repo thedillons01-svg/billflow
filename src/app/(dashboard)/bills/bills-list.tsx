@@ -61,7 +61,7 @@ export function BillsList({
   const [editingGl, setEditingGl] = useState<string | null>(null)
   const [glOverrides, setGlOverrides] = useState<Record<string, string>>({})
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
-  const [bulkErrors, setBulkErrors] = useState<{ billId: string; invoiceNumber: string | null; reason: string }[]>([])
+  const [bulkErrors, setBulkErrors] = useState<{ billId: string; invoiceNumber: string | null; reason: string; canMarkReady?: boolean }[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
 
   const allSelected = bills.length > 0 && selected.size === bills.length
@@ -225,6 +225,23 @@ export function BillsList({
                       {e.invoiceNumber ?? 'Bill'}
                     </Link>
                     {' — '}{e.reason}
+                    {e.canMarkReady && (
+                      <button
+                        onClick={async () => {
+                          await setBillStatus(e.billId, 'ready')
+                          setBulkErrors(prev => prev.map(x => x.billId === e.billId ? { ...x, reason: 'Marked Ready — select it and publish again.', canMarkReady: false } : x))
+                        }}
+                        style={{
+                          marginLeft: 8,
+                          background: 'white', border: '0.5px solid #FCA5A5',
+                          borderRadius: 4, padding: '1px 8px',
+                          fontSize: 10, fontWeight: 500, color: '#DC2626',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Mark Ready
+                      </button>
+                    )}
                   </span>
                 </div>
               ))}

@@ -7,7 +7,7 @@ import { pushBillToQBO } from '@/lib/quickbooks/push'
 type BulkPublishResult = {
   success: number
   failed: number
-  errors: { billId: string; invoiceNumber: string | null; reason: string }[]
+  errors: { billId: string; invoiceNumber: string | null; reason: string; canMarkReady?: boolean }[]
 }
 
 export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult> {
@@ -42,17 +42,19 @@ export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult>
         .single()
 
       if (!bill || !['ready', 'sync_error'].includes(bill.status)) {
-        const statusReasons: Record<string, string> = {
-          draft:             'Bill is still in draft — open it and click Mark Ready first.',
-          published:         'Bill is already published to QuickBooks.',
-          pending_job_match: 'Bill is waiting for a QuickBooks job match.',
-          publishing:        'Bill is currently being pushed to QuickBooks.',
-          ocr_error:         'Bill has an OCR error — reprocess it first.',
+        const statusReasons: Record<string, { reason: string; canMarkReady?: boolean }> = {
+          draft:             { reason: 'Still in draft',                      canMarkReady: true },
+          published:         { reason: 'Already published to QuickBooks' },
+          pending_job_match: { reason: 'Waiting for a QuickBooks job match' },
+          publishing:        { reason: 'Currently being pushed to QuickBooks' },
+          ocr_error:         { reason: 'OCR error — reprocess it first' },
         }
+        const info = bill ? (statusReasons[bill.status] ?? { reason: 'Cannot be published in its current state' }) : { reason: 'Bill not found' }
         errors.push({
           billId,
           invoiceNumber: bill?.invoice_number ?? null,
-          reason: (bill ? statusReasons[bill.status] : null) ?? 'Bill cannot be published in its current state.',
+          reason: info.reason,
+          canMarkReady: info.canMarkReady,
         })
         continue
       }
