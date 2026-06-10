@@ -183,6 +183,23 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     const vendorCols = 'vendor_id, billflow_gl_account_id, qb_default_gl_account_id, gl_account_source, billflow_class_id, hold_for_job_match, default_due_date, qb_payment_terms, billflow_payment_terms'
 
     const vendor = await (async () => {
+      // Tier 0: Check saved aliases — user has previously matched this exact extracted name to a vendor
+      const { data: alias } = await supabase
+        .from('vendor_name_aliases')
+        .select('vendor_id')
+        .eq('company_id', bill.company_id)
+        .ilike('alias_name', rawName)
+        .limit(1)
+        .maybeSingle()
+      if (alias?.vendor_id) {
+        const { data: byAlias } = await supabase
+          .from('vendors')
+          .select(vendorCols)
+          .eq('vendor_id', alias.vendor_id)
+          .maybeSingle()
+        if (byAlias) return byAlias
+      }
+
       // Tier 1: OR query with comma-free variants (Supabase .or() breaks if value contains commas)
       const commaFreeVariants = uniqueNameVariants(rawName).filter(v => !v.includes(','))
       if (commaFreeVariants.length > 0) {

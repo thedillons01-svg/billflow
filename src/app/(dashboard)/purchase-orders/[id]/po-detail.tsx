@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition, useEffect } from 'react'
-import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem, applyJobToAllPOLines, recalculatePOLineTotals } from '../actions'
+import { useState, useTransition, useEffect, useRef } from 'react'
+import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem } from '../actions'
 import { reopenJob, createJob } from '../../jobs/actions'
+import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
 
 type Job = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null }
 type Vendor = { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null; qb_vendor_id: string | null }
@@ -110,11 +111,22 @@ export function PODetail({
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
+  const [form, setForm] = useState({ po_number: po.po_number ?? '', order_date: po.order_date ?? '' })
+  const [savedFeedback, setSavedFeedback] = useState(false)
 
-  useEffect(() => { setLineItems(initialLineItems) }, [initialLineItems])
+  const { setDirty, registerSaveFn } = useDirty()
+  const navigate = useGuardedNavigate()
+  const saveFnRef = useRef<() => Promise<void>>(async () => {})
+
+  // Do NOT sync lineItems from props — would overwrite unsaved edits on router.refresh()
   useEffect(() => { setLiveJobs(jobs) }, [jobs])
   useEffect(() => { setLiveClosedJobs(closedJobs) }, [closedJobs])
   useEffect(() => { setLiveCustomers(customers) }, [customers])
+
+  useEffect(() => {
+    registerSaveFn(() => saveFnRef.current())
+    return () => registerSaveFn(null)
+  }, [registerSaveFn])
 
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.open
   const canReceive = ['open', 'partially_received'].includes(localStatus)
@@ -166,15 +178,9 @@ export function PODetail({
     onSelect(jobId)
   }
 
-  const handleLineItemUpdate = async (lineId: string, fields: Partial<LineItem>) => {
+  const handleLineItemUpdate = (lineId: string, fields: Partial<LineItem>) => {
     setLineItems(prev => prev.map(li => li.line_id === lineId ? { ...li, ...fields } : li))
-    try {
-      await updatePOLineItem(lineId, po.po_id, fields)
-    } catch (err) {
-      setPushError(`Failed to save: ${err instanceof Error ? err.message : String(err)}`)
-      // Roll back optimistic update
-      setLineItems(prev => prev.map(li => li.line_id === lineId ? { ...li, ...Object.fromEntries(Object.keys(fields).map(k => [k, (li as Record<string, unknown>)[k]])) } : li))
-    }
+    setDirty(true)
   }
 
   const handleLineJobChange = async (lineId: string, jobId: string) => {
@@ -187,6 +193,29 @@ export function PODetail({
     }
   }
 
+  saveFnRef.current = async () => {
+    await updatePO(po.po_id, {
+      vendor_id: localVendorId || null,
+      po_number: form.po_number || null,
+      order_date: form.order_date || null,
+    })
+    await Promise.all(lineItems.map(li =>
+      updatePOLineItem(li.line_id, po.po_id, {
+        description: li.description,
+        quantity_ordered: li.quantity_ordered,
+        unit_cost: li.unit_cost,
+        extended_cost: li.extended_cost,
+        job_id: li.job_id,
+      })
+    ))
+    setDirty(false)
+    setSavedFeedback(true)
+    setTimeout(() => setSavedFeedback(false), 1500)
+    router.refresh()
+  }
+
+  const handleSave = () => startTransition(() => saveFnRef.current())
+
   const totalOrdered = lineItems.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
   const allAmountsMissing = lineItems.length > 0 && lineItems.every(l => !l.unit_cost && !l.extended_cost)
   const showJobColumn = jobCostingEnabled && (liveJobs.length > 0 || liveClosedJobs.length > 0)
@@ -198,22 +227,22 @@ export function PODetail({
     <>
       {/* Fixed header */}
       <div className="flex-none px-5 py-3" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
-        <Link
-          href="/purchase-orders"
+        <button
+          onClick={() => navigate('/purchase-orders')}
           className="flex items-center gap-1 mb-2"
-          style={{ fontSize: 12, color: 'var(--color-text-secondary)', textDecoration: 'none' }}
+          style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
           <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
           Back to Purchase Orders
-        </Link>
+        </button>
         <div className="flex items-start justify-between gap-3">
           <div>
             <h1 style={{ fontSize: 15, fontWeight: 500, color: 'var(--color-text-primary)' }}>
               {selectedVendor?.vendor_name_display ?? selectedVendor?.vendor_name_extracted ?? po.vendor_name}
             </h1>
-            {po.po_number && (
+            {form.po_number && (
               <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                PO #{po.po_number}
+                PO #{form.po_number}
               </p>
             )}
           </div>
@@ -302,10 +331,9 @@ export function PODetail({
                 <select
                   value={localVendorId}
                   onChange={e => {
-                    const vid = e.target.value
-                    setLocalVendorId(vid)
+                    setLocalVendorId(e.target.value)
                     setVendorActionError(null)
-                    startTransition(() => updatePO(po.po_id, { vendor_id: vid || null }))
+                    setDirty(true)
                   }}
                   style={selectStyle}
                 >
@@ -404,16 +432,16 @@ export function PODetail({
             <div className="grid gap-y-3" style={{ gridTemplateColumns: '140px 1fr' }}>
               <span style={labelStyle}>PO number</span>
               <InlineInput
-                initialValue={po.po_number ?? ''}
+                initialValue={form.po_number}
                 placeholder="—"
-                onSave={v => updatePO(po.po_id, { po_number: v || null })}
+                onSave={v => { setForm(f => ({ ...f, po_number: v })); setDirty(true) }}
               />
 
               <span style={labelStyle}>Order date</span>
               <InlineInput
-                initialValue={po.order_date ?? ''}
+                initialValue={form.order_date}
                 placeholder="—"
-                onSave={v => updatePO(po.po_id, { order_date: v || null })}
+                onSave={v => { setForm(f => ({ ...f, order_date: v })); setDirty(true) }}
               />
 
               <span style={labelStyle}>Expected delivery</span>
@@ -441,13 +469,11 @@ export function PODetail({
                       Apply <strong>{headerJobPending.label}</strong> to all {lineItems.length} lines?
                     </span>
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         const pending = headerJobPending
                         setHeaderJobPending(null)
-                        const newJobId = pending.jobId || null
-                        setLineItems(ls => ls.map(li => ({ ...li, job_id: newJobId })))
-                        await applyJobToAllPOLines(po.po_id, newJobId)
-                        router.refresh()
+                        setLineItems(ls => ls.map(li => ({ ...li, job_id: pending.jobId || null })))
+                        setDirty(true)
                       }}
                       style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#059669', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
                     >
@@ -864,6 +890,9 @@ export function PODetail({
 
           {/* Bottom action bar */}
           <div className="flex items-center gap-2 flex-wrap" style={{ paddingTop: 8, borderTop: '0.5px solid var(--color-border-tertiary)' }}>
+            <ActionButton onClick={handleSave} disabled={isPending} primary icon="ti-device-floppy">
+              {savedFeedback ? 'Saved!' : 'Save'}
+            </ActionButton>
             {pushPosToQb && !isQBPushed && !pushSuccess && vendorQbLinkedFromList && (
               <ActionButton onClick={handlePushToQB} disabled={isPending} primary icon="ti-upload">
                 Push to QuickBooks
@@ -900,16 +929,13 @@ export function PODetail({
             {lineItems.length > 0 && (
               <ActionButton
                 onClick={() => {
-                  startTransition(async () => {
-                    const recalculated = lineItems.map(li => ({
-                      ...li,
-                      extended_cost: li.quantity_ordered != null && li.unit_cost != null
-                        ? +((li.quantity_ordered * li.unit_cost).toFixed(2))
-                        : li.extended_cost,
-                    }))
-                    setLineItems(recalculated)
-                    await recalculatePOLineTotals(po.po_id)
-                  })
+                  setLineItems(lineItems.map(li => ({
+                    ...li,
+                    extended_cost: li.quantity_ordered != null && li.unit_cost != null
+                      ? +((li.quantity_ordered * li.unit_cost).toFixed(2))
+                      : li.extended_cost,
+                  })))
+                  setDirty(true)
                 }}
                 disabled={isPending}
                 icon="ti-refresh"

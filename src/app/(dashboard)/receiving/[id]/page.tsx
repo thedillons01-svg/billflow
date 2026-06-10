@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { notFound } from 'next/navigation'
-import Link from 'next/link'
 import { ReceivingForm } from './receiving-form'
+import { ReceivingBackButton } from './receiving-back-button'
 
 export default async function ReceivingDetailPage({
   params,
@@ -66,14 +66,7 @@ export default async function ReceivingDetailPage({
         className="flex-none px-5 py-[14px]"
         style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)' }}
       >
-        <Link
-          href="/receiving"
-          className="flex items-center gap-1 mb-2"
-          style={{ fontSize: 12, color: 'var(--color-text-secondary)', textDecoration: 'none' }}
-        >
-          <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
-          Back to Receiving
-        </Link>
+        <ReceivingBackButton />
         <div className="flex items-start justify-between">
           <div>
             <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>

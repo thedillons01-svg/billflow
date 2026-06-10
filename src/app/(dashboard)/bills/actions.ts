@@ -34,7 +34,24 @@ export async function updateBill(
   const supabase = await createClient()
   const { error } = await supabase.from('bills').update(updates).eq('bill_id', billId)
   if (error) throw new Error(error.message)
-  if ('vendor_id' in updates) await refreshBillStatus(billId)
+  if ('vendor_id' in updates) {
+    await refreshBillStatus(billId)
+    // Auto-save alias so future invoices with this extracted name auto-match to the same vendor
+    const newVendorId = updates.vendor_id as string | null
+    if (newVendorId) {
+      const { data: bill } = await supabase
+        .from('bills')
+        .select('vendor_name_raw, company_id')
+        .eq('bill_id', billId)
+        .single()
+      if (bill?.vendor_name_raw && bill.company_id) {
+        await supabase.from('vendor_name_aliases').upsert(
+          { company_id: bill.company_id, vendor_id: newVendorId, alias_name: bill.vendor_name_raw },
+          { onConflict: 'company_id,alias_name' }
+        )
+      }
+    }
+  }
 }
 
 export async function updateLineItem(

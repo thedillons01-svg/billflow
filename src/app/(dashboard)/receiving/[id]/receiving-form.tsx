@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { submitReceiving } from './actions'
+import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
 
 type Line = {
   line_id: string
@@ -44,6 +45,29 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
     }]))
   )
 
+  const { setDirty, registerSaveFn } = useDirty()
+  const navigate = useGuardedNavigate()
+  const saveFnRef = useRef<() => Promise<void>>(async () => {})
+
+  useEffect(() => {
+    registerSaveFn(() => saveFnRef.current())
+    return () => registerSaveFn(null)
+  }, [registerSaveFn])
+
+  saveFnRef.current = async () => {
+    const lineItems = lines.map(l => {
+      const qty = parseFloat(lineState[l.line_id]?.qty || '0') || 0
+      return {
+        line_id: l.line_id,
+        status: deriveStatus(lineState[l.line_id]?.qty ?? '0', l.quantity_ordered),
+        quantity_received: Math.max(0, Math.min(qty, l.quantity_ordered ?? qty)),
+        note: lineState[l.line_id]?.note ?? '',
+      }
+    })
+    await submitReceiving({ poId, lineItems, notes })
+    setDirty(false)
+  }
+
   const receiveAll = () => {
     setLineState(prev => {
       const next = { ...prev }
@@ -52,6 +76,7 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
       }
       return next
     })
+    setDirty(true)
   }
 
   const toggleLine = (id: string, ordered: number | null) => {
@@ -61,20 +86,12 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
       ...prev,
       [id]: { ...prev[id], qty: current > 0 ? '0' : String(o) },
     }))
+    setDirty(true)
   }
 
   const handleSubmit = () => {
     startTransition(async () => {
-      const lineItems = lines.map(l => {
-        const qty = parseFloat(lineState[l.line_id]?.qty || '0') || 0
-        return {
-          line_id: l.line_id,
-          status: deriveStatus(lineState[l.line_id]?.qty ?? '0', l.quantity_ordered),
-          quantity_received: Math.max(0, Math.min(qty, l.quantity_ordered ?? qty)),
-          note: lineState[l.line_id]?.note ?? '',
-        }
-      })
-      await submitReceiving({ poId, lineItems, notes })
+      await saveFnRef.current()
       router.push('/receiving')
     })
   }
@@ -114,17 +131,18 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
           >
             {isPending ? 'Saving…' : 'Save'}
           </button>
-          <a
-            href="/receiving"
+          <button
+            type="button"
+            onClick={() => navigate('/receiving')}
             style={{
               background: 'white', color: 'var(--color-text-secondary)',
               borderRadius: 6, padding: '6px 14px', fontSize: 13,
               border: '0.5px solid var(--color-border-secondary)',
-              textDecoration: 'none', display: 'inline-block',
+              cursor: 'pointer',
             }}
           >
             Cancel
-          </a>
+          </button>
         </div>
       </div>
 
@@ -206,10 +224,13 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
                   min={0}
                   max={ordered}
                   step="1"
-                  onChange={e => setLineState(prev => ({
-                    ...prev,
-                    [line.line_id]: { ...prev[line.line_id], qty: e.target.value },
-                  }))}
+                  onChange={e => {
+                    setLineState(prev => ({
+                      ...prev,
+                      [line.line_id]: { ...prev[line.line_id], qty: e.target.value },
+                    }))
+                    setDirty(true)
+                  }}
                   style={{
                     width: '100%', height: 32,
                     border: `0.5px solid ${status === 'partial' ? '#FCD34D' : status === 'received' ? '#6EE7B7' : 'var(--color-border-secondary)'}`,
@@ -246,10 +267,13 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
                     placeholder="Damage, substitution, discrepancy…"
                     value={state.note}
                     autoFocus
-                    onChange={e => setLineState(prev => ({
-                      ...prev,
-                      [line.line_id]: { ...prev[line.line_id], note: e.target.value },
-                    }))}
+                    onChange={e => {
+                      setLineState(prev => ({
+                        ...prev,
+                        [line.line_id]: { ...prev[line.line_id], note: e.target.value },
+                      }))
+                      setDirty(true)
+                    }}
                     style={{
                       width: '100%', height: 32,
                       border: '0.5px solid var(--color-border-secondary)',
@@ -268,7 +292,7 @@ export function ReceivingForm({ poId, lines }: { poId: string; lines: Line[] }) 
         <input
           type="text"
           value={notes}
-          onChange={e => setNotes(e.target.value)}
+          onChange={e => { setNotes(e.target.value); setDirty(true) }}
           placeholder="Overall delivery notes (optional)"
           style={{
             width: '100%', height: 36,

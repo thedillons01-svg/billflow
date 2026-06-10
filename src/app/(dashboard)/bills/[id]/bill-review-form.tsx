@@ -326,13 +326,6 @@ export function BillReviewForm({
     startTransition(() => saveFnRef.current())
   }
 
-  const handleMarkReady = () => {
-    startTransition(async () => {
-      await setBillStatus(bill.bill_id, 'ready')
-      router.push('/bills')
-    })
-  }
-
   const handleCancel = () => navigate('/bills')
 
   const handleDelete = () => {
@@ -388,9 +381,24 @@ export function BillReviewForm({
 
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.draft
   const canPublish = ['ready', 'sync_error'].includes(localStatus)
-  const canMarkReady = localStatus === 'draft'
   const isPublished = localStatus === 'published'
   const canReprocess = !isPublished
+
+  // Compute what's blocking ready status from local state
+  const missingGlCount = lineItems.filter(li => !li.gl_account_id).length
+  const localLineSum = lineItems.reduce((s, li) => s + (li.extended_cost ?? 0), 0)
+  const totalsMismatch = bill.total != null && lineItems.length > 0 && Math.abs(localLineSum - bill.total) > 0.01
+  const needsReviewItems: string[] = [
+    ...(!localVendorId ? ['Assign a vendor'] : []),
+    ...(missingGlCount > 0 ? [`Set GL account on ${missingGlCount} line item${missingGlCount === 1 ? '' : 's'}`] : []),
+    ...(totalsMismatch ? [`Line items total ($${localLineSum.toFixed(2)}) doesn't match invoice total ($${bill.total!.toFixed(2)})`] : []),
+  ]
+
+  // Auto-promote local status badge when all issues are resolved
+  useEffect(() => {
+    if (localStatus !== 'draft') return
+    if (needsReviewItems.length === 0) setLocalStatus('ready')
+  }, [needsReviewItems.length, localStatus])
 
   const formPanel = (
     <FieldTipsContext.Provider value={showFieldTips}>
@@ -585,6 +593,24 @@ export function BillReviewForm({
       {/* Scrollable form */}
       <div className="flex-1 overflow-auto">
         <div className="px-5 py-3 space-y-3">
+          {/* Needs Review — what's missing */}
+          {needsReviewItems.length > 0 && !isPublished && (
+            <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px' }}>
+              <div className="flex items-start gap-2">
+                <i className="ti ti-alert-triangle" style={{ fontSize: 14, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E', marginBottom: 4 }}>
+                    This bill can&apos;t be published yet:
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: 16 }}>
+                    {needsReviewItems.map((item, i) => (
+                      <li key={i} style={{ fontSize: 12, color: '#92400E', lineHeight: 1.7 }}>{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </div>
+          )}
           {/* Auto-publish promotion banner */}
           {vendorPromo && !promoDismissed && !promoEnabled && (
             <div
@@ -1615,21 +1641,6 @@ export function BillReviewForm({
               }}
             >
               {isPending ? 'Saving…' : 'Save'}
-            </button>
-          )}
-          {canMarkReady && (
-            <button
-              onClick={handleMarkReady}
-              disabled={isPending}
-              style={{
-                background: '#2DB87A', color: 'white',
-                border: 'none',
-                borderRadius: 6, padding: '7px 16px',
-                fontSize: 13, fontWeight: 500, cursor: 'pointer',
-                opacity: isPending ? 0.6 : 1,
-              }}
-            >
-              {isPending ? 'Saving…' : 'Mark as Ready'}
             </button>
           )}
           {canPublish && (
