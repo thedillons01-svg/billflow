@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback, createContext, useContext } from 'react'
-import { useConfirm } from '@/components/confirm-dialog'
+import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
 import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
 import { reopenJob, createJob } from '../../jobs/actions'
 
@@ -102,7 +102,8 @@ export function BillReviewForm({
   pdfSignedUrl?: string | null
 }) {
   const router = useRouter()
-  const confirm = useConfirm()
+  const navigate = useGuardedNavigate()
+  const { setDirty, registerSaveFn } = useDirty()
   const [stablePdfUrl] = useState(pdfSignedUrl)
   const [liveJobs, setLiveJobs] = useState<Job[]>(jobs)
   const [liveClosedJobs, setLiveClosedJobs] = useState<Job[]>(closedJobs)
@@ -142,14 +143,6 @@ export function BillReviewForm({
   const [publishError, setPublishError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState(initialLineItems)
   const [markAsPaid, setMarkAsPaid] = useState(bill.mark_as_paid ?? false)
-  const [isDirty, setIsDirty] = useState(false)
-
-  useEffect(() => {
-    if (!isDirty) return
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = '' }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [isDirty])
   // Remember prompt: tracks which line triggered it and the new GL account id
   const [promoDismissed, setPromoDismissed] = useState(false)
   const [promoEnabled, setPromoEnabled] = useState(false)
@@ -302,7 +295,7 @@ export function BillReviewForm({
         setPublishError(json.error ?? 'Publish failed')
       } else {
         setLocalStatus('published')
-        setIsDirty(false)
+        setDirty(false)
         router.refresh()
       }
     })
@@ -310,17 +303,27 @@ export function BillReviewForm({
 
   const [savedFeedback, setSavedFeedback] = useState(false)
 
-  const handleSave = () => {
-    startTransition(async () => {
-      // Explicitly flush all state-tracked fields; AutoSaveInput fields are already saved on blur
-      await updateBill(bill.bill_id, {
-        vendor_id: localVendorId || null,
-        bill_type: billType,
-        mark_as_paid: markAsPaid,
-      })
-      setSavedFeedback(true)
-      setTimeout(() => setSavedFeedback(false), 1500)
+  // saveFnRef always closes over latest local state — registered once so the
+  // unsaved-changes dialog can save without requiring the user to cancel first.
+  const saveFnRef = useRef<() => Promise<void>>(async () => {})
+  useEffect(() => {
+    registerSaveFn(() => saveFnRef.current())
+    return () => registerSaveFn(null)
+  }, [registerSaveFn])
+
+  saveFnRef.current = async () => {
+    await updateBill(bill.bill_id, {
+      vendor_id: localVendorId || null,
+      bill_type: billType,
+      mark_as_paid: markAsPaid,
     })
+    setDirty(false)
+    setSavedFeedback(true)
+    setTimeout(() => setSavedFeedback(false), 1500)
+  }
+
+  const handleSave = () => {
+    startTransition(() => saveFnRef.current())
   }
 
   const handleMarkReady = () => {
@@ -330,7 +333,7 @@ export function BillReviewForm({
     })
   }
 
-  const handleCancel = () => router.push('/bills')
+  const handleCancel = () => navigate('/bills')
 
   const handleDelete = () => {
     startTransition(async () => {
@@ -427,12 +430,7 @@ export function BillReviewForm({
         style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
       >
         <button
-          onClick={async () => {
-            if (!isDirty || await confirm('You have unsaved changes. If you leave now your changes will be lost.')) {
-              setIsDirty(false)
-              router.push('/bills')
-            }
-          }}
+          onClick={() => navigate('/bills')}
           className="flex items-center gap-1 mb-2"
           style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
         >
@@ -574,7 +572,7 @@ export function BillReviewForm({
                   value={opt.value}
                   checked={billType === opt.value}
                   disabled={isPublished}
-                  onChange={() => { if (!isPublished) { setBillType(opt.value); setIsDirty(true) } }}
+                  onChange={() => { if (!isPublished) { setBillType(opt.value); setDirty(true) } }}
                   style={{ accentColor: '#2DB87A', cursor: isPublished ? 'default' : 'pointer' }}
                 />
                 {opt.label}
@@ -745,7 +743,7 @@ export function BillReviewForm({
                     value={localVendorId}
                     onChange={e => {
                       setLocalVendorId(e.target.value)
-                      setIsDirty(true)
+                      setDirty(true)
                     }}
                     style={selectStyle}
                   >
