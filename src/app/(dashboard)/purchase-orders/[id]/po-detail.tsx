@@ -1057,8 +1057,8 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency }: {
       onMouseLeave={() => setHovered(false)}
       placeholder={placeholder}
       style={{
-        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
-        padding: '3px 4px', fontSize: 12,
+        width: '100%', height: 28, border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '0 6px', fontSize: 12,
         background: focused ? 'white' : 'transparent',
         color: 'var(--color-text-primary)', textAlign: align === 'right' ? 'right' : 'left',
         outline: 'none',
@@ -1096,7 +1096,7 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
     } catch { setValue(initialValue) }
   }
 
-  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'transparent'
+  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'var(--color-border-secondary)'
 
   return (
     <select
@@ -1107,9 +1107,9 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
-        padding: '3px 4px', fontSize: 12,
-        background: focused ? 'white' : 'transparent',
+        width: '100%', height: 28, border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        padding: '0 6px', fontSize: 12,
+        background: 'white',
         color: 'var(--color-text-primary)', outline: 'none',
       }}
     >
