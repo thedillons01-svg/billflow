@@ -116,6 +116,10 @@ function extractJobName(text: string): string | null {
     /\bwork\s+order\s*(?:name\s*)?[:–-]\s*(.+?)(?:\n|$)/i,
     /\bsite\s*[:–-]\s*(.+?)(?:\n|$)/i,
     /\blocation\s*[:–-]\s*(.+?)(?:\n|$)/i,
+    // Label-on-own-line format: vendor PDF renders label and value as separate text
+    // objects (e.g. PDFKit labelValue helper). "Job\n1052 — Riverside Apartments"
+    /\bjob\b[ \t]*\r?\n[ \t]*(.+?)(?:\r?\n|$)/i,
+    /\bproject\b[ \t]*\r?\n[ \t]*(.+?)(?:\r?\n|$)/i,
   ]
   const val = firstMatch(text, patterns)
   return val ? val.trim().slice(0, 100) : null
