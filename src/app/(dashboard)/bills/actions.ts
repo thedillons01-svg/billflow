@@ -6,18 +6,22 @@ import { getQBClient } from '@/lib/quickbooks/client'
 
 // Recomputes draft ↔ ready based on data completeness.
 // Only touches bills in those two states — never overwrites sync_error, published, etc.
+// Recomputes draft ↔ ready based on data completeness.
+// Only touches bills in those two states — never overwrites sync_error, published, etc.
 export async function refreshBillStatus(billId: string) {
   const supabase = await createClient()
   const { data: bill } = await supabase
     .from('bills')
-    .select('status, vendor_id, bill_line_items(gl_account_id)')
+    .select('status, vendor_id, total, bill_line_items(gl_account_id, extended_cost)')
     .eq('bill_id', billId)
     .single()
   if (!bill || !['draft', 'ready'].includes(bill.status)) return
-  const lines = (bill.bill_line_items ?? []) as { gl_account_id: string | null }[]
+  const lines = (bill.bill_line_items ?? []) as { gl_account_id: string | null; extended_cost: number | null }[]
   const hasVendor = bill.vendor_id != null
   const allLinesHaveGL = lines.length > 0 && lines.every(li => li.gl_account_id != null)
-  const newStatus = hasVendor && allLinesHaveGL ? 'ready' : 'draft'
+  const lineSum = lines.reduce((s, li) => s + (li.extended_cost ?? 0), 0)
+  const totalsMatch = bill.total == null || Math.abs(lineSum - (bill.total as number)) <= 0.01
+  const newStatus = hasVendor && allLinesHaveGL && totalsMatch ? 'ready' : 'draft'
   if (newStatus !== bill.status) {
     await supabase.from('bills').update({ status: newStatus }).eq('bill_id', billId)
   }

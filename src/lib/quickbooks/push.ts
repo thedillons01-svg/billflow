@@ -79,6 +79,17 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
 
     if (lineItems.length === 0) throw new Error('No line items with GL accounts to push.')
 
+    const b = bill as Record<string, unknown>
+    const invoiceTotal = b.total as number | null
+    if (invoiceTotal != null) {
+      const lineSum = lineItems.reduce((s, li) => s + li.extended_cost!, 0)
+      if (Math.abs(lineSum - invoiceTotal) > 0.01) {
+        throw new Error(
+          `Line item total ($${lineSum.toFixed(2)}) does not match invoice total ($${invoiceTotal.toFixed(2)}). Correct the line items before publishing.`
+        )
+      }
+    }
+
     const qboLines = lineItems.map(li => ({
       DetailType: 'AccountBasedExpenseLineDetail',
       Amount: li.extended_cost!,
@@ -90,8 +101,6 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
         ...(li.is_tax_line ? { TaxCodeRef: { value: 'TAX' } } : {}),
       },
     }))
-
-    const b = bill as Record<string, unknown>
 
     const payload: Record<string, unknown> = {
       Line: qboLines,
