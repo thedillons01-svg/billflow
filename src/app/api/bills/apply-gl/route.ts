@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { refreshBillStatus } from '@/app/(dashboard)/bills/actions'
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -15,6 +16,8 @@ export async function POST(request: NextRequest) {
     .eq('bill_id', billId)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await refreshBillStatus(billId)
 
   return NextResponse.json({ ok: true })
 }

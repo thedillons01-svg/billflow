@@ -7,7 +7,7 @@ import { pushBillToQBO } from '@/lib/quickbooks/push'
 type BulkPublishResult = {
   success: number
   failed: number
-  errors: { billId: string; invoiceNumber: string | null; reason: string; canMarkReady?: boolean }[]
+  errors: { billId: string; invoiceNumber: string | null; reason: string }[]
 }
 
 export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult> {
@@ -41,22 +41,13 @@ export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult>
         .eq('company_id', company.company_id)
         .single()
 
-      if (!bill || !['ready', 'sync_error'].includes(bill.status)) {
-        const statusReasons: Record<string, { reason: string; canMarkReady?: boolean }> = {
-          draft:             { reason: 'Status is Needs Review — mark it Ready first', canMarkReady: true },
-          published:         { reason: 'Already published to QuickBooks' },
-          pending_job_match: { reason: 'Status is Pending — waiting for a QuickBooks job match' },
-          publishing:        { reason: 'Currently being pushed to QuickBooks' },
-          ocr_error:         { reason: 'Status is OCR Error — reprocess it first' },
-          sync_error:        { reason: 'Status is Sync Error' },
-        }
-        const info = bill ? (statusReasons[bill.status] ?? { reason: 'Cannot be published in its current state' }) : { reason: 'Bill not found' }
-        errors.push({
-          billId,
-          invoiceNumber: bill?.invoice_number ?? null,
-          reason: info.reason,
-          canMarkReady: info.canMarkReady,
-        })
+      if (!bill || ['published', 'publishing'].includes(bill.status)) {
+        const reason = !bill
+          ? 'Bill not found'
+          : bill.status === 'published'
+            ? 'Already published to QuickBooks'
+            : 'Currently being pushed to QuickBooks — try again in a moment'
+        errors.push({ billId, invoiceNumber: bill?.invoice_number ?? null, reason })
         continue
       }
 
