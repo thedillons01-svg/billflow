@@ -2,11 +2,14 @@
 
 import { useActionState, useState } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { login, type AuthState } from '@/app/actions/auth'
 
 export default function LoginPage() {
   const [state, formAction, isPending] = useActionState<AuthState, FormData>(login, null)
   const [showPassword, setShowPassword] = useState(false)
+  const searchParams = useSearchParams()
+  const confirmError = searchParams.get('error') === 'confirmation_failed'
 
   return (
     <div style={{ width: '100%', maxWidth: 380 }}>
@@ -27,6 +30,14 @@ export default function LoginPage() {
         padding: 32,
       }}>
         <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {confirmError && (
+            <div style={{
+              fontSize: 13, color: '#92400E', background: '#FFFBEB',
+              border: '1px solid #FDE68A', borderRadius: 6, padding: '8px 12px',
+            }}>
+              Email confirmation failed or expired. Please try signing up again.
+            </div>
+          )}
           {state?.error && (
             <div style={{
               fontSize: 13, color: '#991B1B', background: '#FEF2F2',
