@@ -274,7 +274,7 @@ function EmptyState({ tab, search }: { tab: string; search: string }) {
           No bills pending job match
         </h2>
         <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 6 }}>
-          Bills waiting for a QuickBooks job to appear will show here.
+          Bills where a job reference was found on the invoice but no matching QuickBooks job could be found. The system retries automatically every 2 hours.
         </p>
       </div>
     )
