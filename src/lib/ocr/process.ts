@@ -330,10 +330,30 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   }
 
   // 5c. Insert line items with smart GL account assignment
-  if (result.line_items.length > 0) {
+  // Synthesize a tax line item from tax_amount if tax appears only in the subtotal
+  // section (captured as a scalar) rather than as a line item in the invoice body.
+  const sourceLines = [...result.line_items]
+  const isTaxDesc = (d: string | null) => {
+    const s = (d ?? '').toLowerCase()
+    return ['sales tax', 'tax', 'hst', 'gst', 'pst', 'qst', 'vat', 'excise tax'].some(
+      kw => s === kw || s.startsWith(kw + ' ') || s.endsWith(' ' + kw)
+    )
+  }
+  const hasTaxLine = sourceLines.some(li => isTaxDesc(li.description))
+  if (!hasTaxLine && result.tax_amount && result.tax_amount > 0) {
+    sourceLines.push({
+      description: 'Tax',
+      quantity:    null,
+      unit_price:  null,
+      total:       result.tax_amount,
+      sort_order:  sourceLines.length,
+    })
+  }
+
+  if (sourceLines.length > 0) {
     await supabase.from('bill_line_items').delete().eq('bill_id', billId)
 
-    const lineItemRows = result.line_items.map((li) => {
+    const lineItemRows = sourceLines.map((li) => {
       const desc = li.description ?? ''
       let glAccountId: string | null = null
       let glSource: 'stored_mapping' | 'rule' | 'qb_default' | 'not_set' = 'not_set'
@@ -360,11 +380,6 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         glSource = 'qb_default'
       }
 
-      const descLower = desc.toLowerCase()
-      const isTaxLine = ['sales tax', ' tax', 'hst', 'gst', 'pst', 'qst', 'vat', 'excise tax'].some(
-        kw => descLower === kw || descLower.startsWith(kw + ' ') || descLower.endsWith(' ' + kw)
-      )
-
       return {
         bill_id:           billId,
         company_id:        bill.company_id,
@@ -376,7 +391,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         gl_account_id:     glAccountId,
         gl_account_source: glSource,
         class_id:          vendorDefaultClassId,
-        is_tax_line:       isTaxLine,
+        is_tax_line:       isTaxDesc(li.description),
       }
     })
 
