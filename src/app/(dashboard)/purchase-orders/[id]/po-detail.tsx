@@ -114,7 +114,7 @@ export function PODetail({
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
-  const [form, setForm] = useState({ po_number: po.po_number ?? '', order_date: po.order_date ?? '', expected_delivery_date: po.expected_delivery_date ?? '' })
+  const [form, setForm] = useState<{ po_number: string; order_date: string | null; expected_delivery_date: string | null }>({ po_number: po.po_number ?? '', order_date: po.order_date ?? '', expected_delivery_date: po.expected_delivery_date ?? '' })
   const [savedFeedback, setSavedFeedback] = useState(false)
 
   const { setDirty, registerSaveFn } = useDirty()
@@ -478,9 +478,10 @@ export function PODetail({
               </span>
               <div>
                 <InlineInput
-                  initialValue={form.order_date}
+                  type="date"
+                  initialValue={form.order_date ?? ''}
                   placeholder="—"
-                  onSave={v => { setForm(f => ({ ...f, order_date: v })); setDirty(true) }}
+                  onSave={v => { setForm(f => ({ ...f, order_date: v || null })); setDirty(true) }}
                 />
                 {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>The date the purchase order was placed with the vendor.</p>}
               </div>
@@ -491,9 +492,10 @@ export function PODetail({
               </span>
               <div>
                 <InlineInput
-                  initialValue={form.expected_delivery_date}
+                  type="date"
+                  initialValue={form.expected_delivery_date ?? ''}
                   placeholder="—"
-                  onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v })); setDirty(true) }}
+                  onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v || null })); setDirty(true) }}
                 />
                 {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation.</p>}
               </div>
@@ -1107,13 +1109,14 @@ function ActionButton({ onClick, disabled, children, primary, danger, icon }: {
   )
 }
 
-function InlineInput({ initialValue, onSave, placeholder, align, currency, warn }: {
+function InlineInput({ initialValue, onSave, placeholder, align, currency, warn, type = 'text' }: {
   initialValue: string
   onSave: (v: string) => Promise<void> | void
   placeholder?: string
   align?: 'right'
   currency?: boolean
   warn?: boolean
+  type?: string
 }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
@@ -1132,6 +1135,7 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency, warn 
 
   return (
     <input
+      type={type}
       value={displayValue}
       onChange={e => {
         const raw = currency ? e.target.value.replace(/^\$/, '') : e.target.value
