@@ -223,7 +223,11 @@ export function PODetail({
   const totalOrdered = lineItems.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
   const allAmountsMissing = lineItems.length > 0 && lineItems.every(l => !l.unit_cost && !l.extended_cost)
   const showJobColumn = jobCostingEnabled && (liveJobs.length > 0 || liveClosedJobs.length > 0)
-  const [showTips, setShowTips] = useState(true)
+  const [showTips, setShowTips] = useState(() => {
+    if (typeof window === 'undefined') return true
+    const stored = localStorage.getItem('purchasomatic:showFieldTips')
+    return stored === null ? true : stored === 'true'
+  })
 
   // Grid template: Description | Ord qty | Rcvd | Unit | Total | [Job]
   const gridCols = showJobColumn ? '2fr 60px 60px 80px 80px 1.4fr' : '2fr 60px 60px 80px 80px'
@@ -256,7 +260,10 @@ export function PODetail({
               <input
                 type="checkbox"
                 checked={showTips}
-                onChange={e => setShowTips(e.target.checked)}
+                onChange={e => {
+                  setShowTips(e.target.checked)
+                  localStorage.setItem('purchasomatic:showFieldTips', String(e.target.checked))
+                }}
                 style={{ width: 12, height: 12, accentColor: '#2DB87A', cursor: 'pointer' }}
               />
               <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Tips</span>

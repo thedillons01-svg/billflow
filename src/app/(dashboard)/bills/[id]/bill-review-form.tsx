@@ -407,7 +407,11 @@ export function BillReviewForm({
     if (needsReviewItems.length === 0) setLocalStatus('ready')
   }, [needsReviewItems.length, localStatus])
 
-  const [localShowTips, setLocalShowTips] = useState(showFieldTips)
+  const [localShowTips, setLocalShowTips] = useState(() => {
+    if (typeof window === 'undefined') return showFieldTips
+    const stored = localStorage.getItem('purchasomatic:showFieldTips')
+    return stored === null ? showFieldTips : stored === 'true'
+  })
 
   const formPanel = (
     <FieldTipsContext.Provider value={localShowTips}>
@@ -476,7 +480,10 @@ export function BillReviewForm({
               <input
                 type="checkbox"
                 checked={localShowTips}
-                onChange={e => setLocalShowTips(e.target.checked)}
+                onChange={e => {
+                  setLocalShowTips(e.target.checked)
+                  localStorage.setItem('purchasomatic:showFieldTips', String(e.target.checked))
+                }}
                 style={{ width: 12, height: 12, accentColor: '#2DB87A', cursor: 'pointer' }}
               />
               <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Tips</span>
