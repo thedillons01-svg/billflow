@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import Link from 'next/link'
 import { signup, type AuthState } from '@/app/actions/auth'
 
 export default function SignupPage() {
   const [state, formAction, isPending] = useActionState<AuthState, FormData>(signup, null)
+  const [showPassword, setShowPassword] = useState(false)
 
   return (
     <div style={{ width: '100%', maxWidth: 380 }}>
@@ -68,16 +69,30 @@ export default function SignupPage() {
               <label htmlFor="password" style={{ display: 'block', fontSize: 13, fontWeight: 500, color: '#374151', marginBottom: 6 }}>
                 Password
               </label>
-              <input
-                id="password" name="password" type="password"
-                autoComplete="new-password" required
-                style={{
-                  width: '100%', height: 38, boxSizing: 'border-box',
-                  border: '1px solid #D1D5DB', borderRadius: 7,
-                  padding: '0 12px', fontSize: 14, color: '#111827',
-                  outline: 'none',
-                }}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="password" name="password" type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password" required
+                  style={{
+                    width: '100%', height: 38, boxSizing: 'border-box',
+                    border: '1px solid #D1D5DB', borderRadius: 7,
+                    padding: '0 36px 0 12px', fontSize: 14, color: '#111827',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  style={{
+                    position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+                    color: '#9CA3AF', lineHeight: 1,
+                  }}
+                  tabIndex={-1}
+                >
+                  <i className={`ti ${showPassword ? 'ti-eye-off' : 'ti-eye'}`} style={{ fontSize: 16 }} />
+                </button>
+              </div>
             </div>
 
             <button
