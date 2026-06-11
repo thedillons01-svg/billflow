@@ -8,7 +8,7 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
   const { data: po } = await supabase
     .from('purchase_orders')
     .select(`
-      po_id, po_number, order_date, expected_delivery_date, job_id,
+      po_id, po_number, order_date, expected_delivery_date, job_id, pdf_url,
       vendor_id,
       vendors!purchase_orders_vendor_id_fkey(qb_vendor_id, billflow_gl_account_id, qb_default_gl_account_id),
       po_line_items(line_id, description, quantity_ordered, unit_cost, extended_cost, sort_order)
@@ -18,6 +18,24 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
     .single()
 
   if (!po) throw new Error('PO not found')
+
+  const { data: companySettings } = await supabase
+    .from('companies')
+    .select('qb_type, push_pdf_to_qb')
+    .eq('company_id', companyId)
+    .single()
+
+  const qbType = companySettings?.qb_type ?? 'qbo'
+  const pushPdfToQb = companySettings?.push_pdf_to_qb ?? true
+
+  // QBD: queue for Web Connector pickup — don't call the QBO REST API
+  if (qbType === 'qbd') {
+    await supabase
+      .from('purchase_orders')
+      .update({ qbd_push_pending: true, qb_sync_error: null })
+      .eq('po_id', poId)
+    return
+  }
 
   const vendor = (po as Record<string, unknown>).vendors as {
     qb_vendor_id: string | null
@@ -48,7 +66,7 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
   }
 
   try {
-    const { qbPost } = await getQBClient(companyId)
+    const { qbPost, qbUpload } = await getQBClient(companyId)
 
     const qboLines = lines.map(l => {
       const amount = l.extended_cost != null
@@ -80,6 +98,20 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
       .from('purchase_orders')
       .update({ qb_po_id: qbPoId, qb_sync_error: null })
       .eq('po_id', poId)
+
+    // Attach PDF to the QBO PO record
+    if (pushPdfToQb && qbPoId && (po as Record<string, unknown>).pdf_url) {
+      try {
+        const pdfPath = (po as Record<string, unknown>).pdf_url as string
+        const { data: pdfBlob } = await supabase.storage.from('bill-pdfs').download(pdfPath)
+        if (pdfBlob) {
+          const arrayBuffer = await pdfBlob.arrayBuffer()
+          await qbUpload('PurchaseOrder', qbPoId, Buffer.from(arrayBuffer), `po-${po.po_number ?? poId}.pdf`)
+        }
+      } catch (attachErr) {
+        console.error(`[push-po] PDF attachment failed for ${poId}:`, attachErr)
+      }
+    }
 
     await supabase.from('processing_log').insert({
       document_id:   poId,

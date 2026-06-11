@@ -27,7 +27,7 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     .from('bills')
     .select(`
       bill_id, invoice_number, invoice_date, due_date, total, description,
-      vendor_po_reference, qb_reference_number, bill_type,
+      vendor_po_reference, qb_reference_number, bill_type, pdf_url,
       mark_as_paid, payment_account_id, payment_method, payment_date, payment_ref_number,
       vendor_id, matched_po_id,
       vendors!bills_vendor_id_fkey (

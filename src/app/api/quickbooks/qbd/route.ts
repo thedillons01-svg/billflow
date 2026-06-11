@@ -3,6 +3,7 @@ import { createServiceClient } from '@/lib/supabase/service'
 import {
   createSession, getSession, closeSession,
   buildBillAddXML, parseBillAddResponse,
+  buildPurchaseOrderAddXML, parsePurchaseOrderAddResponse,
   soapResponse, soapResponseMulti, extractSoapField,
 } from '@/lib/quickbooks/qbd'
 
@@ -74,14 +75,15 @@ async function handleAuthenticate(body: string, supabase: ReturnType<typeof crea
   const ticket = createSession(company.company_id)
   await updateHeartbeat(ticket, supabase, company.company_id)
 
-  // Check if there are bills queued for QBD push
-  const { count } = await supabase
-    .from('bills')
-    .select('bill_id', { count: 'exact', head: true })
-    .eq('company_id', company.company_id)
-    .eq('status', 'ready')
+  // Check if there are bills or POs queued for QBD push
+  const [{ count: billCount }, { count: poCount }] = await Promise.all([
+    supabase.from('bills').select('bill_id', { count: 'exact', head: true })
+      .eq('company_id', company.company_id).eq('status', 'ready'),
+    supabase.from('purchase_orders').select('po_id', { count: 'exact', head: true })
+      .eq('company_id', company.company_id).eq('qbd_push_pending', true).is('qb_po_id', null),
+  ])
 
-  if (!count || count === 0) {
+  if (!billCount && !poCount) {
     return xmlResponse(soapResponseMulti('authenticate', {
       string_0: ticket,
       string_1: 'none',  // no work to do
@@ -117,7 +119,62 @@ async function handleSendRequest(body: string, supabase: ReturnType<typeof creat
     .limit(1)
     .single()
 
-  if (!bill) return xmlResponse(soapResponse('sendRequestXML', ''))
+  if (!bill) {
+    // No ready bills — check for pending POs
+    const { data: po } = await supabase
+      .from('purchase_orders')
+      .select(`
+        po_id, po_number, order_date, expected_delivery_date, job_id,
+        vendors!purchase_orders_vendor_id_fkey(qb_vendor_id),
+        po_line_items(description, quantity_ordered, unit_cost, extended_cost, sort_order)
+      `)
+      .eq('company_id', session.companyId)
+      .eq('qbd_push_pending', true)
+      .is('qb_po_id', null)
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .single()
+
+    if (!po) return xmlResponse(soapResponse('sendRequestXML', ''))
+
+    const poData = po as Record<string, unknown>
+    const poVendor = poData.vendors as { qb_vendor_id: string | null } | null
+
+    if (!poVendor?.qb_vendor_id) {
+      await supabase.from('purchase_orders').update({
+        qbd_push_pending: false,
+        qb_sync_error: 'No QuickBooks Desktop vendor ID set on this vendor.',
+      }).eq('po_id', po.po_id)
+      return xmlResponse(soapResponse('sendRequestXML', ''))
+    }
+
+    // Track which PO is in-flight for this session
+    const session2 = getSession(ticket)!
+    session2.currentPoId = po.po_id
+
+    const poLines = ((poData.po_line_items as Array<{
+      description: string | null; quantity_ordered: number | null
+      unit_cost: number | null; extended_cost: number | null; sort_order: number
+    }>)).sort((a, b) => a.sort_order - b.sort_order)
+
+    const xml = buildPurchaseOrderAddXML({
+      requestId: `po-${po.po_id}`,
+      qbVendorListId: poVendor.qb_vendor_id,
+      orderDate: po.order_date,
+      poNumber: po.po_number,
+      expectedDeliveryDate: po.expected_delivery_date,
+      lineItems: poLines.map(l => ({
+        description:  l.description,
+        quantity:     l.quantity_ordered,
+        unitCost:     l.unit_cost,
+        amount:       l.extended_cost ?? (Number(l.quantity_ordered ?? 1) * Number(l.unit_cost ?? 0)),
+        qbJobListId:  (po as Record<string, unknown>).job_id as string | null,
+        qbClassListId: null,
+      })),
+    })
+
+    return xmlResponse(soapResponse('sendRequestXML', escapeForSoap(xml)))
+  }
 
   const b = bill as Record<string, unknown>
   const vendor = b.vendors as { qb_vendor_id: string | null; copy_po_to_qb_reference: boolean } | null
@@ -194,56 +251,100 @@ async function handleReceiveResponse(body: string, supabase: ReturnType<typeof c
 
   await updateHeartbeat(ticket, supabase, session.companyId)
 
-  if (hresult && hresult !== '0x00000000') {
-    // QB Desktop returned an error
-    await supabase.from('bills')
-      .update({ status: 'sync_error', qb_sync_error: message || `HRESULT: ${hresult}` })
-      .eq('company_id', session.companyId)
-      .eq('status', 'publishing')
-    return xmlResponse(soapResponse('receiveResponseXML', '100'))
-  }
+  const isPOResponse = response.includes('PurchaseOrderAddRs')
 
-  const parsed = parseBillAddResponse(response)
+  if (isPOResponse) {
+    // Determine which PO this response is for: parse requestID from XML or fall back to session
+    const requestIdMatch = response.match(/requestID="po-([^"]+)"/)
+    const poId = requestIdMatch?.[1] ?? session.currentPoId ?? null
+    session.currentPoId = undefined
 
-  if (parsed.success && parsed.qbBillTxnId) {
-    // Find the bill that was publishing
-    const { data: publishingBill } = await supabase
-      .from('bills')
-      .select('bill_id')
-      .eq('company_id', session.companyId)
-      .eq('status', 'publishing')
-      .single()
+    if (hresult && hresult !== '0x00000000') {
+      if (poId) {
+        await supabase.from('purchase_orders')
+          .update({ qbd_push_pending: false, qb_sync_error: message || `HRESULT: ${hresult}` })
+          .eq('po_id', poId)
+      }
+    } else {
+      const parsed = parsePurchaseOrderAddResponse(response)
+      if (poId) {
+        if (parsed.success && parsed.qbPoTxnId) {
+          await supabase.from('purchase_orders').update({
+            qbd_push_pending: false,
+            qb_po_id: parsed.qbPoTxnId,
+            qb_sync_error: null,
+          }).eq('po_id', poId)
 
-    if (publishingBill) {
-      await supabase.from('bills').update({
-        status: 'published',
-        qb_bill_id: parsed.qbBillTxnId,
-        publish_method: 'manual',
-        qb_sync_error: null,
-      }).eq('bill_id', publishingBill.bill_id)
-
-      await supabase.from('processing_log').insert({
-        bill_id: publishingBill.bill_id,
-        action: 'published_to_qbd',
-        actor: 'system',
-        after_state: { qb_bill_id: parsed.qbBillTxnId },
-      })
+          await supabase.from('processing_log').insert({
+            document_id:   poId,
+            document_type: 'po',
+            company_id:    session.companyId,
+            action:        'published_to_qbd',
+            actor:         'system',
+            credits_used:  0,
+            after_state:   { qb_po_id: parsed.qbPoTxnId },
+          })
+        } else if (!parsed.success) {
+          await supabase.from('purchase_orders').update({
+            qbd_push_pending: false,
+            qb_sync_error: parsed.errorMsg ?? 'Unknown QB error',
+          }).eq('po_id', poId)
+        }
+      }
     }
-  } else if (!parsed.success) {
-    await supabase.from('bills').update({
-      status: 'sync_error',
-      qb_sync_error: parsed.errorMsg ?? 'Unknown QB error',
-    }).eq('company_id', session.companyId).eq('status', 'publishing')
+  } else {
+    // Bill response
+    if (hresult && hresult !== '0x00000000') {
+      await supabase.from('bills')
+        .update({ status: 'sync_error', qb_sync_error: message || `HRESULT: ${hresult}` })
+        .eq('company_id', session.companyId)
+        .eq('status', 'publishing')
+      return xmlResponse(soapResponse('receiveResponseXML', '100'))
+    }
+
+    const parsed = parseBillAddResponse(response)
+
+    if (parsed.success && parsed.qbBillTxnId) {
+      const { data: publishingBill } = await supabase
+        .from('bills')
+        .select('bill_id')
+        .eq('company_id', session.companyId)
+        .eq('status', 'publishing')
+        .single()
+
+      if (publishingBill) {
+        await supabase.from('bills').update({
+          status: 'published',
+          qb_bill_id: parsed.qbBillTxnId,
+          publish_method: 'manual',
+          qb_sync_error: null,
+        }).eq('bill_id', publishingBill.bill_id)
+
+        await supabase.from('processing_log').insert({
+          bill_id: publishingBill.bill_id,
+          action: 'published_to_qbd',
+          actor: 'system',
+          after_state: { qb_bill_id: parsed.qbBillTxnId },
+        })
+      }
+    } else if (!parsed.success) {
+      await supabase.from('bills').update({
+        status: 'sync_error',
+        qb_sync_error: parsed.errorMsg ?? 'Unknown QB error',
+      }).eq('company_id', session.companyId).eq('status', 'publishing')
+    }
   }
 
-  // Check if more bills are queued
-  const { count } = await supabase
-    .from('bills')
-    .select('bill_id', { count: 'exact', head: true })
-    .eq('company_id', session.companyId)
-    .eq('status', 'ready')
+  // Check if more work is queued (bills or POs)
+  const [{ count: billCount }, { count: poCount }] = await Promise.all([
+    supabase.from('bills').select('bill_id', { count: 'exact', head: true })
+      .eq('company_id', session.companyId).eq('status', 'ready'),
+    supabase.from('purchase_orders').select('po_id', { count: 'exact', head: true })
+      .eq('company_id', session.companyId).eq('qbd_push_pending', true).is('qb_po_id', null),
+  ])
+  const hasMore = (billCount ?? 0) > 0 || (poCount ?? 0) > 0
 
-  return xmlResponse(soapResponse('receiveResponseXML', count && count > 0 ? '50' : '100'))
+  return xmlResponse(soapResponse('receiveResponseXML', hasMore ? '50' : '100'))
 }
 
 async function updateHeartbeat(

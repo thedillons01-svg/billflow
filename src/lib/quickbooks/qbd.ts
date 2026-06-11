@@ -3,6 +3,7 @@
 export type QBDSession = {
   companyId: string
   sessionTicket: string
+  currentPoId?: string  // PO in-flight during current Web Connector exchange
 }
 
 // In-memory session store (fine for single-server; for multi-server use Redis/DB)
@@ -83,6 +84,75 @@ export function parseBillAddResponse(xml: string): { success: boolean; qbBillTxn
   return {
     success: statusCode === 0,
     qbBillTxnId: txnId,
+    errorMsg: statusCode !== 0 ? (statusMsg ?? `QB error code ${statusCode}`) : null,
+  }
+}
+
+// Generate QBXML for a purchase order add request
+export function buildPurchaseOrderAddXML(po: {
+  requestId: string
+  qbVendorListId: string
+  orderDate: string | null
+  poNumber: string | null
+  expectedDeliveryDate: string | null
+  lineItems: Array<{
+    description: string | null
+    quantity: number | null
+    unitCost: number | null
+    amount: number
+    qbJobListId: string | null
+    qbClassListId: string | null
+  }>
+}): string {
+  const txnDate = po.orderDate ? `<TxnDate>${po.orderDate}</TxnDate>` : ''
+  const refNum = po.poNumber ? `<RefNumber>${escapeXml(po.poNumber)}</RefNumber>` : ''
+  const shipDate = po.expectedDeliveryDate ? `<ShipDate>${po.expectedDeliveryDate}</ShipDate>` : ''
+
+  const lines = po.lineItems
+    .filter(li => li.amount > 0)
+    .map(li => {
+      const desc = li.description ? `<Desc>${escapeXml(li.description)}</Desc>` : ''
+      const qty = li.quantity != null ? `<Quantity>${li.quantity}</Quantity>` : ''
+      const rate = li.unitCost != null ? `<Rate>${li.unitCost.toFixed(2)}</Rate>` : ''
+      const customer = li.qbJobListId ? `<CustomerRef><ListID>${escapeXml(li.qbJobListId)}</ListID></CustomerRef>` : ''
+      const cls = li.qbClassListId ? `<ClassRef><ListID>${escapeXml(li.qbClassListId)}</ListID></ClassRef>` : ''
+      return `
+      <POLineAdd>
+        ${desc}${qty}${rate}
+        <Amount>${li.amount.toFixed(2)}</Amount>
+        ${customer}${cls}
+      </POLineAdd>`
+    })
+    .join('')
+
+  return `<?xml version="1.0" encoding="utf-8"?>
+<?qbxml version="13.0"?>
+<QBXML>
+  <QBXMLMsgsRq onError="stopOnError">
+    <PurchaseOrderAddRq requestID="${escapeXml(po.requestId)}">
+      <PurchaseOrderAdd>
+        <VendorRef><ListID>${escapeXml(po.qbVendorListId)}</ListID></VendorRef>
+        ${txnDate}
+        ${refNum}
+        ${shipDate}
+        ${lines}
+      </PurchaseOrderAdd>
+    </PurchaseOrderAddRq>
+  </QBXMLMsgsRq>
+</QBXML>`
+}
+
+export function parsePurchaseOrderAddResponse(xml: string): { success: boolean; qbPoTxnId: string | null; errorMsg: string | null } {
+  const statusCodeMatch = xml.match(/<statusCode>(\d+)<\/statusCode>/)
+  const statusCode = statusCodeMatch ? parseInt(statusCodeMatch[1]) : -1
+  const statusMsgMatch = xml.match(/<statusMessage>(.*?)<\/statusMessage>/)
+  const statusMsg = statusMsgMatch ? statusMsgMatch[1] : null
+  const txnIdMatch = xml.match(/<TxnID[^>]*>(.*?)<\/TxnID>/)
+  const txnId = txnIdMatch ? txnIdMatch[1] : null
+
+  return {
+    success: statusCode === 0,
+    qbPoTxnId: txnId,
     errorMsg: statusCode !== 0 ? (statusMsg ?? `QB error code ${statusCode}`) : null,
   }
 }
