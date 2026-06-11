@@ -152,6 +152,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 </button>
                 {unsaved.hasSaveFn && (
                   <button
+                    autoFocus
                     onClick={() => handleUnsaved('save')}
                     style={{
                       padding: '7px 14px', fontSize: 13, fontWeight: 500,
