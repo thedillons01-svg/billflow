@@ -112,7 +112,7 @@ export function PODetail({
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
-  const [form, setForm] = useState({ po_number: po.po_number ?? '', order_date: po.order_date ?? '' })
+  const [form, setForm] = useState({ po_number: po.po_number ?? '', order_date: po.order_date ?? '', expected_delivery_date: po.expected_delivery_date ?? '' })
   const [savedFeedback, setSavedFeedback] = useState(false)
 
   const { setDirty, registerSaveFn } = useDirty()
@@ -199,6 +199,7 @@ export function PODetail({
       vendor_id: localVendorId || null,
       po_number: form.po_number || null,
       order_date: form.order_date || null,
+      expected_delivery_date: form.expected_delivery_date || null,
     })
     await Promise.all(lineItems.map(li =>
       updatePOLineItem(li.line_id, po.po_id, {
@@ -456,9 +457,11 @@ export function PODetail({
                 Expected delivery
                 <Tip text="Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation." />
               </span>
-              <span style={{ fontSize: 12, color: 'var(--color-text-primary)', padding: '3px 4px' }}>
-                {po.expected_delivery_date ? new Date(po.expected_delivery_date).toLocaleDateString() : '—'}
-              </span>
+              <InlineInput
+                initialValue={form.expected_delivery_date}
+                placeholder="—"
+                onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v })); setDirty(true) }}
+              />
 
               {po.notes && (
                 <>

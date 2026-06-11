@@ -11,6 +11,7 @@ export async function updatePO(
     vendor_id: string | null
     po_number: string | null
     order_date: string | null
+    expected_delivery_date: string | null
     notes: string | null
   }>
 ) {
