@@ -477,11 +477,9 @@ export function PODetail({
                 {!showTips && <Tip text="The date the purchase order was placed with the vendor." />}
               </span>
               <div>
-                <InlineInput
-                  type="date"
-                  initialValue={form.order_date ?? ''}
-                  placeholder="—"
-                  onSave={v => { setForm(f => ({ ...f, order_date: v || null })); setDirty(true) }}
+                <SmartDateInput
+                  initialValue={form.order_date}
+                  onSave={v => { setForm(f => ({ ...f, order_date: v })); setDirty(true) }}
                 />
                 {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>The date the purchase order was placed with the vendor.</p>}
               </div>
@@ -491,11 +489,9 @@ export function PODetail({
                 {!showTips && <Tip text="Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation." />}
               </span>
               <div>
-                <InlineInput
-                  type="date"
-                  initialValue={form.expected_delivery_date ?? ''}
-                  placeholder="—"
-                  onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v || null })); setDirty(true) }}
+                <SmartDateInput
+                  initialValue={form.expected_delivery_date}
+                  onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v })); setDirty(true) }}
                 />
                 {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation.</p>}
               </div>
@@ -1159,6 +1155,69 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency, warn,
         outline: 'none',
       }}
     />
+  )
+}
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
+
+function SmartDateInput({ initialValue, onSave }: {
+  initialValue: string | null
+  onSave: (v: string | null) => void
+}) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(initialValue ?? '')
+  const [hovered, setHovered] = useState(false)
+
+  useEffect(() => { if (!editing) setValue(initialValue ?? '') }, [initialValue, editing])
+
+  const isValid = !value || ISO_DATE.test(value)
+
+  if (editing) {
+    return (
+      <input
+        type="date"
+        autoFocus
+        value={isValid ? value : ''}
+        onChange={e => setValue(e.target.value)}
+        onBlur={() => {
+          setEditing(false)
+          onSave(value || null)
+        }}
+        style={{
+          width: '100%', height: 28,
+          border: '0.5px solid #2DB87A', borderRadius: 4,
+          padding: '0 6px', fontSize: 12,
+          background: 'white', color: 'var(--color-text-primary)',
+          outline: 'none',
+        }}
+      />
+    )
+  }
+
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 6,
+        height: 28, padding: '0 6px', borderRadius: 4,
+        border: `0.5px solid ${hovered ? '#C3DEC9' : 'transparent'}`,
+        cursor: 'text', fontSize: 12,
+        color: value ? 'var(--color-text-primary)' : 'var(--color-text-tertiary)',
+      }}
+    >
+      <span>{value || '—'}</span>
+      {value && !isValid && (
+        <span title="Not a valid date — click to fix before pushing to QuickBooks" style={{
+          fontSize: 10, fontWeight: 500, color: '#92400E',
+          background: '#FEF3C7', border: '0.5px solid #FDE68A',
+          borderRadius: 3, padding: '1px 5px', cursor: 'help',
+        }}>
+          Invalid date
+        </span>
+      )}
+    </div>
   )
 }
 

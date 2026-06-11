@@ -87,9 +87,12 @@ export async function pushPOToQBO(poId: string, companyId: string): Promise<void
       Line: qboLines,
       VendorRef: { value: String(vendor.qb_vendor_id) },
     }
+    const isoDate = (v: string | null | undefined) => v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null
     if (po.po_number) payload.DocNumber = po.po_number
-    if (po.order_date) payload.TxnDate = po.order_date
-    if (po.expected_delivery_date) payload.ShipDate = po.expected_delivery_date
+    const txnDate = isoDate(po.order_date)
+    const shipDate = isoDate(po.expected_delivery_date)
+    if (txnDate) payload.TxnDate = txnDate
+    if (shipDate) payload.ShipDate = shipDate
 
     const result = await qbPost('purchaseorder', payload)
     const qbPoId = result?.PurchaseOrder?.Id ?? null

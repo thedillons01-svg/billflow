@@ -104,9 +104,10 @@ export function buildPurchaseOrderAddXML(po: {
     qbClassListId: string | null
   }>
 }): string {
-  const txnDate = po.orderDate ? `<TxnDate>${po.orderDate}</TxnDate>` : ''
+  const isoDate = (v: string | null | undefined) => v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null
+  const txnDate = isoDate(po.orderDate) ? `<TxnDate>${isoDate(po.orderDate)}</TxnDate>` : ''
   const refNum = po.poNumber ? `<RefNumber>${escapeXml(po.poNumber)}</RefNumber>` : ''
-  const shipDate = po.expectedDeliveryDate ? `<ShipDate>${po.expectedDeliveryDate}</ShipDate>` : ''
+  const shipDate = isoDate(po.expectedDeliveryDate) ? `<ShipDate>${isoDate(po.expectedDeliveryDate)}</ShipDate>` : ''
 
   const lines = po.lineItems
     .filter(li => li.amount > 0)
