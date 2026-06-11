@@ -47,15 +47,16 @@ export default async function BillsPage({
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
     supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).eq('is_hidden', false).order('name'),
     supabase.from('qb_jobs_cache').select('qb_job_id, job_name, customer_name').eq('is_customer', false).order('customer_name'),
-    supabase.from('companies').select('credit_balance, subscription_status').single(),
+    supabase.from('companies').select('credit_balance, subscription_status, qb_connection_status').single(),
   ])
 
   const bills = billsResult.data ?? []
   const accounts = accountsResult.data ?? []
   const jobs = jobsResult.data ?? []
   const isInbox = activeTab !== 'archive'
-  const creditBalance      = companyResult.data?.credit_balance      ?? 0
-  const subscriptionStatus = companyResult.data?.subscription_status ?? 'trial'
+  const creditBalance      = companyResult.data?.credit_balance        ?? 0
+  const subscriptionStatus = companyResult.data?.subscription_status  ?? 'trial'
+  const qbConnected        = companyResult.data?.qb_connection_status === 'connected'
 
   const tabs = [
     { id: 'all',     label: 'All Inbox',          count: allInboxCountResult.count ?? 0 },
@@ -145,6 +146,9 @@ export default async function BillsPage({
         )}
       </div>
 
+      {/* QuickBooks connect prompt (dismissed once connected) */}
+      {!qbConnected && <QBConnectBanner />}
+
       {/* Credit warning banner */}
       <CreditBanner creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
 
@@ -156,6 +160,36 @@ export default async function BillsPage({
           <BillsList bills={bills as unknown as Parameters<typeof BillsList>[0]['bills']} accounts={accounts} jobs={jobs} isInbox={isInbox} />
         )}
       </div>
+    </div>
+  )
+}
+
+function QBConnectBanner() {
+  return (
+    <div
+      className="flex-none flex items-center justify-between px-5 py-3 gap-4"
+      style={{ background: '#EBF5EF', borderBottom: '0.5px solid #C3DEC9' }}
+    >
+      <div className="flex items-center gap-2">
+        <i className="ti ti-plug" style={{ fontSize: 15, color: '#1A3D2B', flexShrink: 0 }} />
+        <p style={{ fontSize: 13, color: '#1A3D2B' }}>
+          <span style={{ fontWeight: 500 }}>QuickBooks not connected.</span>
+          {' '}Upload or forward invoices to see OCR in action — connect QuickBooks when you&apos;re ready to push bills.
+        </p>
+      </div>
+      <Link
+        href="/settings"
+        style={{
+          flexShrink: 0,
+          background: '#1A3D2B', color: 'white',
+          fontSize: 12, fontWeight: 600,
+          padding: '6px 14px', borderRadius: 6,
+          textDecoration: 'none',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        Connect QuickBooks
+      </Link>
     </div>
   )
 }

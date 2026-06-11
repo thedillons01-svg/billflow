@@ -30,7 +30,7 @@ export function OnboardingForm({
   defaultFsm: string
   defaultJobCosting: boolean
 }) {
-  const [step, setStep] = useState(defaultName ? 2 : 1)
+  const [step, setStep] = useState(defaultName ? 2 : 1)  // 1 = company setup, 2 = email forwarding
   const [name, setName] = useState(defaultName)
   const [qbType, setQbType] = useState<'qbo' | 'qbd'>(defaultQbType)
   const [fsm, setFsm] = useState(defaultFsm)
@@ -47,7 +47,6 @@ export function OnboardingForm({
       return
     }
     setNameError('')
-    // Save company (no redirect) so it exists before QB connect on step 2
     startTransition(async () => {
       const fd = new FormData()
       fd.set('name', name.trim())
@@ -66,7 +65,7 @@ export function OnboardingForm({
         className="flex items-center justify-center gap-2 px-6 py-4"
         style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
       >
-        {[1, 2, 3].map(n => (
+        {[1, 2].map(n => (
           <div key={n} className="flex items-center gap-2">
             <div
               style={{
@@ -79,7 +78,7 @@ export function OnboardingForm({
             >
               {n < step ? <i className="ti ti-check" style={{ fontSize: 11 }} /> : n}
             </div>
-            {n < 3 && (
+            {n < 2 && (
               <div style={{ width: 32, height: 1, background: n < step ? '#2DB87A' : 'var(--color-border-secondary)' }} />
             )}
           </div>
@@ -181,106 +180,8 @@ export function OnboardingForm({
           </div>
         )}
 
-        {/* Step 2: Connect QuickBooks — company now exists so OAuth can proceed */}
+        {/* Step 2: Email forwarding */}
         {step === 2 && (
-          <div className="space-y-4">
-            <div>
-              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>Connect QuickBooks</p>
-              <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                {qbType === 'qbo'
-                  ? 'Connect your QuickBooks Online company to sync vendors, jobs, and push bills.'
-                  : 'Set up the QuickBooks Web Connector to sync with QuickBooks Desktop.'}
-              </p>
-            </div>
-
-            {qbType === 'qbo' ? (
-              <div className="space-y-3">
-                <div
-                  style={{
-                    background: 'var(--color-background-secondary)',
-                    border: '0.5px solid var(--color-border-tertiary)',
-                    borderRadius: 8, padding: '12px 16px',
-                  }}
-                >
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>QuickBooks Online</p>
-                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>
-                    You&apos;ll be redirected to Intuit to authorize Purchasomatic. This takes about 30 seconds.
-                  </p>
-                </div>
-                <a
-                  href="/api/quickbooks/connect"
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    width: '100%', background: '#2DB87A', color: 'white',
-                    borderRadius: 8, padding: '10px', fontSize: 14, fontWeight: 600,
-                    textDecoration: 'none',
-                  }}
-                >
-                  <i className="ti ti-plug" style={{ fontSize: 16 }} />
-                  Connect QuickBooks Online
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, color: 'var(--color-text-tertiary)', padding: '6px' }}
-                >
-                  Skip for now
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div
-                  style={{
-                    background: 'var(--color-background-secondary)',
-                    border: '0.5px solid var(--color-border-tertiary)',
-                    borderRadius: 8, padding: '12px 16px',
-                  }}
-                >
-                  <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 8 }}>
-                    Setup Instructions
-                  </p>
-                  {[
-                    'Download and install the QuickBooks Web Connector on your QB Desktop computer',
-                    'Download your Purchasomatic .QWC config file (button below)',
-                    'In QuickBooks Desktop, go to File → App Center → Update Web Services',
-                    'Add the .QWC file and enter your Purchasomatic password',
-                  ].map((s, i) => (
-                    <p key={i} style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 6 }}>
-                      {i + 1}. {s}
-                    </p>
-                  ))}
-                </div>
-                <a
-                  href="/api/quickbooks/qbd-config"
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                    width: '100%', background: 'white', color: 'var(--color-text-primary)',
-                    border: '0.5px solid var(--color-border-secondary)',
-                    borderRadius: 8, padding: '10px', fontSize: 13, fontWeight: 500,
-                    textDecoration: 'none',
-                  }}
-                >
-                  <i className="ti ti-download" style={{ fontSize: 14 }} />
-                  Download .QWC Config File
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setStep(3)}
-                  style={{
-                    width: '100%', background: '#2DB87A', color: 'white',
-                    borderRadius: 8, padding: '10px', fontSize: 14, fontWeight: 600,
-                    border: 'none', cursor: 'pointer',
-                  }}
-                >
-                  Continue
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 3: Email forwarding */}
-        {step === 3 && (
           <div className="space-y-4">
             <div>
               <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>Email Forwarding</p>
@@ -324,6 +225,10 @@ export function OnboardingForm({
                 </p>
               ))}
             </div>
+
+            <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'center' }}>
+              You can also upload PDFs directly. Connect QuickBooks later from Settings when you&apos;re ready to push bills.
+            </p>
 
             <a
               href="/bills"
