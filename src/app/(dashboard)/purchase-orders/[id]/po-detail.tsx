@@ -986,23 +986,25 @@ const selectStyle: React.CSSProperties = {
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function Tip({ text }: { text: string }) {
-  const [show, setShow] = useState(false)
+  const [rect, setRect] = useState<DOMRect | null>(null)
   return (
-    <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center', marginLeft: 4, verticalAlign: 'middle' }}>
+    <span style={{ display: 'inline-flex', alignItems: 'center', marginLeft: 4, verticalAlign: 'middle' }}>
       <i
         className="ti ti-info-circle"
         style={{ fontSize: 11, color: 'var(--color-text-tertiary)', cursor: 'help' }}
-        onMouseEnter={() => setShow(true)}
-        onMouseLeave={() => setShow(false)}
+        onMouseEnter={e => setRect((e.currentTarget as HTMLElement).getBoundingClientRect())}
+        onMouseLeave={() => setRect(null)}
       />
-      {show && (
+      {rect && (
         <span style={{
-          position: 'absolute', left: '50%', bottom: 'calc(100% + 6px)',
-          transform: 'translateX(-50%)',
+          position: 'fixed',
+          left: rect.left + rect.width / 2,
+          top: rect.top - 6,
+          transform: 'translateX(-50%) translateY(-100%)',
           background: '#1F2937', color: 'white', fontSize: 11,
           padding: '6px 9px', borderRadius: 5,
           width: 200, textAlign: 'left', whiteSpace: 'normal', lineHeight: 1.45,
-          zIndex: 100, pointerEvents: 'none',
+          zIndex: 9999, pointerEvents: 'none',
           boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
         }}>
           {text}
