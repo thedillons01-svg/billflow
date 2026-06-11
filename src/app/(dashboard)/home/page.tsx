@@ -6,6 +6,7 @@ export default async function DashboardPage() {
 
   const [
     { count: needsReviewCount },
+    { count: readyCount },
     { count: pendingJobCount },
     { count: openPOCount },
     { count: partialPOCount },
@@ -15,7 +16,12 @@ export default async function DashboardPage() {
     supabase
       .from('bills')
       .select('*', { count: 'exact', head: true })
-      .in('status', ['draft', 'ready'])
+      .in('status', ['draft', 'ocr_error', 'fingerprint_duplicate'])
+      .is('deleted_at', null),
+    supabase
+      .from('bills')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ready')
       .is('deleted_at', null),
     supabase
       .from('bills')
@@ -186,11 +192,17 @@ export default async function DashboardPage() {
                   <i className="ti ti-arrow-right" style={{ fontSize: 14, color: 'var(--color-text-tertiary)' }} />
                 </div>
 
-                <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                <div className="grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
                   <StatCell
                     value={needsReviewCount ?? 0}
                     label="Needs Review"
                     highlight={!!needsReviewCount && needsReviewCount > 0}
+                  />
+                  <StatCell
+                    value={readyCount ?? 0}
+                    label="Ready"
+                    divider
+                    ready={!!readyCount && readyCount > 0}
                   />
                   <StatCell
                     value={pendingJobCount ?? 0}
@@ -442,12 +454,13 @@ export default async function DashboardPage() {
 }
 
 function StatCell({
-  value, label, divider, highlight, error,
+  value, label, divider, highlight, ready, error,
 }: {
   value: number
   label: string
   divider?: boolean
   highlight?: boolean
+  ready?: boolean
   error?: boolean
 }) {
   return (
@@ -460,7 +473,7 @@ function StatCell({
       <p
         style={{
           fontSize: 22, fontWeight: 600, lineHeight: 1,
-          color: error ? '#DC2626' : highlight ? '#1A3D2B' : 'var(--color-text-primary)',
+          color: error ? '#DC2626' : highlight ? '#1A3D2B' : ready ? '#2DB87A' : 'var(--color-text-primary)',
         }}
       >
         {value}
