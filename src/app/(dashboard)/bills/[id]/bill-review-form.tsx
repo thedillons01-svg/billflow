@@ -407,8 +407,10 @@ export function BillReviewForm({
     if (needsReviewItems.length === 0) setLocalStatus('ready')
   }, [needsReviewItems.length, localStatus])
 
+  const [localShowTips, setLocalShowTips] = useState(showFieldTips)
+
   const formPanel = (
-    <FieldTipsContext.Provider value={showFieldTips}>
+    <FieldTipsContext.Provider value={localShowTips}>
       <div
         ref={formRef}
       style={{
@@ -470,6 +472,15 @@ export function BillReviewForm({
             )}
           </div>
           <div className="flex items-center gap-2" style={{ flexShrink: 0 }}>
+            <label className="flex items-center gap-1.5" style={{ cursor: 'pointer', flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={localShowTips}
+                onChange={e => setLocalShowTips(e.target.checked)}
+                style={{ width: 12, height: 12, accentColor: '#2DB87A', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Tips</span>
+            </label>
 
             {bill.vendor_id && (
               <div style={{ position: 'relative' }} ref={historyRef}>

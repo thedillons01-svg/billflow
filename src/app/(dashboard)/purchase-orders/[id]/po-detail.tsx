@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useState, useTransition, useEffect, useRef } from 'react'
+import { useState, useTransition, useEffect, useRef, createContext, useContext } from 'react'
 import { closePO, deletePO, createVendorFromPO, addVendorToQBFromPO, updatePO, updatePOLineItem } from '../actions'
 import { reopenJob, createJob } from '../../jobs/actions'
 import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
@@ -63,6 +63,8 @@ const BILL_STATUS_BADGE: Record<string, { bg: string; color: string; label: stri
   published: { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
   sync_error:{ bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
 }
+
+const FieldTipsContext = createContext(true)
 
 function jobLabel(j: Job): string {
   const numInName = !!(j.job_number && j.job_name && new RegExp(`^${j.job_number}\\b`).test(j.job_name))
@@ -221,12 +223,13 @@ export function PODetail({
   const totalOrdered = lineItems.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
   const allAmountsMissing = lineItems.length > 0 && lineItems.every(l => !l.unit_cost && !l.extended_cost)
   const showJobColumn = jobCostingEnabled && (liveJobs.length > 0 || liveClosedJobs.length > 0)
+  const [showTips, setShowTips] = useState(true)
 
   // Grid template: Description | Ord qty | Rcvd | Unit | Total | [Job]
   const gridCols = showJobColumn ? '2fr 60px 60px 80px 80px 1.4fr' : '2fr 60px 60px 80px 80px'
 
   return (
-    <>
+    <FieldTipsContext.Provider value={showTips}>
       {/* Fixed header */}
       <div className="flex-none px-5 py-3" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
         <button
@@ -248,13 +251,24 @@ export function PODetail({
               </p>
             )}
           </div>
-          <span style={{
-            display: 'inline-block', flexShrink: 0,
-            background: badge.bg, color: badge.color,
-            borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 500,
-          }}>
-            {badge.label}
-          </span>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5" style={{ cursor: 'pointer', flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={showTips}
+                onChange={e => setShowTips(e.target.checked)}
+                style={{ width: 12, height: 12, accentColor: '#2DB87A', cursor: 'pointer' }}
+              />
+              <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>Tips</span>
+            </label>
+            <span style={{
+              display: 'inline-block', flexShrink: 0,
+              background: badge.bg, color: badge.color,
+              borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 500,
+            }}>
+              {badge.label}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -329,7 +343,7 @@ export function PODetail({
               <div>
                 <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                   Vendor record
-                  <Tip text="The Purchasomatic vendor record that links this PO to a QuickBooks vendor. Required to push the PO to QuickBooks." />
+                  {!showTips && <Tip text="The Purchasomatic vendor record that links this PO to a QuickBooks vendor. Required to push the PO to QuickBooks." />}
                 </label>
                 <select
                   value={localVendorId}
@@ -349,6 +363,11 @@ export function PODetail({
                     </option>
                   ))}
                 </select>
+                {showTips && (
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>
+                    The Purchasomatic vendor record that links this PO to a QuickBooks vendor. Required to push the PO to QuickBooks.
+                  </p>
+                )}
                 {localVendorId === '' && (
                   <p style={{ marginTop: 4, fontSize: 11, color: '#92400E' }}>
                     No vendor record linked — required to push to QuickBooks.
@@ -435,33 +454,42 @@ export function PODetail({
             <div className="grid gap-y-3" style={{ gridTemplateColumns: '140px 1fr' }}>
               <span style={labelStyle}>
                 PO number
-                <Tip text="The vendor's PO confirmation number. Used to automatically match incoming invoices to this PO." />
+                {!showTips && <Tip text="The vendor's PO confirmation number. Used to automatically match incoming invoices to this PO." />}
               </span>
-              <InlineInput
-                initialValue={form.po_number}
-                placeholder="—"
-                onSave={v => { setForm(f => ({ ...f, po_number: v })); setDirty(true) }}
-              />
+              <div>
+                <InlineInput
+                  initialValue={form.po_number}
+                  placeholder="—"
+                  onSave={v => { setForm(f => ({ ...f, po_number: v })); setDirty(true) }}
+                />
+                {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>The vendor&apos;s PO confirmation number. Used to automatically match incoming invoices to this PO.</p>}
+              </div>
 
               <span style={labelStyle}>
                 Order date
-                <Tip text="The date the purchase order was placed with the vendor." />
+                {!showTips && <Tip text="The date the purchase order was placed with the vendor." />}
               </span>
-              <InlineInput
-                initialValue={form.order_date}
-                placeholder="—"
-                onSave={v => { setForm(f => ({ ...f, order_date: v })); setDirty(true) }}
-              />
+              <div>
+                <InlineInput
+                  initialValue={form.order_date}
+                  placeholder="—"
+                  onSave={v => { setForm(f => ({ ...f, order_date: v })); setDirty(true) }}
+                />
+                {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>The date the purchase order was placed with the vendor.</p>}
+              </div>
 
               <span style={labelStyle}>
                 Expected delivery
-                <Tip text="Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation." />
+                {!showTips && <Tip text="Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation." />}
               </span>
-              <InlineInput
-                initialValue={form.expected_delivery_date}
-                placeholder="—"
-                onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v })); setDirty(true) }}
-              />
+              <div>
+                <InlineInput
+                  initialValue={form.expected_delivery_date}
+                  placeholder="—"
+                  onSave={v => { setForm(f => ({ ...f, expected_delivery_date: v })); setDirty(true) }}
+                />
+                {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation.</p>}
+              </div>
 
               {po.notes && (
                 <>
@@ -531,8 +559,9 @@ export function PODetail({
                 })()}
                 <label style={{ fontSize: 11, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
                   Apply job to all line items at once. Individual lines can still be changed below.
-                  <Tip text="Job costing links this purchase to a QuickBooks job so material costs roll up to job profitability reports." />
+                  {!showTips && <Tip text="Job costing links this purchase to a QuickBooks job so material costs roll up to job profitability reports." />}
                 </label>
+                {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginBottom: 6, lineHeight: 1.5 }}>Job costing links this purchase to a QuickBooks job so material costs roll up to job profitability reports.</p>}
                 <InlineSelect
                   initialValue={
                     lineItems.length > 0 && lineItems.every(li => li.job_id === lineItems[0].job_id)
@@ -743,7 +772,7 @@ export function PODetail({
                       display: 'inline-flex', alignItems: 'center', justifyContent: h.align === 'right' ? 'flex-end' : 'flex-start',
                     }}>
                       {h.label}
-                      {h.tip && <Tip text={h.tip} />}
+                      {h.tip && !showTips && <Tip text={h.tip} />}
                     </span>
                   ))}
                 </div>
@@ -971,7 +1000,7 @@ export function PODetail({
 
         </div>
       </div>
-    </>
+    </FieldTipsContext.Provider>
   )
 }
 
