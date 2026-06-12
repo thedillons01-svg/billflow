@@ -1,8 +1,7 @@
-﻿'use server'
-import { createClient } from '@/lib/supabase/server'
+﻿import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BillsList } from './bills-list'
-import { InboxPoller } from './inbox-poller'
+import { BillsRealtime } from './bills-realtime'
 import { UploadButton } from './upload-button'
 
 // Needs Review: bills with actual problems requiring user action
@@ -49,13 +48,14 @@ export default async function BillsPage({
     supabase.from('bills').select('*', { count: 'exact', head: true }).in('status', PENDING_STATUSES).is('deleted_at', null),
     supabase.from('qb_accounts_cache').select('qb_account_id, name').in('account_type', ['Expense', 'Cost of Goods Sold']).eq('is_hidden', false).order('name'),
     supabase.from('qb_jobs_cache').select('qb_job_id, job_name, customer_name').eq('is_customer', false).order('customer_name'),
-    supabase.from('companies').select('credit_balance, subscription_status, qb_connection_status').single(),
+    supabase.from('companies').select('company_id, credit_balance, subscription_status, qb_connection_status').single(),
   ])
 
   const bills = billsResult.data ?? []
   const accounts = accountsResult.data ?? []
   const jobs = jobsResult.data ?? []
   const isInbox = activeTab !== 'archive'
+  const companyId          = companyResult.data?.company_id            ?? ''
   const creditBalance      = companyResult.data?.credit_balance        ?? 0
   const subscriptionStatus = companyResult.data?.subscription_status  ?? 'trial'
   const qbConnected        = companyResult.data?.qb_connection_status === 'connected'
@@ -154,13 +154,13 @@ export default async function BillsPage({
       {/* Credit warning banner */}
       <CreditBanner creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
 
+      {/* Realtime subscription — notifies UI the moment a bill is inserted or updated */}
+      {isInbox && companyId && <BillsRealtime companyId={companyId} />}
+
       {/* Bill list */}
       <div className="flex-1 overflow-auto" style={{ background: 'white' }}>
         {bills.length === 0 ? (
-          <>
-            {isInbox && <InboxPoller />}
-            <EmptyState tab={activeTab} search={search} />
-          </>
+          <EmptyState tab={activeTab} search={search} />
         ) : (
           <BillsList bills={bills as unknown as Parameters<typeof BillsList>[0]['bills']} accounts={accounts} jobs={jobs} isInbox={isInbox} />
         )}

@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useTransition, useEffect } from 'react'
+import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { softDeleteBill, setBillStatus, updateBill } from './actions'
@@ -70,14 +70,6 @@ export function BillsList({
   const processingBills = bills.filter(b => b.status === 'draft' && b.vendor_name_raw === null)
   const processingCount = processingBills.length
 
-  // Inbox always polls: fast (3s) while bills are extracting, slow (8s) otherwise
-  // so email-ingested bills appear without the user having to manually refresh.
-  useEffect(() => {
-    if (!isInbox) return
-    const interval = processingCount > 0 ? 3000 : 8000
-    const id = setInterval(() => router.refresh(), interval)
-    return () => clearInterval(id)
-  }, [processingCount, isInbox, router])
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
