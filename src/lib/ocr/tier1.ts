@@ -28,6 +28,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
   const due_date           = extractDueDate(text)
   const vendor_po_reference     = extractPONumber(text)
   const job_name_extracted      = extractJobName(text)
+  const customer_name_extracted = extractCustomerName(text)
   const total              = extractTotal(text)
   const subtotal           = extractSubtotal(text)
   const tax_amount         = extractTax(text)
@@ -45,7 +46,7 @@ export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { ra
     due_date,
     vendor_po_reference,
     job_name_extracted,
-    customer_name_extracted: null,  // Tier 1 can't distinguish contractor from end customer — handled by Tier 2/3 with company context
+    customer_name_extracted,
     total,
     subtotal,
     tax_amount,
@@ -129,16 +130,19 @@ function extractJobName(text: string): string | null {
 }
 
 function extractCustomerName(text: string): string | null {
+  // Only match fields explicitly labeled "Customer" or "Customer Name".
+  // "Sold To" / "Bill To" / "Ship To" are intentionally excluded — those fields
+  // contain the contractor's own address, not the end customer.
   const patterns = [
-    /(?:bill(?:ing)?\s+to|sold\s+to)\s*[:–-]?\s*\n?\s*(.+?)(?:\n|$)/i,
-    /\bcustomer\s*(?:name)?\s*[:–-]\s*(.+?)(?:\n|$)/i,
-    /(?:ship(?:ping)?\s+to|deliver(?:y)?\s+to)\s*[:–-]?\s*\n?\s*(.+?)(?:\n|$)/i,
+    /\bcustomer\s+name\s*[:–]\s*(.+?)(?:\n|$)/i,            // Customer Name: Smith
+    /\bcustomer\s*[:–]\s*(.+?)(?:\n|$)/i,                    // Customer: Smith
+    /\bcustomer\s+name\b[ \t]*\r?\n[ \t]*(.+?)(?:\r?\n|$)/i, // Customer Name\nSmith (label on own line)
+    /\bcustomer\b[ \t]*\r?\n[ \t]*(.+?)(?:\r?\n|$)/i,        // Customer\nSmith (label on own line)
   ]
   const val = firstMatch(text, patterns)
   if (!val) return null
   const cleaned = val.trim().slice(0, 100)
-  // Reject values that look like addresses (numbers at start) or are too short
-  if (/^\d/.test(cleaned) || cleaned.length < 3) return null
+  if (cleaned.length < 2 || /^\d/.test(cleaned)) return null
   return cleaned
 }
 
