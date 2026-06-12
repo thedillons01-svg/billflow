@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse, after } from 'next/server'
 import { randomUUID, createHash } from 'crypto'
 import { Resend } from 'resend'
 import { processBill } from '@/lib/ocr/process'
@@ -313,7 +313,13 @@ export async function POST(request: NextRequest) {
       }
 
       if (captureType === 'po') {
-        // Create PO record
+        // Fingerprint duplicate POs — skip silently, no record
+        if (isFingerprintDuplicate) {
+          await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+          console.warn(`[email-webhook] PO fingerprint duplicate skipped — matches ${originalDocId}`)
+          continue
+        }
+
         const { error: insertErr } = await supabase.from('purchase_orders').insert({
           po_id:            docId,
           company_id:       company.company_id,
@@ -338,16 +344,19 @@ export async function POST(request: NextRequest) {
           after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
         })
 
-        try { await processPO(docId) } catch (err) {
-          console.error(`[email-webhook] processPO threw (${docId}):`, err)
-        }
+        after(processPO(docId).catch(err => console.error(`[email-webhook] processPO threw (${docId}):`, err)))
       } else {
-        // Create bill record
-        const billStatus = isFingerprintDuplicate ? 'fingerprint_duplicate' : 'draft'
+        // Fingerprint duplicate bills — skip silently, no record
+        if (isFingerprintDuplicate) {
+          await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
+          console.warn(`[email-webhook] Bill fingerprint duplicate skipped — matches ${originalDocId}`)
+          continue
+        }
+
         const { error: insertErr } = await supabase.from('bills').insert({
           bill_id:          docId,
           company_id:       company.company_id,
-          status:           billStatus,
+          status:           'draft',
           capture_source:   'email',
           pdf_url:          storagePath,
           file_fingerprint: fingerprint,
@@ -363,21 +372,12 @@ export async function POST(request: NextRequest) {
           bill_id:       docId,
           document_type: 'bill',
           company_id:    company.company_id,
-          action:        isFingerprintDuplicate ? 'fingerprint_duplicate' : 'captured',
+          action:        'captured',
           actor:         'system',
-          after_state:   {
-            capture_source: 'email', from: payload.From, subject, pdf_url: storagePath,
-            ...(isFingerprintDuplicate ? { original_bill_id: originalDocId } : {}),
-          },
+          after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
         })
 
-        if (!isFingerprintDuplicate) {
-          try { await processBill(docId) } catch (err) {
-            console.error(`[email-webhook] processBill threw (${docId}):`, err)
-          }
-        } else {
-          console.warn(`[email-webhook] Fingerprint duplicate held (${docId}), matches ${originalDocId}`)
-        }
+        after(processBill(docId).catch(err => console.error(`[email-webhook] processBill threw (${docId}):`, err)))
       }
 
       created.push(docId)
