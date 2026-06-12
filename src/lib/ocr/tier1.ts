@@ -71,6 +71,9 @@ function extractInvoiceNumber(text: string): string | null {
     /invoice\s*(?:#|no\.?|number)\s*[:–-]?\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
     /invoice\s*[:–]\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
     /inv\s*(?:#|no\.?)\s*[:–-]?\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
+    // Label-on-own-line: PDFKit labelValue helper renders label and value as separate
+    // text objects ~11pt apart; pdf-parse splits them onto separate lines.
+    /invoice\s*(?:#|no\.?|number)\s*[:–-]?\s*\r?\n\s*([A-Z0-9][A-Z0-9\-]{2,})/i,
     /(?:^|\n)\s*#\s*([A-Z0-9\-]{4,20})/m,
   ]
   return firstMatch(text, patterns)
