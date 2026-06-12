@@ -56,7 +56,7 @@ export function BillsRealtime({
         .eq('company_id', companyId)
         .gt('created_at', since)
       if (count && count > 0) scheduleReload()
-    }, 12000)
+    }, 4000)
 
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
