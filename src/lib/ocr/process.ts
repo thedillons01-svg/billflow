@@ -494,13 +494,14 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     action:      'ocr_complete',
     actor:       'system',
     after_state: {
-      status:          'ready',
-      ocr_tier:        result.tier,
-      ocr_confidence:  result.confidence,
-      invoice_number:  result.invoice_number,
-      invoice_date:    result.invoice_date,
-      total:           result.total,
-      line_item_count: result.line_items.length,
+      status:            'ready',
+      ocr_tier:          result.tier,
+      ocr_confidence:    result.confidence,
+      invoice_number:    result.invoice_number,
+      invoice_date:      result.invoice_date,
+      total:             result.total,
+      line_item_count:   result.line_items.length,
+      ...(result.escalation_reason ? { escalation_reason: result.escalation_reason } : {}),
     },
   })
 
@@ -793,26 +794,27 @@ async function runTieredExtraction(
   }
 
   // Tier 1 incomplete or line items don't balance → Claude Haiku
-  const tier1Incomplete =
-    forceTier === 2 ||
-    tier1.invoice_number === null ||
-    tier1.invoice_date === null ||
-    tier1.total === null ||
-    !lineItemsMatchTotal(tier1)
+  const tier1IncompleteReason =
+    forceTier === 2          ? 'forced_tier2' :
+    tier1.invoice_number === null ? 'missing_invoice_number' :
+    tier1.invoice_date   === null ? 'missing_invoice_date' :
+    tier1.total          === null ? 'missing_total' :
+    !lineItemsMatchTotal(tier1)   ? `line_items_mismatch(sum=${tier1.line_items.reduce((s,li)=>s+(li.total??0),0).toFixed(2)},total=${tier1.total},tax=${tier1.tax_amount??'null'})` :
+    null
 
-  if (tier1Incomplete) {
-    const reason = forceTier === 2 ? 'Forced Tier 2' : 'Tier 1 incomplete'
-    console.log(`[ocr] ${reason} → Tier 2 (Claude Haiku)`)
+  if (tier1IncompleteReason) {
+    console.log(`[ocr] Tier 1 → Tier 2: ${tier1IncompleteReason}`)
     const tier2 = await extractTier2(tier1.rawText, userComment)
 
     // If Tier 2 also doesn't balance, escalate to Tier 3
     if (!lineItemsMatchTotal(tier2)) {
-      console.log('[ocr] Tier 2 line items do not match total → Tier 3 (vision)')
+      const t2reason = `line_items_mismatch(sum=${tier2.line_items.reduce((s,li)=>s+(li.total??0),0).toFixed(2)},total=${tier2.total},tax=${tier2.tax_amount??'null'})`
+      console.log(`[ocr] Tier 2 → Tier 3: ${t2reason}`)
       const tier3 = await extractTier3(pdfBuffer, userComment)
-      return { ...tier3, tier: 3 }
+      return { ...tier3, tier: 3, escalation_reason: `t1:${tier1IncompleteReason} → t2:${t2reason}` }
     }
 
-    return { ...tier2, tier: 2, raw_text: tier1.rawText }
+    return { ...tier2, tier: 2, raw_text: tier1.rawText, escalation_reason: `t1:${tier1IncompleteReason}` }
   }
 
   // Tier 1 sufficient

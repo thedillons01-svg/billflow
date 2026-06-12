@@ -22,6 +22,7 @@ export type ExtractionResult = {
   tier: 1 | 2 | 3
   confidence: number             // 0.0–1.0
   raw_text?: string              // Tier 1/2: extracted text (not stored in DB, used for fallback)
+  escalation_reason?: string    // why this tier was reached (logged to processing_log for debugging)
 }
 
 export type TierResult = Omit<ExtractionResult, 'tier'>
