@@ -1,6 +1,8 @@
-﻿import { createClient } from '@/lib/supabase/server'
+﻿'use server'
+import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { BillsList } from './bills-list'
+import { InboxPoller } from './inbox-poller'
 import { UploadButton } from './upload-button'
 
 // Needs Review: bills with actual problems requiring user action
@@ -155,7 +157,10 @@ export default async function BillsPage({
       {/* Bill list */}
       <div className="flex-1 overflow-auto" style={{ background: 'white' }}>
         {bills.length === 0 ? (
-          <EmptyState tab={activeTab} search={search} />
+          <>
+            {isInbox && <InboxPoller />}
+            <EmptyState tab={activeTab} search={search} />
+          </>
         ) : (
           <BillsList bills={bills as unknown as Parameters<typeof BillsList>[0]['bills']} accounts={accounts} jobs={jobs} isInbox={isInbox} />
         )}

@@ -70,12 +70,14 @@ export function BillsList({
   const processingBills = bills.filter(b => b.status === 'draft' && b.vendor_name_raw === null)
   const processingCount = processingBills.length
 
-  // Auto-refresh every 3 seconds while any bills are still being processed
+  // Inbox always polls: fast (3s) while bills are extracting, slow (8s) otherwise
+  // so email-ingested bills appear without the user having to manually refresh.
   useEffect(() => {
-    if (processingCount === 0) return
-    const id = setInterval(() => router.refresh(), 3000)
+    if (!isInbox) return
+    const interval = processingCount > 0 ? 3000 : 8000
+    const id = setInterval(() => router.refresh(), interval)
     return () => clearInterval(id)
-  }, [processingCount, router])
+  }, [processingCount, isInbox, router])
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
