@@ -16,8 +16,18 @@ const SUMMARY_KEYWORDS = ['statement', 'remittance advice', 'invoice summary', '
  *  - No summary/statement pages are detected (treat as single document)
  */
 export async function splitPdf(pdfBytes: Buffer): Promise<Buffer[]> {
-  const pageTexts: string[] = []
+  // Use pdf-lib for the page count check — avoids calling pdfParse here for
+  // single-page PDFs. pdf-parse v1 stores state in module-level variables that
+  // a pagerender callback dirties; a second pdfParse call in the same serverless
+  // invocation (from extractTier1 via after()) then returns empty text and the
+  // bill falls through to Tier 3 even when the PDF has a full text layer.
+  const srcDoc = await PDFDocument.load(pdfBytes)
+  const pageCount = srcDoc.getPageCount()
 
+  if (pageCount <= 1) return [pdfBytes]
+
+  // Multi-page bundle — use pdfParse to identify and discard summary/statement pages
+  const pageTexts: string[] = []
   let pageIndex = 0
   await pdfParse(pdfBytes, {
     pagerender: async (pageData: any) => {
@@ -35,10 +45,6 @@ export async function splitPdf(pdfBytes: Buffer): Promise<Buffer[]> {
       }
     },
   })
-
-  const pageCount = pageTexts.length
-
-  if (pageCount <= 1) return [pdfBytes]
 
   const summaryPageIndices = new Set(
     pageTexts.reduce<number[]>((acc, text, i) => {
