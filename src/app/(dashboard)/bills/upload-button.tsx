@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useRef, useState, useTransition, useEffect, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 
 function blockedInfo(creditBalance: number, subscriptionStatus: string): { message: string; cta: string } | null {
   if (creditBalance > 0 || subscriptionStatus === 'active') return null
@@ -16,6 +17,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
   const [status, setStatus] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragCounterRef = useRef(0)
+  const router = useRouter()
   const blocked = blockedInfo(creditBalance, subscriptionStatus)
 
   const upload = useCallback((files: FileList | File[]) => {
@@ -40,6 +42,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
             setStatus(`Upload failed: ${data.errorDetails[0]}`)
           } else {
             setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
+            router.refresh()  // show draft bill in list immediately (forces fresh server render)
 
             const ids: string[] = data.ids ?? []
             if (ids.length > 0) {
@@ -73,7 +76,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
         setStatus('Upload failed — please try again')
       }
     })
-  }, [])
+  }, [router])
 
   function handleClick() {
     inputRef.current?.click()
