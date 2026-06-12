@@ -194,8 +194,8 @@ function extractVendorName(text: string): string | null {
 // quantity digit(s) that precede $, and between adjacent dollar amounts.
 function normalizeLineItemText(text: string): string {
   return text
-    .replace(/(\D)(\d+(?:\.\d+)?)\s*\$/g, '$1 $2 $')  // description/qty boundary
-    .replace(/([\d,]+\.\d{2})\$/g, '$1 $')              // unit_price/total boundary
+    .replace(/([^\d$.\s])(\d+(?:\.\d+)?)\s*\$/g, '$1 $2 $')  // description/qty boundary — exclude . to avoid breaking decimal prices
+    .replace(/([\d,]+\.\d{2})\$/g, '$1 $')                    // unit_price/total boundary
 }
 
 function extractLineItems(text: string): LineItem[] {
