@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const dynamic = 'force-dynamic'
+
 export async function GET(request: NextRequest) {
   const ids = request.nextUrl.searchParams.get('ids')?.split(',').filter(Boolean) ?? []
   if (ids.length === 0) return NextResponse.json({ statuses: {} })

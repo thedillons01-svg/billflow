@@ -2,7 +2,6 @@
 
 import Link from 'next/link'
 import { useRef, useState, useTransition, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 
 function blockedInfo(creditBalance: number, subscriptionStatus: string): { message: string; cta: string } | null {
   if (creditBalance > 0 || subscriptionStatus === 'active') return null
@@ -17,14 +16,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
   const [status, setStatus] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragCounterRef = useRef(0)
-  const router = useRouter()
   const blocked = blockedInfo(creditBalance, subscriptionStatus)
-
-  const forceRefresh = useCallback(() => {
-    const url = new URL(window.location.href)
-    url.searchParams.set('_t', Date.now().toString())
-    router.replace(url.pathname + url.search, { scroll: false })
-  }, [router])
 
   const upload = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files)
@@ -48,7 +40,6 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
             setStatus(`Upload failed: ${data.errorDetails[0]}`)
           } else {
             setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
-            forceRefresh()
 
             const ids: string[] = data.ids ?? []
             if (ids.length > 0) {
@@ -56,22 +47,25 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
               const poll = async () => {
                 if (Date.now() > deadline) {
                   setStatus(null)
+                  window.location.reload()
                   return
                 }
                 const r = await fetch(`/api/bills/poll-status?ids=${ids.join(',')}`)
                 const d = await r.json()
                 const statuses: Record<string, string> = d.statuses ?? {}
                 const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
-                forceRefresh()
                 if (allDone) {
-                  setStatus(null)
+                  window.location.reload()
                 } else {
                   setTimeout(poll, 2500)
                 }
               }
               setTimeout(poll, 2500)
             } else {
-              setTimeout(() => setStatus(null), 4000)
+              setTimeout(() => {
+                setStatus(null)
+                window.location.reload()
+              }, 4000)
             }
           }
         }
@@ -79,7 +73,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
         setStatus('Upload failed — please try again')
       }
     })
-  }, [forceRefresh])
+  }, [])
 
   function handleClick() {
     inputRef.current?.click()
