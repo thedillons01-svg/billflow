@@ -141,10 +141,13 @@ function extractCustomerName(text: string): string | null {
 
 function extractTotal(text: string): number | null {
   const patterns = [
-    /(?:invoice\s+)?total(?:\s+due)?\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
+    // "Invoice Total" explicitly — must come before bare "total" to avoid matching "Subtotal"
+    /invoice\s+total\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
     /amount\s+due\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
     /total\s+amount\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
     /balance\s+due\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
+    // Word-boundary "Total" — \b prevents matching inside "Subtotal"
+    /\btotal(?:\s+due)?\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
   ]
   const raw = firstMatch(text, patterns)
   return raw ? parseAmount(raw) : null
@@ -162,10 +165,11 @@ function extractSubtotal(text: string): number | null {
 
 function extractTax(text: string): number | null {
   const patterns = [
-    /(?:sales\s+)?tax\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
-    /gst\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
-    /hst\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
-    /vat\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
+    // Handles "Tax (8.5%) $495.59" — optional rate in parens between label and amount
+    /(?:sales\s+)?tax(?:\s*\([^)]*\))?\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
+    /gst(?:\s*\([^)]*\))?\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
+    /hst(?:\s*\([^)]*\))?\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
+    /vat(?:\s*\([^)]*\))?\s*[:–-]?\s*\$?\s*([\d,]+\.?\d*)/i,
   ]
   const raw = firstMatch(text, patterns)
   return raw ? parseAmount(raw) : null
