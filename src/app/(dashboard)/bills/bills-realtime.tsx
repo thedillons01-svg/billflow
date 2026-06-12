@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export function BillsRealtime({ companyId: _companyId }: { companyId: string }) {
-  const router = useRouter()
+  const [toastVisible, setToastVisible] = useState(false)
 
   useEffect(() => {
     const supabase = createClient()
@@ -15,18 +14,47 @@ export function BillsRealtime({ companyId: _companyId }: { companyId: string }) 
         'postgres_changes',
         { event: '*', schema: 'public', table: 'bills' },
         () => {
-          // Force a real navigation to the current URL with a cache-busting param.
-          // router.refresh() can serve stale cached data in production; a URL change
-          // always causes the server component to re-run with fresh data from Supabase.
-          const url = new URL(window.location.href)
-          url.searchParams.set('_t', Date.now().toString())
-          router.replace(url.pathname + url.search, { scroll: false })
+          setToastVisible(true)
+          setTimeout(() => {
+            window.location.reload()
+          }, 800)
         }
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [router]) // stable ref — no re-subscribe on every event
+  }, [])
 
-  return null
+  if (!toastVisible) return null
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 24,
+        right: 24,
+        zIndex: 9999,
+        background: '#1A3D2B',
+        color: 'white',
+        fontSize: 13,
+        fontWeight: 500,
+        padding: '10px 16px',
+        borderRadius: 8,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+      }}
+    >
+      <span
+        style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: '#2DB87A',
+          display: 'inline-block',
+          animation: 'pulse 1s infinite',
+        }}
+      />
+      Receiving invoice…
+    </div>
+  )
 }
