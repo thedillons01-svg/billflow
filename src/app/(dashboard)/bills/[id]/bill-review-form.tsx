@@ -726,8 +726,8 @@ export function BillReviewForm({
                     {isPending_
                       ? 'Retry checks every 2 hours during business hours. Use Find Match to retry now.'
                       : bill.vendor_po_reference
-                        ? `Reference "${bill.vendor_po_reference}" found — click Find Match to search QuickBooks.`
-                        : 'No PO reference on this bill — Find Match requires a reference number to search.'}
+                        ? 'Click Find Match to search for a matching job in QuickBooks.'
+                        : 'No reference number on this bill — add one to enable Find Match, or assign a job manually below.'}
                   </p>
                 </div>
                 <button
