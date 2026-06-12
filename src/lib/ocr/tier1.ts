@@ -6,19 +6,19 @@ import type { TierResult, LineItem } from './types'
 // Tier 1: pdf-parse text extraction + regex field matching
 // ---------------------------------------------------------------------------
 
-export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { rawText: string }> {
+export async function extractTier1(pdfBuffer: Buffer): Promise<TierResult & { rawText: string; pdfParseError?: string }> {
   let text: string
+  let pdfParseError: string | undefined
   try {
     const data = await pdfParse(pdfBuffer)
     text = data.text ?? ''
   } catch (err) {
-    // pdf-parse structural errors (bad XRef, corrupt object table, etc.) mean we have no text.
-    // Return a zero-confidence empty result so the orchestrator routes to Tier 3 (vision).
-    console.warn(`[ocr] Tier 1 pdf-parse failed: ${err instanceof Error ? err.message : String(err)} — routing to Tier 3`)
+    pdfParseError = err instanceof Error ? err.message : String(err)
+    console.warn(`[ocr] Tier 1 pdf-parse failed: ${pdfParseError} — routing to Tier 3`)
     return {
       vendor_name_raw: null, invoice_number: null, invoice_date: null, due_date: null,
       vendor_po_reference: null, job_name_extracted: null, customer_name_extracted: null, total: null, subtotal: null, tax_amount: null,
-      line_items: [], confidence: 0, raw_text: '', rawText: '',
+      line_items: [], confidence: 0, raw_text: '', rawText: '', pdfParseError,
     }
   }
 

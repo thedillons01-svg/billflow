@@ -788,9 +788,12 @@ async function runTieredExtraction(
 
   // No text layer → Tier 3 regardless
   if (!hasTextLayer(tier1.rawText)) {
-    console.log('[ocr] No text layer detected → Tier 3 (vision)')
+    const diagReason = (tier1 as { pdfParseError?: string }).pdfParseError
+      ? `pdfparse_threw:${(tier1 as { pdfParseError?: string }).pdfParseError}`
+      : `text_too_short:${tier1.rawText.trim().length}_chars`
+    console.log(`[ocr] No text layer detected (${diagReason}) → Tier 3 (vision)`)
     const tier3 = await extractTier3(pdfBuffer, userComment)
-    return { ...tier3, tier: 3 }
+    return { ...tier3, tier: 3, escalation_reason: diagReason }
   }
 
   // Tier 1 incomplete or line items don't balance → Claude Haiku
