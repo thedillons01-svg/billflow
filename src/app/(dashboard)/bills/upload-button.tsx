@@ -20,6 +20,12 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
   const router = useRouter()
   const blocked = blockedInfo(creditBalance, subscriptionStatus)
 
+  const forceRefresh = useCallback(() => {
+    const url = new URL(window.location.href)
+    url.searchParams.set('_t', Date.now().toString())
+    router.replace(url.pathname + url.search, { scroll: false })
+  }, [router])
+
   const upload = useCallback((files: FileList | File[]) => {
     const arr = Array.from(files)
     if (arr.length === 0) return
@@ -42,7 +48,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
             setStatus(`Upload failed: ${data.errorDetails[0]}`)
           } else {
             setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
-            router.refresh()
+            forceRefresh()
 
             const ids: string[] = data.ids ?? []
             if (ids.length > 0) {
@@ -56,7 +62,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
                 const d = await r.json()
                 const statuses: Record<string, string> = d.statuses ?? {}
                 const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
-                router.refresh()
+                forceRefresh()
                 if (allDone) {
                   setStatus(null)
                 } else {
@@ -73,7 +79,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
         setStatus('Upload failed — please try again')
       }
     })
-  }, [router])
+  }, [forceRefresh])
 
   function handleClick() {
     inputRef.current?.click()

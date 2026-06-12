@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useTransition } from 'react'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 export function BillsRealtime({ companyId: _companyId }: { companyId: string }) {
   const router = useRouter()
-  const [, startTransition] = useTransition()
 
   useEffect(() => {
     const supabase = createClient()
@@ -14,20 +13,20 @@ export function BillsRealtime({ companyId: _companyId }: { companyId: string }) 
       .channel('bills-inbox')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'bills',
-          // No row-level filter — the RLS policy on bills already limits rows to this
-          // user's company. Filters + subquery-based RLS policies can cause Realtime
-          // to silently drop events when WALRUS can't evaluate the filter in that context.
-        },
-        () => startTransition(() => router.refresh())
+        { event: '*', schema: 'public', table: 'bills' },
+        () => {
+          // Force a real navigation to the current URL with a cache-busting param.
+          // router.refresh() can serve stale cached data in production; a URL change
+          // always causes the server component to re-run with fresh data from Supabase.
+          const url = new URL(window.location.href)
+          url.searchParams.set('_t', Date.now().toString())
+          router.replace(url.pathname + url.search, { scroll: false })
+        }
       )
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
-  }, [router, startTransition])
+  }, [router]) // stable ref — no re-subscribe on every event
 
   return null
 }

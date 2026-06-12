@@ -13,7 +13,7 @@ const ALL_INBOX_STATUSES = [...REVIEW_STATUSES, 'ready', ...PENDING_STATUSES, 'p
 export default async function BillsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; q?: string; status?: string }>
+  searchParams: Promise<{ tab?: string; q?: string; status?: string; _t?: string }>
 }) {
   const { tab, q, status: statusFilter } = await searchParams
   const activeTab = tab === 'review' ? 'review' : tab === 'pending' ? 'pending' : tab === 'archive' ? 'archive' : 'all'
