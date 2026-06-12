@@ -56,7 +56,7 @@ export async function splitPdf(pdfBytes: Buffer): Promise<Buffer[]> {
   // No summary pages → single document, not a bundle
   if (summaryPageIndices.size === 0) return [pdfBytes]
 
-  const srcDoc = await PDFDocument.load(pdfBytes)
+  // srcDoc already loaded above (for the page count check) — reuse it here
   const results: Buffer[] = []
 
   for (let i = 0; i < pageCount; i++) {
