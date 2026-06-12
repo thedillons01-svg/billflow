@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
   const created: string[] = []
   const errors: string[] = []
   const errorDetails: string[] = []
+  const duplicates: Array<{ filename: string; originalBillId: string; invoiceNumber: string | null; vendorName: string | null }> = []
 
   for (const file of files) {
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
@@ -61,20 +62,25 @@ export async function POST(request: NextRequest) {
     for (const pdfBytes of pageBufs) {
       const fingerprint = createHash('sha256').update(pdfBytes).digest('hex')
 
-      // Fingerprint duplicate check — same PDF already uploaded
-      let isFingerprintDuplicate = false
-      let originalDocId: string | null = null
+      // Fingerprint duplicate — reject immediately, no storage upload, no DB record
       const { data: fpMatch } = await supabase
         .from('bills')
-        .select('bill_id')
+        .select('bill_id, invoice_number, vendor_name_raw')
         .eq('company_id', company.company_id)
         .eq('file_fingerprint', fingerprint)
         .is('deleted_at', null)
         .neq('status', 'fingerprint_duplicate')
         .limit(1)
       if (fpMatch && fpMatch.length > 0) {
-        isFingerprintDuplicate = true
-        originalDocId = fpMatch[0].bill_id
+        const orig = fpMatch[0]
+        duplicates.push({
+          filename:       file.name,
+          originalBillId: orig.bill_id,
+          invoiceNumber:  orig.invoice_number ?? null,
+          vendorName:     orig.vendor_name_raw ?? null,
+        })
+        console.warn(`[upload] Fingerprint duplicate rejected — matches bill ${orig.bill_id}`)
+        continue
       }
 
       const docId = randomUUID()
@@ -92,11 +98,10 @@ export async function POST(request: NextRequest) {
         continue
       }
 
-      const billStatus = isFingerprintDuplicate ? 'fingerprint_duplicate' : 'draft'
       const { error: insertErr } = await supabase.from('bills').insert({
         bill_id:          docId,
         company_id:       company.company_id,
-        status:           billStatus,
+        status:           'draft',
         capture_source:   'upload',
         pdf_url:          storagePath,
         file_fingerprint: fingerprint,
@@ -115,23 +120,21 @@ export async function POST(request: NextRequest) {
         bill_id:       docId,
         document_type: 'bill',
         company_id:    company.company_id,
-        action:        isFingerprintDuplicate ? 'fingerprint_duplicate' : 'captured',
+        action:        'captured',
         actor:         user.id,
-        after_state:   {
-          capture_source: 'upload', filename: file.name, pdf_url: storagePath,
-          ...(isFingerprintDuplicate ? { original_bill_id: originalDocId } : {}),
-        },
+        after_state:   { capture_source: 'upload', filename: file.name, pdf_url: storagePath },
       })
 
-      if (!isFingerprintDuplicate) {
-        after(processBill(docId).catch(err => console.error(`[upload] processBill threw (${docId}):`, err)))
-      } else {
-        console.warn(`[upload] Fingerprint duplicate held (${docId}), matches ${originalDocId}`)
-      }
-
+      after(processBill(docId).catch(err => console.error(`[upload] processBill threw (${docId}):`, err)))
       created.push(docId)
     }
   }
 
-  return NextResponse.json({ created: created.length, errors: errors.length, ids: created, errorDetails })
+  return NextResponse.json({
+    created:    created.length,
+    errors:     errors.length,
+    ids:        created,
+    duplicates,
+    errorDetails,
+  })
 }

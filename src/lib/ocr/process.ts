@@ -127,13 +127,13 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
 
   // 5. Update the bill record
   const holdReason = isDuplicate
-    ? `Duplicate held — invoice ${result.invoice_number} from ${result.vendor_name_raw} already exists`
+    ? `Duplicate — invoice ${result.invoice_number} from ${result.vendor_name_raw} already exists in your inbox`
     : null
 
   const { error: updateErr } = await supabase
     .from('bills')
     .update({
-      status:                   isDuplicate ? 'draft' : 'ready',
+      status:                   isDuplicate ? 'fingerprint_duplicate' : 'ready',
       vendor_name_raw:          result.vendor_name_raw,
       invoice_number:           result.invoice_number,
       invoice_date:             result.invoice_date,
@@ -763,7 +763,10 @@ function lineItemsMatchTotal(result: TierResult): boolean {
   if (result.total === null || result.line_items.length === 0) return false
   if (result.line_items.some(li => li.total === null)) return false
   const sum = result.line_items.reduce((s, li) => s + (li.total ?? 0), 0)
-  return Math.abs(sum - result.total) <= 0.01
+  if (Math.abs(sum - result.total) <= 0.01) return true
+  // Tax extracted as a scalar (not a line item) — treat as balanced if line items + tax ≈ total
+  if (result.tax_amount != null && Math.abs(sum + result.tax_amount - result.total) <= 0.01) return true
+  return false
 }
 
 async function runTieredExtraction(

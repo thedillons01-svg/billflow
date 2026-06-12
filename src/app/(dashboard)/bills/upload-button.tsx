@@ -38,10 +38,27 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
           setStatus(`Error: ${data.error ?? 'Upload failed'}`)
         } else {
           const n = data.created
-          if (n === 0 && data.errorDetails?.length > 0) {
+          const dups: Array<{ filename: string; originalBillId: string; invoiceNumber: string | null; vendorName: string | null }> = data.duplicates ?? []
+
+          if (n === 0 && dups.length === 0 && data.errorDetails?.length > 0) {
             setStatus(`Upload failed: ${data.errorDetails[0]}`)
+          } else if (n === 0 && dups.length > 0) {
+            const dup = dups[0]
+            const label = dup.invoiceNumber
+              ? `${dup.vendorName ? dup.vendorName + ' ' : ''}${dup.invoiceNumber}`
+              : 'an existing bill'
+            setStatus(`Already uploaded — ${dup.filename} matches ${label}`)
+            setTimeout(() => setStatus(null), 6000)
           } else {
-            setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
+            if (dups.length > 0) {
+              const dup = dups[0]
+              const label = dup.invoiceNumber
+                ? `${dup.vendorName ? dup.vendorName + ' ' : ''}${dup.invoiceNumber}`
+                : 'an existing bill'
+              setStatus(`${n} bill${n !== 1 ? 's' : ''} queued — 1 duplicate skipped (${label})`)
+            } else {
+              setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
+            }
             router.refresh()
 
             const ids: string[] = data.ids ?? []

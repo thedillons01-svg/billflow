@@ -69,13 +69,14 @@ type Bill = {
 }
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  draft:             { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
-  ready:             { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
-  sync_error:        { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
-  ocr_error:         { bg: '#FEE2E2', color: '#991B1B', label: 'OCR Error' },
-  pending_job_match: { bg: '#EDE9FE', color: '#5B21B6', label: 'Pending Job Match' },
-  publishing:        { bg: '#DBEAFE', color: '#1E40AF', label: 'Publishing' },
-  published:         { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
+  draft:                 { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
+  ready:                 { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
+  sync_error:            { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
+  ocr_error:             { bg: '#FEE2E2', color: '#991B1B', label: 'OCR Error' },
+  fingerprint_duplicate: { bg: '#FEF3C7', color: '#92400E', label: 'Duplicate' },
+  pending_job_match:     { bg: '#EDE9FE', color: '#5B21B6', label: 'Pending Job Match' },
+  publishing:            { bg: '#DBEAFE', color: '#1E40AF', label: 'Publishing' },
+  published:             { bg: '#D1FAE5', color: '#065F46', label: 'Published' },
 }
 
 export function BillReviewForm({

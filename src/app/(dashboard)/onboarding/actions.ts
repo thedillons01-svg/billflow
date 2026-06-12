@@ -3,7 +3,28 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { redirect } from 'next/navigation'
-import { randomBytes } from 'crypto'
+
+type ServiceClient = ReturnType<typeof createServiceClient>
+
+async function generateCapturePrefix(name: string, service: ServiceClient): Promise<string> {
+  const base = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) || 'company'
+  const { data: existing } = await service
+    .from('companies')
+    .select('capture_email_prefix')
+    .eq('capture_email_prefix', base)
+    .maybeSingle()
+  if (!existing) return base
+  for (let i = 2; i <= 99; i++) {
+    const candidate = `${base}${i}`
+    const { data: exists } = await service
+      .from('companies')
+      .select('capture_email_prefix')
+      .eq('capture_email_prefix', candidate)
+      .maybeSingle()
+    if (!exists) return candidate
+  }
+  return `${base}${Date.now().toString().slice(-4)}`
+}
 
 export async function saveCompanySetup(formData: FormData) {
   const supabase = await createClient()
@@ -38,7 +59,7 @@ export async function saveCompanySetup(formData: FormData) {
       .eq('company_id', membership.company_id)
   } else {
     // Create a new company and link the user to it
-    const capturePrefix = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) + randomBytes(3).toString('hex')
+    const capturePrefix = await generateCapturePrefix(name, service)
 
     const { data: newCompany, error } = await service.from('companies').insert({
       name: name.trim(),
@@ -102,7 +123,7 @@ export async function saveCompanySetupStep1(formData: FormData) {
       })
       .eq('company_id', membership.company_id)
   } else {
-    const capturePrefix = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 20) + randomBytes(3).toString('hex')
+    const capturePrefix = await generateCapturePrefix(name, service)
 
     const { data: newCompany, error } = await service.from('companies').insert({
       name: name.trim(),

@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { softDeleteBill, setBillStatus, updateBill } from './actions'
@@ -34,6 +34,7 @@ type Job = {
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
   draft:                { bg: '#FEF3C7', color: '#92400E', label: 'Needs Review' },
+  draft_processing:     { bg: '#DBEAFE', color: '#1E40AF', label: 'Processing' },
   ready:                { bg: '#D1FAE5', color: '#065F46', label: 'Ready' },
   sync_error:           { bg: '#FEE2E2', color: '#991B1B', label: 'Sync Error' },
   ocr_error:            { bg: '#FEE2E2', color: '#991B1B', label: 'OCR Error' },
@@ -64,6 +65,17 @@ export function BillsList({
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [bulkErrors, setBulkErrors] = useState<{ billId: string; invoiceNumber: string | null; reason: string }[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
+
+  // Bills with no vendor_name_raw yet are still mid-OCR; ones with data are held duplicates
+  const processingBills = bills.filter(b => b.status === 'draft' && b.vendor_name_raw === null)
+  const processingCount = processingBills.length
+
+  // Auto-refresh every 3 seconds while any bills are still being processed
+  useEffect(() => {
+    if (processingCount === 0) return
+    const id = setInterval(() => router.refresh(), 3000)
+    return () => clearInterval(id)
+  }, [processingCount, router])
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
@@ -234,6 +246,23 @@ export function BillsList({
         </div>
       )}
 
+      {/* Processing banner */}
+      {processingCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '8px 20px',
+          background: '#EFF6FF', borderBottom: '0.5px solid #BFDBFE',
+        }}>
+          <i className="ti ti-loader-2 animate-spin" style={{ fontSize: 13, color: '#2563EB' }} />
+          <span style={{ fontSize: 12, color: '#1D4ED8' }}>
+            Extracting data from {processingCount} bill{processingCount !== 1 ? 's' : ''}…
+          </span>
+          <span style={{ fontSize: 11, color: '#93C5FD', marginLeft: 4 }}>
+            This usually takes 5–30 seconds
+          </span>
+        </div>
+      )}
+
       {/* Column headers */}
       <div
         className="grid items-center px-5 py-2"
@@ -259,10 +288,50 @@ export function BillsList({
 
       {/* Rows */}
       {bills.map((bill, i) => {
-        const badge = STATUS_BADGE[bill.status] ?? STATUS_BADGE.draft
+        const isProcessing = bill.status === 'draft' && bill.vendor_name_raw === null
+        const badgeKey = isProcessing ? 'draft_processing' : bill.status
+        const badge = STATUS_BADGE[badgeKey] ?? STATUS_BADGE.draft
         const isEditingVendorHere = editingVendor === bill.bill_id
         const isEditingGlHere = editingGl === bill.bill_id
         const isChecked = selected.has(bill.bill_id)
+
+        // In-progress row — simplified, no interaction
+        if (isProcessing) {
+          return (
+            <div
+              key={bill.bill_id}
+              className="grid items-center px-5 py-[10px]"
+              style={{
+                gridTemplateColumns: `${isInbox ? '24px ' : ''}1.3fr 0.75fr 0.6fr 0.7fr 0.85fr 1fr 36px 110px${!isInbox ? ' 90px' : ''}`,
+                borderBottom: '0.5px solid var(--color-border-tertiary)',
+                background: '#F8FAFF',
+                opacity: 0.75,
+              }}
+            >
+              {isInbox && <span />}
+              <div className="flex items-center gap-2">
+                <i className="ti ti-loader-2 animate-spin" style={{ fontSize: 12, color: '#93C5FD' }} />
+                <span style={{ fontSize: 13, color: '#93C5FD', fontStyle: 'italic' }}>Extracting…</span>
+              </div>
+              <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>
+              <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>
+              <span style={{ fontSize: 13, color: '#CBD5E1' }}>—</span>
+              <span style={{ fontSize: 11, color: '#CBD5E1' }}>—</span>
+              <span style={{ fontSize: 11, color: '#CBD5E1' }}>—</span>
+              <span />
+              <span
+                style={{
+                  display: 'inline-block',
+                  background: badge.bg, color: badge.color,
+                  borderRadius: 4, padding: '3px 8px',
+                  fontSize: 10, fontWeight: 500,
+                }}
+              >
+                {badge.label}
+              </span>
+            </div>
+          )
+        }
 
         return (
           <div
