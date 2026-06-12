@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-export function BillsRealtime({ companyId }: { companyId: string }) {
+export function BillsRealtime({
+  companyId,
+  draftBillIds = [],
+}: {
+  companyId: string
+  draftBillIds?: string[]
+}) {
   const [toastVisible, setToastVisible] = useState(false)
   const sinceRef = useRef<string>(new Date().toISOString())
   const reloadScheduled = useRef(false)
@@ -36,7 +42,7 @@ export function BillsRealtime({ companyId }: { companyId: string }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId])
 
-  // Polling fallback: check every 12s for bills newer than page-load time
+  // Polling: new bills created after page load
   useEffect(() => {
     if (!companyId) return
     const supabase = createClient()
@@ -46,7 +52,7 @@ export function BillsRealtime({ companyId }: { companyId: string }) {
       if (reloadScheduled.current) return
       const { count } = await supabase
         .from('bills')
-        .select('id', { count: 'exact', head: true })
+        .select('bill_id', { count: 'exact', head: true })
         .eq('company_id', companyId)
         .gt('created_at', since)
       if (count && count > 0) scheduleReload()
@@ -55,6 +61,25 @@ export function BillsRealtime({ companyId }: { companyId: string }) {
     return () => clearInterval(interval)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [companyId])
+
+  // Polling: bills that were already draft when the page loaded — watch for them to clear
+  useEffect(() => {
+    if (draftBillIds.length === 0) return
+    const supabase = createClient()
+
+    const interval = setInterval(async () => {
+      if (reloadScheduled.current) return
+      const { data } = await supabase
+        .from('bills')
+        .select('bill_id, status')
+        .in('bill_id', draftBillIds)
+      const allCleared = data?.every(b => b.status !== 'draft') ?? false
+      if (allCleared) scheduleReload()
+    }, 3000)
+
+    return () => clearInterval(interval)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftBillIds.join(',')])
 
   if (!toastVisible) return null
 

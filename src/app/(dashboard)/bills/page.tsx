@@ -155,7 +155,12 @@ export default async function BillsPage({
       <CreditBanner creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
 
       {/* Realtime subscription — notifies UI the moment a bill is inserted or updated */}
-      {isInbox && companyId && <BillsRealtime companyId={companyId} />}
+      {isInbox && companyId && (
+        <BillsRealtime
+          companyId={companyId}
+          draftBillIds={bills.filter(b => b.status === 'draft').map(b => b.bill_id)}
+        />
+      )}
 
       {/* Bill list */}
       <div className="flex-1 overflow-auto" style={{ background: 'white' }}>
