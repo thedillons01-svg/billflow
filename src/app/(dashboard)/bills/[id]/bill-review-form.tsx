@@ -1262,7 +1262,7 @@ export function BillReviewForm({
                     ].join(''),
                       borderBottom: i < lineItems.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
                       padding: '2px 8px',
-                      background: item.is_tax_line ? '#FFFBEB' : 'white',
+                      background: 'white',
                     }}
                   >
                     <InlineInput initialValue={item.description ?? ''} onSave={v => updateLineItem(item.line_id, { description: v || null })} placeholder="Description" />
