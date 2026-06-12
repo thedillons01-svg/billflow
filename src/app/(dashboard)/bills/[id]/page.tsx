@@ -98,7 +98,7 @@ export default async function BillDetailPage({
   // Top-level customers always available for job creation parent selector
   const customers = allJobs.filter(j => j.status === 'active' && j.is_customer)
 
-  const jobCostingEnabled = companySettings?.job_costing_enabled ?? false
+  const jobCostingEnabled = companySettings?.job_costing_enabled ?? true
   const classTrackingEnabled = companySettings?.class_tracking_enabled ?? false
   const showFieldTips = companySettings?.show_field_tips ?? true
   const qbType = (companySettings?.qb_type ?? 'qbo') as 'qbo' | 'qbd'
