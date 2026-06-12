@@ -388,7 +388,7 @@ export function BillReviewForm({
   }
 
   const badge = STATUS_BADGE[localStatus] ?? STATUS_BADGE.draft
-  const canPublish = ['ready', 'sync_error'].includes(localStatus)
+  const canPublish = ['ready', 'sync_error', 'fingerprint_duplicate'].includes(localStatus)
   const isPublished = localStatus === 'published'
   const canReprocess = !isPublished
 

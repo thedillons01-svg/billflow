@@ -346,13 +346,6 @@ export async function POST(request: NextRequest) {
 
         after(processPO(docId).catch(err => console.error(`[email-webhook] processPO threw (${docId}):`, err)))
       } else {
-        // Fingerprint duplicate bills — skip silently, no record
-        if (isFingerprintDuplicate) {
-          await supabase.storage.from(STORAGE_BUCKET).remove([storagePath])
-          console.warn(`[email-webhook] Bill fingerprint duplicate skipped — matches ${originalDocId}`)
-          continue
-        }
-
         const { error: insertErr } = await supabase.from('bills').insert({
           bill_id:          docId,
           company_id:       company.company_id,

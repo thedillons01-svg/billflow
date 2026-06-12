@@ -10,7 +10,6 @@ export const maxDuration = 60
 const STORAGE_BUCKET = 'bill-pdfs'
 
 export async function POST(request: NextRequest) {
-  // Authenticate user via session cookie
   const supabaseUser = await createClient()
   const { data: { user } } = await supabaseUser.auth.getUser()
   if (!user) {
@@ -41,7 +40,6 @@ export async function POST(request: NextRequest) {
   const created: string[] = []
   const errors: string[] = []
   const errorDetails: string[] = []
-  const duplicates: Array<{ filename: string; originalBillId: string; invoiceNumber: string | null; vendorName: string | null }> = []
 
   for (const file of files) {
     if (!file.name.toLowerCase().endsWith('.pdf') && file.type !== 'application/pdf') {
@@ -61,28 +59,6 @@ export async function POST(request: NextRequest) {
 
     for (const pdfBytes of pageBufs) {
       const fingerprint = createHash('sha256').update(pdfBytes).digest('hex')
-
-      // Fingerprint duplicate — reject immediately, no storage upload, no DB record
-      const { data: fpMatch } = await supabase
-        .from('bills')
-        .select('bill_id, invoice_number, vendor_name_raw')
-        .eq('company_id', company.company_id)
-        .eq('file_fingerprint', fingerprint)
-        .is('deleted_at', null)
-        .neq('status', 'fingerprint_duplicate')
-        .limit(1)
-      if (fpMatch && fpMatch.length > 0) {
-        const orig = fpMatch[0]
-        duplicates.push({
-          filename:       file.name,
-          originalBillId: orig.bill_id,
-          invoiceNumber:  orig.invoice_number ?? null,
-          vendorName:     orig.vendor_name_raw ?? null,
-        })
-        console.warn(`[upload] Fingerprint duplicate rejected — matches bill ${orig.bill_id}`)
-        continue
-      }
-
       const docId = randomUUID()
       const storagePath = `${company.company_id}/${docId}.pdf`
 
@@ -130,11 +106,5 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({
-    created:    created.length,
-    errors:     errors.length,
-    ids:        created,
-    duplicates,
-    errorDetails,
-  })
+  return NextResponse.json({ created: created.length, errors: errors.length, ids: created, errorDetails })
 }
