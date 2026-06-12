@@ -78,9 +78,17 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       .filter(li => li.gl_account_id != null && li.extended_cost != null)
 
     if (lineItems.length === 0) {
-      const hasLines = ((bill as Record<string, unknown>).bill_line_items as LineItem[]).length > 0
-      if (hasLines) {
-        throw new Error('Line items are missing amounts. Enter an amount for each line item on the bill review screen before publishing.')
+      const allLines = ((bill as Record<string, unknown>).bill_line_items as LineItem[])
+      if (allLines.length > 0) {
+        const missingGl = allLines.filter(li => li.gl_account_id == null).length
+        const missingAmt = allLines.filter(li => li.gl_account_id != null && li.extended_cost == null).length
+        if (missingGl > 0 && missingAmt > 0) {
+          throw new Error(`${missingGl} line item${missingGl !== 1 ? 's' : ''} missing a GL account and ${missingAmt} missing an amount. Fix these on the bill review screen before publishing.`)
+        }
+        if (missingGl > 0) {
+          throw new Error(`${missingGl} line item${missingGl !== 1 ? 's' : ''} ${missingGl === 1 ? 'is' : 'are'} missing a GL account. Set a GL account on each line item (or set a default on the vendor record) before publishing.`)
+        }
+        throw new Error(`${missingAmt} line item${missingAmt !== 1 ? 's' : ''} ${missingAmt === 1 ? 'is' : 'are'} missing an amount. Enter an amount for each line item on the bill review screen before publishing.`)
       }
       throw new Error('No line items found. Add at least one line item with a GL account and amount before publishing.')
     }
