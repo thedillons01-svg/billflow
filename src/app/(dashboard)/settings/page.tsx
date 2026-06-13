@@ -335,26 +335,29 @@ export default async function SettingsPage({
                   helper="When on, a Class field appears on each bill line item for QB class tracking. Only enable if you use class tracking in QuickBooks. Default: off."
                 />
                 {company?.class_tracking_enabled && (
-                  <div style={{ marginTop: -4 }}>
-                    <a
-                      href="/settings/classes"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 5,
-                        fontSize: 12,
-                        fontWeight: 500,
-                        color: '#2DB87A',
-                        textDecoration: 'none',
-                      }}
-                    >
-                      Configure class assignments
-                      <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
-                    </a>
-                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                      Assign classes to vendors or customers so bills are coded automatically.
-                    </p>
-                  </div>
+                  <a
+                    href="/settings/classes"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      padding: '10px 14px',
+                      background: '#EBF5EF',
+                      border: '1px solid #2DB87A',
+                      borderRadius: 6,
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <i className="ti ti-tag" style={{ fontSize: 16, color: '#2DB87A', flexShrink: 0 }} />
+                      <div>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: '#1A3D2B', margin: 0 }}>Configure class assignments</p>
+                        <p style={{ fontSize: 11, color: '#5A8C6A', margin: 0, marginTop: 1 }}>Assign classes to vendors or customers so bills are coded automatically.</p>
+                      </div>
+                    </div>
+                    <i className="ti ti-arrow-right" style={{ fontSize: 14, color: '#2DB87A', flexShrink: 0 }} />
+                  </a>
                 )}
                 <Toggle
                   name="push_pos_to_qb"
