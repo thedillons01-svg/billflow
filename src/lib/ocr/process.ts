@@ -686,6 +686,40 @@ async function tryMatchCustomerForBill(
 // PO matching — link bill to matching open PO by PO number
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// PO line matching helpers — description-based, only runs when a PO is matched
+// ---------------------------------------------------------------------------
+
+type PoLineItem = {
+  line_id: string
+  description: string | null
+  quantity_ordered: number | null
+  unit_cost: number | null
+  gl_account_id: string | null
+  job_id: string | null
+}
+
+function extractPartTokens(description: string): string[] {
+  // Alphanumeric tokens of 5+ chars capture model/part numbers reliably across OCR variations
+  return (description.match(/[A-Za-z0-9]{5,}/g) ?? []).map(t => t.toLowerCase())
+}
+
+function poLineMatchesBillDesc(poDesc: string, billDesc: string): boolean {
+  const a = poDesc.trim().toLowerCase()
+  const b = billDesc.trim().toLowerCase()
+  if (a === b) return true
+  const tokensA = extractPartTokens(a)
+  const tokensB = extractPartTokens(b)
+  return tokensA.length > 0 && tokensA.some(t => tokensB.includes(t))
+}
+
+function findMatchingPoLine(billDescription: string, poLines: PoLineItem[]): PoLineItem | null {
+  for (const po of poLines) {
+    if (po.description && poLineMatchesBillDesc(po.description, billDescription)) return po
+  }
+  return null
+}
+
 async function tryMatchPO(
   supabase: SupabaseClient,
   billId: string,
@@ -710,21 +744,71 @@ async function tryMatchPO(
 
   if (!match) return
 
-  // Check for dollar discrepancy
-  const discrepancy = Math.abs((match.total ?? 0) - billTotal)
-  const hasDiscrepancy = discrepancy > 0.01
+  // Link bill to PO immediately
+  await supabase.from('bills').update({ matched_po_id: match.po_id }).eq('bill_id', billId)
 
-  await supabase
-    .from('bills')
-    .update({
-      matched_po_id: match.po_id,
-      autopublish_hold_reason: hasDiscrepancy
-        ? `PO total $${Number(match.total).toFixed(2)} differs from invoice total $${billTotal.toFixed(2)} by $${discrepancy.toFixed(2)}`
-        : null,
-    })
-    .eq('bill_id', billId)
+  // Load PO and bill line items in parallel — only executed when a PO match is found
+  const [{ data: poLines }, { data: billLines }] = await Promise.all([
+    supabase.from('po_line_items')
+      .select('line_id, description, quantity_ordered, unit_cost, gl_account_id, job_id')
+      .eq('po_id', match.po_id),
+    supabase.from('bill_line_items')
+      .select('line_id, description, quantity, unit_cost')
+      .eq('bill_id', billId),
+  ])
 
-  console.log(`[ocr] Bill ${billId} matched to PO ${match.po_id} (discrepancy: ${hasDiscrepancy})`)
+  const lineDiscrepancies: string[] = []
+
+  if (poLines?.length && billLines?.length) {
+    for (const billLine of billLines) {
+      if (!billLine.description) continue
+      const poLine = findMatchingPoLine(billLine.description, poLines as PoLineItem[])
+      if (!poLine) continue
+
+      // Copy GL account and job from the PO line — PO was explicitly coded so it takes priority
+      const lineUpdate: Record<string, unknown> = {}
+      if (poLine.gl_account_id) {
+        lineUpdate.gl_account_id = poLine.gl_account_id
+        lineUpdate.gl_account_source = 'qb_default'
+      }
+      if (poLine.job_id) lineUpdate.job_id = poLine.job_id
+
+      if (Object.keys(lineUpdate).length > 0) {
+        await supabase.from('bill_line_items').update(lineUpdate).eq('line_id', billLine.line_id)
+      }
+
+      // Flag quantity and unit price discrepancies (>1% tolerance)
+      if (poLine.quantity_ordered != null && billLine.quantity != null) {
+        const diff = Math.abs(Number(billLine.quantity) - Number(poLine.quantity_ordered))
+        if (diff / Math.max(Number(poLine.quantity_ordered), 0.001) > 0.01) {
+          lineDiscrepancies.push(
+            `${billLine.description}: ordered ${poLine.quantity_ordered}, invoiced ${billLine.quantity}`
+          )
+        }
+      }
+      if (poLine.unit_cost != null && billLine.unit_cost != null) {
+        const diff = Math.abs(Number(billLine.unit_cost) - Number(poLine.unit_cost))
+        if (diff / Math.max(Number(poLine.unit_cost), 0.001) > 0.01) {
+          lineDiscrepancies.push(
+            `${billLine.description}: PO price $${Number(poLine.unit_cost).toFixed(2)}, invoice price $${Number(billLine.unit_cost).toFixed(2)}`
+          )
+        }
+      }
+    }
+  }
+
+  // Line discrepancies take priority; fall back to total discrepancy if no line-level data
+  const totalDiscrepancy = Math.abs((match.total ?? 0) - billTotal)
+  let holdReason: string | null = null
+  if (lineDiscrepancies.length > 0) {
+    holdReason = `PO line discrepancies: ${lineDiscrepancies.join('; ')}`
+  } else if (totalDiscrepancy > 0.01) {
+    holdReason = `PO total $${Number(match.total).toFixed(2)} differs from invoice total $${billTotal.toFixed(2)} by $${totalDiscrepancy.toFixed(2)}`
+  }
+
+  await supabase.from('bills').update({ autopublish_hold_reason: holdReason }).eq('bill_id', billId)
+
+  console.log(`[ocr] Bill ${billId} matched to PO ${match.po_id} (line discrepancies: ${lineDiscrepancies.length}, total discrepancy: ${totalDiscrepancy > 0.01})`)
 }
 
 // ---------------------------------------------------------------------------

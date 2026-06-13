@@ -171,6 +171,19 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
     }
     if (memo) payload.PrivateNote = memo
 
+    // Link to QB PO if this bill was matched to a PO that was pushed to QuickBooks
+    // Only runs for matched-PO bills — zero overhead for all other bills
+    if (!isCreditNote && b.matched_po_id) {
+      const { data: matchedPo } = await supabase
+        .from('purchase_orders')
+        .select('qb_po_id')
+        .eq('po_id', b.matched_po_id as string)
+        .single()
+      if (matchedPo?.qb_po_id) {
+        payload.LinkedTxn = [{ TxnId: matchedPo.qb_po_id, TxnType: 'PurchaseOrder' }]
+      }
+    }
+
     const endpoint = isCreditNote ? 'vendorcredit' : 'bill'
     const result = await qbPost(endpoint, payload)
     const qbBillId = isCreditNote
@@ -233,19 +246,10 @@ export async function pushBillToQBO(billId: string, companyId: string): Promise<
       published_at:  new Date().toISOString(),
     }).eq('bill_id', billId)
 
-    // Update matched PO status when bill publishes
+    // Close matched PO when its bill is published — receiving status is tracked separately
     const matchedPoId = (b.matched_po_id as string | null)
     if (matchedPoId) {
-      const { data: poLines } = await supabase
-        .from('po_line_items')
-        .select('quantity_ordered, quantity_received')
-        .eq('po_id', matchedPoId)
-      if (poLines && poLines.length > 0) {
-        const allReceived = poLines.every(l => (l.quantity_received ?? 0) >= (l.quantity_ordered ?? 0))
-        const anyReceived = poLines.some(l => (l.quantity_received ?? 0) > 0)
-        const newPoStatus = allReceived ? 'received' : anyReceived ? 'partially_received' : 'partially_received'
-        await supabase.from('purchase_orders').update({ status: newPoStatus }).eq('po_id', matchedPoId)
-      }
+      await supabase.from('purchase_orders').update({ status: 'closed' }).eq('po_id', matchedPoId)
     }
 
     await supabase.from('processing_log').insert({
