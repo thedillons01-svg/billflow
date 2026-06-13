@@ -445,6 +445,14 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
+  // 6.1 Fetch class assignment mode — used below to apply customer-level class after job match
+  const { data: companyCfg } = await supabase
+    .from('companies')
+    .select('class_assignment_mode')
+    .eq('company_id', bill.company_id)
+    .single()
+  const classAssignmentMode = companyCfg?.class_assignment_mode ?? 'vendor'
+
   // 6.2 Job matching — try vendor_po_reference first, then job_name_extracted as fallback.
   // skipJobMatch is set by the reprocess route when a job was already manually assigned.
   const jobMatchRef = result.vendor_po_reference ?? result.job_name_extracted
@@ -465,6 +473,22 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     // When no job matched, try to identify the customer so the UI can pre-populate the create form
     if (!jobMatched && result.customer_name_extracted) {
       await tryMatchCustomerForBill(supabase, billId, bill.company_id, result.customer_name_extracted, result.job_name_extracted ?? undefined)
+    }
+  }
+
+  // 6.3 Customer-class application — if class is assigned by customer (not vendor),
+  // find the job that was set on any line and propagate its customer's class to all lines.
+  // Only runs when mode is 'customer' — zero overhead for vendor-mode companies.
+  if (classAssignmentMode === 'customer') {
+    const { data: lineWithJob } = await supabase
+      .from('bill_line_items')
+      .select('job_id')
+      .eq('bill_id', billId)
+      .not('job_id', 'is', null)
+      .limit(1)
+      .maybeSingle()
+    if (lineWithJob?.job_id) {
+      await applyCustomerClassToLines(supabase, billId, bill.company_id, lineWithJob.job_id)
     }
   }
 
@@ -679,6 +703,45 @@ async function tryMatchCustomerForBill(
   if (match) {
     await supabase.from('bills').update({ matched_customer_qb_id: match.qb_job_id }).eq('bill_id', billId)
     console.log(`[ocr] Bill ${billId} customer-matched to ${match.qb_job_id}`)
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Customer-class propagation — applies the matched customer's assigned class to all bill lines.
+// Only called when class_assignment_mode = 'customer'. Zero overhead otherwise.
+// ---------------------------------------------------------------------------
+
+async function applyCustomerClassToLines(
+  supabase: SupabaseClient,
+  billId: string,
+  companyId: string,
+  jobId: string,
+): Promise<void> {
+  const { data: job } = await supabase
+    .from('qb_jobs_cache')
+    .select('assigned_class_id, parent_id, is_customer')
+    .eq('company_id', companyId)
+    .eq('qb_job_id', jobId)
+    .single()
+
+  if (!job) return
+
+  let classId: string | null = job.assigned_class_id ?? null
+
+  // Sub-customer (job) with no direct class — walk up to parent customer
+  if (!classId && job.parent_id && !job.is_customer) {
+    const { data: parent } = await supabase
+      .from('qb_jobs_cache')
+      .select('assigned_class_id')
+      .eq('company_id', companyId)
+      .eq('qb_job_id', job.parent_id)
+      .single()
+    classId = parent?.assigned_class_id ?? null
+  }
+
+  if (classId) {
+    await supabase.from('bill_line_items').update({ class_id: classId }).eq('bill_id', billId)
+    console.log(`[ocr] Bill ${billId} — applied customer class ${classId} to all lines`)
   }
 }
 

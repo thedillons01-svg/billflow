@@ -334,6 +334,28 @@ export default async function SettingsPage({
                   label="Class tracking enabled"
                   helper="When on, a Class field appears on each bill line item for QB class tracking. Only enable if you use class tracking in QuickBooks. Default: off."
                 />
+                {company?.class_tracking_enabled && (
+                  <div style={{ marginTop: -4 }}>
+                    <a
+                      href="/settings/classes"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 12,
+                        fontWeight: 500,
+                        color: '#2DB87A',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      Configure class assignments
+                      <i className="ti ti-arrow-right" style={{ fontSize: 12 }} />
+                    </a>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                      Assign classes to vendors or customers so bills are coded automatically.
+                    </p>
+                  </div>
+                )}
                 <Toggle
                   name="push_pos_to_qb"
                   defaultChecked={company?.push_pos_to_qb ?? true}
