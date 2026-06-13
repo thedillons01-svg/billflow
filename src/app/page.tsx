@@ -3,9 +3,9 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Purchasomatic — Automated Invoice Capture for QuickBooks Contractors',
+  title: 'Purchasomatic — Automated Invoice Capture for QuickBooks',
   description:
-    'Forward vendor invoices once. Purchasomatic reads every line item, matches the right QuickBooks job, and publishes automatically — no data entry required.',
+    'Forward invoices from any vendor. Purchasomatic reads every line item, matches the right customer or job in QuickBooks, and publishes automatically — no data entry required.',
 }
 
 export default async function LandingPage() {
@@ -22,7 +22,7 @@ export default async function LandingPage() {
       <HowItWorks />
       <Features />
       <Pricing />
-      <Testimonials />
+      <Walkthrough />
       <CtaBanner />
       <Footer />
     </div>
@@ -140,7 +140,7 @@ function Hero() {
         >
           <i className="ti ti-bolt" style={{ fontSize: 12, color: '#2DB87A' }} />
           <span style={{ fontSize: 12, fontWeight: 500, color: '#2DB87A', letterSpacing: '0.02em' }}>
-            Powered by AI · Made for contractors
+            Powered by AI · QuickBooks Online
           </span>
         </div>
 
@@ -168,7 +168,7 @@ function Hero() {
             margin: '0 auto 40px',
           }}
         >
-          Forward vendor invoices and purchase orders to Purchasomatic. We extract every line item, match it to the right QuickBooks job, and publish automatically — while you run the business.
+          Forward invoices from any vendor to Purchasomatic. We extract every line item, match it to the right customer or job in QuickBooks, and publish automatically — while you run the business.
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, flexWrap: 'wrap' }}>
@@ -226,7 +226,7 @@ function Hero() {
           {[
             { value: '1 credit', label: 'per invoice or PO' },
             { value: '< 60 sec', label: 'average processing time' },
-            { value: 'QBO + QBD', label: 'QuickBooks supported' },
+            { value: 'QBO', label: 'QuickBooks Online' },
           ].map(stat => (
             <div key={stat.label} style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 26, fontWeight: 700, color: '#2DB87A', letterSpacing: '-0.02em' }}>
@@ -246,10 +246,6 @@ function Hero() {
 /* ─── Logo strip ──────────────────────────────────────────────────── */
 
 function LogoStrip() {
-  const distributors = [
-    'Ferguson', 'Gensco', 'Winsupply', 'Johnstone Supply',
-    'Carrier Enterprise', 'Baker Distributing',
-  ]
   return (
     <div
       style={{
@@ -259,16 +255,9 @@ function LogoStrip() {
         textAlign: 'center',
       }}
     >
-      <p style={{ fontSize: 12, color: '#9CA3AF', fontWeight: 500, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 16 }}>
-        Reads invoices from the distributors you already use
+      <p style={{ fontSize: 14, color: '#6B7280', fontWeight: 500 }}>
+        Works with invoices from any vendor — PDF, scanned, or emailed directly from your supplier.
       </p>
-      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '8px 28px' }}>
-        {distributors.map(name => (
-          <span key={name} style={{ fontSize: 14, fontWeight: 600, color: '#6B7280', letterSpacing: '-0.01em' }}>
-            {name}
-          </span>
-        ))}
-      </div>
     </div>
   )
 }
@@ -278,25 +267,25 @@ function LogoStrip() {
 function HowItWorks() {
   const steps = [
     {
-      icon: 'ti-truck-delivery',
+      icon: 'ti-mail-forward',
       number: '1',
+      optional: false,
+      title: 'Invoice arrives from the vendor',
+      body: 'Set up a one-time email forwarding rule. Invoices from any vendor arrive in Purchasomatic automatically. Our AI reads the PDF and extracts every line item — vendor, date, amounts, every line — even from scanned documents.',
+    },
+    {
+      icon: 'ti-truck-delivery',
+      number: '2',
       optional: true,
       title: 'Forward purchase orders',
-      body: 'Most invoice tools can\'t do this — but Purchasomatic can. Forward a purchase order and we create the PO record in QuickBooks, track what was ordered, and match the invoice to it when it arrives.',
+      body: 'Forward a purchase order and Purchasomatic creates the PO record in QuickBooks, tracks what was ordered, and matches the invoice to it when it arrives.',
     },
     {
       icon: 'ti-clipboard-check',
-      number: '2',
+      number: '3',
       optional: true,
       title: 'Record receiving',
-      body: 'Another feature most invoice software skips. Materials are often received by someone who didn\'t place the order — they don\'t know what it is, what job it\'s for, or who to call. Purchasomatic gives them that answer instantly, so the right person gets notified right away.',
-    },
-    {
-      icon: 'ti-mail-forward',
-      number: '3',
-      optional: false,
-      title: 'Invoice arrives from the vendor',
-      body: 'Set up a one-time email forwarding rule. Invoices from Ferguson, Gensco, Winsupply — any distributor — arrive in Purchasomatic automatically. Our AI reads the PDF and extracts every line item, even from scanned documents.',
+      body: 'Your team can check what arrived against open POs — what it is, what job or customer it\'s for, and who to notify — without digging through paperwork or calling anyone.',
     },
     {
       icon: 'ti-circle-check',
@@ -304,7 +293,7 @@ function HowItWorks() {
       optional: false,
       result: true,
       title: 'Everything lands in QuickBooks',
-      body: 'Purchase orders create PO records in QuickBooks. Receiving updates them as materials arrive. Invoices publish as bills — all matched to the correct job and GL account. QuickBooks Online and Desktop both supported.',
+      body: 'Invoices publish as bills — matched to the correct customer or job and GL account. Purchase orders create PO records. Receiving updates them as goods arrive.',
     },
   ]
 
@@ -382,8 +371,8 @@ function Features() {
   const features = [
     {
       icon: 'ti-briefcase',
-      title: 'Job costing built in',
-      body: 'Purchasomatic matches each invoice to an existing QuickBooks job and codes every line item to the right GL account. Bills land in QuickBooks already tagged to the correct job — no manual re-coding after the fact.',
+      title: 'Customer and job matching',
+      body: 'Purchasomatic matches each invoice to an existing QuickBooks customer or job and codes every line item to the right GL account. Bills land in QuickBooks already tagged correctly — no manual re-coding after the fact.',
     },
     {
       icon: 'ti-rocket',
@@ -393,17 +382,17 @@ function Features() {
     {
       icon: 'ti-truck-delivery',
       title: 'Purchase order tracking',
-      body: 'Forward purchase orders from your suppliers to Purchasomatic. When the invoice arrives, we match it to the open PO, flag any price or quantity discrepancies, and create the linked bill in QuickBooks — all coded to the right job.',
+      body: 'Forward purchase orders to Purchasomatic. When the invoice arrives, we match it to the open PO, flag any price or quantity discrepancies, and create the linked bill in QuickBooks.',
     },
     {
       icon: 'ti-clipboard-check',
       title: 'Receiving workflow',
-      body: 'Your team can check what arrived against open POs to see what job it\'s for, if the part is right, and who to notify without digging through a pile of POs.',
+      body: 'Your team can confirm what arrived against open POs — what it is, what customer or job it\'s for, and who to notify — without digging through paperwork or calling anyone.',
     },
     {
       icon: 'ti-plug-connected',
-      title: 'QuickBooks Online & Desktop',
-      body: 'Full support for both. QBO connects via OAuth. QBD connects via the Web Connector — bills and attachments sync on your schedule.',
+      title: 'QuickBooks Online',
+      body: 'Connects in seconds via OAuth. Bills publish directly to your QuickBooks Online company — vendor, amounts, GL coding, and the original PDF attached to each bill record.',
     },
     {
       icon: 'ti-shield-check',
@@ -420,8 +409,8 @@ function Features() {
             Features
           </p>
           <h2 style={{ fontSize: 'clamp(28px, 4vw, 40px)', fontWeight: 700, color: '#111827', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
-            Built for trade contractors,
-            <br />not generic accounting
+            Everything you need.
+            <br />Nothing you have to enter twice.
           </h2>
         </div>
 
@@ -570,58 +559,61 @@ function Pricing() {
   )
 }
 
-/* ─── Testimonials ────────────────────────────────────────────────── */
+/* ─── Walkthrough ─────────────────────────────────────────────────── */
 
-function Testimonials() {
-  const quotes = [
+function Walkthrough() {
+  const steps = [
     {
-      quote: "We were spending 3-4 hours a week on invoice data entry across two bookkeepers. Purchasomatic cut that to almost nothing. The job matching is what sold us — it just works.",
-      name: 'Office Manager',
-      company: 'HVAC Contractor, Pacific Northwest',
-      initials: 'OM',
+      number: '1',
+      title: 'Invoice arrives',
+      body: 'Your vendor emails an invoice. Your forwarding rule sends it to your Purchasomatic address automatically — no new inbox to check, no manual uploads required.',
     },
     {
-      quote: "I was skeptical it could read our Gensco invoices correctly — they're complicated. It got every line item right on the first try. Auto-publish has been running for two months without a mistake.",
-      name: 'Owner / Bookkeeper',
-      company: 'Mechanical Contractor, Texas',
-      initials: 'OB',
+      number: '2',
+      title: 'AI reads every line item',
+      body: 'Purchasomatic extracts the vendor name, invoice number, date, due date, and every line item — description, quantity, unit price, and amount. Works on clean PDFs and scanned documents alike.',
     },
     {
-      quote: "The PO matching is huge for us. When a vendor invoice comes in short or with a price difference, we know immediately instead of finding out at month end.",
-      name: 'Controller',
-      company: 'Plumbing & HVAC, Southeast',
-      initials: 'CT',
+      number: '3',
+      title: 'Vendor and GL account are matched',
+      body: 'The vendor is matched to your QuickBooks record. The default GL account from that vendor is applied to every line item. Stored description-to-GL mappings you\'ve saved are applied first — so recurring line items are always coded correctly without you touching them.',
+    },
+    {
+      number: '4',
+      title: 'You review, or it publishes itself',
+      body: 'The bill lands in your review queue with a side-by-side view: original PDF on the right, extracted fields on the left. Correct anything, then publish. Or enable auto-publish after 5 accurate invoices from a vendor and skip the review step entirely.',
+    },
+    {
+      number: '5',
+      title: 'A coded bill in QuickBooks',
+      body: 'Vendor, amounts, GL accounts, customer or job assignment — all set. The original PDF is attached to the bill record. Your accounts payable is current without you entering anything.',
     },
   ]
 
   return (
     <section style={{ padding: '88px 24px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB' }}>
-      <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 52 }}>
+      <div style={{ maxWidth: 800, margin: '0 auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 56 }}>
           <p style={{ fontSize: 13, fontWeight: 600, color: '#2DB87A', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>
-            From the field
+            How it actually works
           </p>
-          <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 700, color: '#111827', letterSpacing: '-0.025em' }}>
-            Contractors who stopped typing invoices
+          <h2 style={{ fontSize: 'clamp(24px, 3.5vw, 36px)', fontWeight: 700, color: '#111827', letterSpacing: '-0.025em', lineHeight: 1.15 }}>
+            From invoice received to bill in QuickBooks.
           </h2>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 24 }}>
-          {quotes.map((q, i) => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {steps.map((step, i) => (
             <div
               key={i}
               style={{
-                background: 'white',
-                borderRadius: 12,
-                border: '1px solid #E5E7EB',
-                padding: '28px 28px 24px',
+                display: 'flex',
+                gap: 24,
+                paddingBottom: i < steps.length - 1 ? 0 : 0,
               }}
             >
-              <i className="ti ti-quote" style={{ fontSize: 28, color: '#D1FAE5', display: 'block', marginBottom: 16 }} />
-              <p style={{ fontSize: 14, color: '#374151', lineHeight: 1.7, marginBottom: 24 }}>
-                &ldquo;{q.quote}&rdquo;
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Left: number + connector line */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                 <div
                   style={{
                     width: 36,
@@ -631,18 +623,27 @@ function Testimonials() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 12,
+                    fontSize: 13,
                     fontWeight: 700,
                     color: 'white',
                     flexShrink: 0,
                   }}
                 >
-                  {q.initials}
+                  {step.number}
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{q.name}</div>
-                  <div style={{ fontSize: 12, color: '#6B7280' }}>{q.company}</div>
-                </div>
+                {i < steps.length - 1 && (
+                  <div style={{ width: 1, flexGrow: 1, background: '#E5E7EB', margin: '6px 0' }} />
+                )}
+              </div>
+
+              {/* Right: content */}
+              <div style={{ paddingBottom: 36 }}>
+                <h3 style={{ fontSize: 17, fontWeight: 600, color: '#111827', marginBottom: 6, marginTop: 6, letterSpacing: '-0.01em' }}>
+                  {step.title}
+                </h3>
+                <p style={{ fontSize: 15, color: '#6B7280', lineHeight: 1.65 }}>
+                  {step.body}
+                </p>
               </div>
             </div>
           ))}
