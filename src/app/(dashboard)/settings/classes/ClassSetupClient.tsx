@@ -1,13 +1,8 @@
 'use client'
 
-import { useTransition, useState } from 'react'
-import Link from 'next/link'
-import {
-  setClassAssignmentMode,
-  assignVendorToClass,
-  assignCustomerToClass,
-  createQBClass,
-} from './actions'
+import { useTransition, useState, useCallback, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { saveClassSetup, createQBClass } from './actions'
 
 type QBClass = { qb_class_id: string; name: string }
 type Vendor = { vendor_id: string; vendor_name_display: string | null; billflow_class_id: string | null }
@@ -22,54 +17,83 @@ type Props = {
 }
 
 export function ClassSetupClient({ companyId, mode: initialMode, classes, vendors, customers }: Props) {
-  const [isPending, startTransition] = useTransition()
+  const router = useRouter()
+  const [isSaving, startSave] = useTransition()
+
   const [mode, setMode] = useState(initialMode)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(classes[0]?.qb_class_id ?? null)
   const [search, setSearch] = useState('')
 
-  // entityId → classId | null
-  const [vendorClasses, setVendorClasses] = useState<Record<string, string | null>>(() => {
+  // Working state — local only until Save & Close
+  const initVendorClasses = useCallback(() => {
     const m: Record<string, string | null> = {}
     for (const v of vendors) m[v.vendor_id] = v.billflow_class_id ?? null
     return m
-  })
-  const [customerClasses, setCustomerClasses] = useState<Record<string, string | null>>(() => {
+  }, [vendors])
+
+  const initCustomerClasses = useCallback(() => {
     const m: Record<string, string | null> = {}
     for (const c of customers) m[c.qb_job_id] = c.assigned_class_id ?? null
     return m
-  })
+  }, [customers])
 
-  // Add class form
+  const [vendorClasses, setVendorClasses] = useState<Record<string, string | null>>(initVendorClasses)
+  const [customerClasses, setCustomerClasses] = useState<Record<string, string | null>>(initCustomerClasses)
+
+  // Warn on browser back/close if there are unsaved changes
+  const isDirty = useCallback(() => {
+    if (mode !== initialMode) return true
+    return vendors.some(v => (v.billflow_class_id ?? null) !== vendorClasses[v.vendor_id])
+      || customers.some(c => (c.assigned_class_id ?? null) !== customerClasses[c.qb_job_id])
+  }, [mode, initialMode, vendors, customers, vendorClasses, customerClasses])
+
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (isDirty()) { e.preventDefault(); e.returnValue = '' }
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
+
+  // Add class form — this still saves immediately (QB API call, can't undo)
   const [newClassName, setNewClassName] = useState('')
   const [newClassError, setNewClassError] = useState<string | null>(null)
   const [newClassPending, setNewClassPending] = useState(false)
   const [localClasses, setLocalClasses] = useState<QBClass[]>(classes)
 
-  function handleModeChange(next: 'vendor' | 'customer') {
-    setMode(next)
-    setSearch('')
-    startTransition(() => setClassAssignmentMode(companyId, next))
-  }
-
   function handleAdd(entityId: string) {
     if (!selectedClassId) return
-    if (mode === 'vendor') {
-      setVendorClasses(prev => ({ ...prev, [entityId]: selectedClassId }))
-      startTransition(() => assignVendorToClass(entityId, selectedClassId))
-    } else {
-      setCustomerClasses(prev => ({ ...prev, [entityId]: selectedClassId }))
-      startTransition(() => assignCustomerToClass(companyId, entityId, selectedClassId))
-    }
+    if (mode === 'vendor') setVendorClasses(prev => ({ ...prev, [entityId]: selectedClassId }))
+    else setCustomerClasses(prev => ({ ...prev, [entityId]: selectedClassId }))
   }
 
   function handleRemove(entityId: string) {
-    if (mode === 'vendor') {
-      setVendorClasses(prev => ({ ...prev, [entityId]: null }))
-      startTransition(() => assignVendorToClass(entityId, null))
-    } else {
-      setCustomerClasses(prev => ({ ...prev, [entityId]: null }))
-      startTransition(() => assignCustomerToClass(companyId, entityId, null))
-    }
+    if (mode === 'vendor') setVendorClasses(prev => ({ ...prev, [entityId]: null }))
+    else setCustomerClasses(prev => ({ ...prev, [entityId]: null }))
+  }
+
+  function handleCancel() {
+    if (isDirty() && !window.confirm('You have unsaved changes. Leave without saving?')) return
+    setVendorClasses(initVendorClasses())
+    setCustomerClasses(initCustomerClasses())
+    setMode(initialMode)
+    router.push('/settings')
+  }
+
+  function handleSave() {
+    // Compute only changed entries to minimise DB writes
+    const vendorChanges = vendors
+      .filter(v => (v.billflow_class_id ?? null) !== vendorClasses[v.vendor_id])
+      .map(v => ({ vendorId: v.vendor_id, classId: vendorClasses[v.vendor_id] }))
+
+    const customerChanges = customers
+      .filter(c => (c.assigned_class_id ?? null) !== customerClasses[c.qb_job_id])
+      .map(c => ({ qbJobId: c.qb_job_id, classId: customerClasses[c.qb_job_id] }))
+
+    startSave(async () => {
+      await saveClassSetup(companyId, mode, vendorChanges, customerChanges)
+      router.push('/settings')
+    })
   }
 
   async function handleAddClass() {
@@ -94,14 +118,16 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
     : customers.map(c => ({ id: c.qb_job_id, name: c.job_name ?? c.customer_name ?? c.qb_job_id }))
 
   const entityType = mode === 'vendor' ? 'vendor' : 'customer'
+  const selectedClass = localClasses.find(c => c.qb_class_id === selectedClassId)
 
-  const inClass = allEntities.filter(e => entityClasses[e.id] === selectedClassId)
+  const inClass = allEntities
+    .filter(e => entityClasses[e.id] === selectedClassId)
+    .sort((a, b) => a.name.localeCompare(b.name))
+
   const available = allEntities
     .filter(e => entityClasses[e.id] == null)
     .filter(e => !search || e.name.toLowerCase().includes(search.toLowerCase()))
     .sort((a, b) => a.name.localeCompare(b.name))
-
-  const selectedClass = localClasses.find(c => c.qb_class_id === selectedClassId)
 
   const inputStyle: React.CSSProperties = {
     height: 34,
@@ -112,7 +138,6 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
     color: 'var(--color-text-primary)',
     background: 'white',
     outline: 'none',
-    width: '100%',
   }
 
   const listItemStyle: React.CSSProperties = {
@@ -124,35 +149,66 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
     color: 'var(--color-text-primary)',
     borderBottom: '0.5px solid var(--color-border-tertiary)',
     cursor: 'pointer',
+    background: 'white',
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F7F9F8' }}>
+    <div style={{ minHeight: '100vh', background: '#F7F9F8', display: 'flex', flexDirection: 'column' }}>
+
       {/* Page header */}
-      <div style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '14px 20px' }}>
+      <div style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '14px 20px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ marginBottom: 4 }}>
-              <Link href="/settings" style={{ fontSize: 12, color: 'var(--color-text-secondary)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
-                Settings
-              </Link>
-            </div>
             <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0 }}>Class Assignments</h1>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
               Assign QuickBooks classes to {entityType}s so bills are coded automatically.
             </p>
           </div>
-          {isPending && (
-            <span style={{ fontSize: 11, color: 'var(--color-text-tertiary)', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <i className="ti ti-loader-2" style={{ fontSize: 12, animation: 'spin 1s linear infinite' }} />
-              Saving…
-            </span>
-          )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={handleCancel}
+              disabled={isSaving}
+              style={{
+                height: 34,
+                padding: '0 16px',
+                fontSize: 13,
+                fontWeight: 500,
+                background: 'white',
+                color: 'var(--color-text-primary)',
+                border: '0.5px solid var(--color-border-secondary)',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              style={{
+                height: 34,
+                padding: '0 16px',
+                fontSize: 13,
+                fontWeight: 500,
+                background: '#2DB87A',
+                color: 'white',
+                border: 'none',
+                borderRadius: 6,
+                cursor: isSaving ? 'not-allowed' : 'pointer',
+                opacity: isSaving ? 0.7 : 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              {isSaving && <i className="ti ti-loader-2" style={{ fontSize: 13, animation: 'spin 1s linear infinite' }} />}
+              {isSaving ? 'Saving…' : 'Save & Close'}
+            </button>
+          </div>
         </div>
       </div>
 
-      <div style={{ padding: 20, maxWidth: 860, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ padding: 20, maxWidth: 860, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* Mode selector */}
         <div style={{ background: 'white', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '14px 16px' }}>
@@ -180,7 +236,7 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
                   name="mode"
                   value={opt.value}
                   checked={mode === opt.value}
-                  onChange={() => handleModeChange(opt.value)}
+                  onChange={() => { setMode(opt.value); setSearch('') }}
                   style={{ marginTop: 2, accentColor: '#2DB87A' }}
                 />
                 <div>
@@ -195,28 +251,30 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
         {/* Class picker + add */}
         <div style={{ background: 'white', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '14px 16px' }}>
           <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 10 }}>Select a class to configure</p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: localClasses.length > 0 ? 14 : 0 }}>
-            {localClasses.map(cls => (
-              <button
-                key={cls.qb_class_id}
-                onClick={() => { setSelectedClassId(cls.qb_class_id); setSearch('') }}
-                style={{
-                  padding: '5px 14px',
-                  borderRadius: 6,
-                  fontSize: 13,
-                  fontWeight: selectedClassId === cls.qb_class_id ? 500 : 400,
-                  border: `1.5px solid ${selectedClassId === cls.qb_class_id ? '#2DB87A' : 'var(--color-border-secondary)'}`,
-                  background: selectedClassId === cls.qb_class_id ? '#EBF5EF' : 'white',
-                  color: selectedClassId === cls.qb_class_id ? '#1A3D2B' : 'var(--color-text-primary)',
-                  cursor: 'pointer',
-                }}
-              >
-                {cls.name}
-              </button>
-            ))}
-          </div>
+          {localClasses.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 14 }}>
+              {localClasses.map(cls => (
+                <button
+                  key={cls.qb_class_id}
+                  onClick={() => { setSelectedClassId(cls.qb_class_id); setSearch('') }}
+                  style={{
+                    padding: '5px 14px',
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: selectedClassId === cls.qb_class_id ? 500 : 400,
+                    border: `1.5px solid ${selectedClassId === cls.qb_class_id ? '#2DB87A' : 'var(--color-border-secondary)'}`,
+                    background: selectedClassId === cls.qb_class_id ? '#EBF5EF' : 'white',
+                    color: selectedClassId === cls.qb_class_id ? '#1A3D2B' : 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {cls.name}
+                </button>
+              ))}
+            </div>
+          )}
 
-          {/* Add class inline */}
+          {/* Add class */}
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
             <input
               type="text"
@@ -253,11 +311,11 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
             </p>
           )}
           <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 5 }}>
-            Creates the class in QuickBooks and adds it here immediately.
+            Creates the class in QuickBooks immediately. You can then assign {entityType}s to it.
           </p>
         </div>
 
-        {/* Available / Selected */}
+        {/* Available / In class */}
         {selectedClassId && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
 
@@ -271,8 +329,8 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
                   type="text"
                   value={search}
                   onChange={e => setSearch(e.target.value)}
-                  placeholder={`Search ${entityType}s…`}
-                  style={{ ...inputStyle, height: 30, fontSize: 12 }}
+                  placeholder={`Search…`}
+                  style={{ ...inputStyle, height: 30, fontSize: 12, width: '100%' }}
                 />
               </div>
               <div style={{ maxHeight: 340, overflowY: 'auto' }}>
@@ -301,7 +359,7 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
             <div style={{ background: 'white', border: '1.5px solid #2DB87A', borderRadius: 8, overflow: 'hidden' }}>
               <div style={{ padding: '10px 12px', borderBottom: '0.5px solid var(--color-border-tertiary)', background: '#EBF5EF' }}>
                 <p style={{ fontSize: 11, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#1A3D2B' }}>
-                  In {selectedClass?.name ?? ''}
+                  In {selectedClass?.name ?? ''} ({inClass.length})
                 </p>
               </div>
               <div style={{ maxHeight: 340, overflowY: 'auto' }}>
@@ -310,25 +368,23 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
                     Click a {entityType} on the left to add it
                   </p>
                 ) : (
-                  inClass
-                    .sort((a, b) => a.name.localeCompare(b.name))
-                    .map(e => (
-                      <div
-                        key={e.id}
-                        style={listItemStyle}
-                        onMouseEnter={ev => (ev.currentTarget.style.background = '#FEF2F2')}
-                        onMouseLeave={ev => (ev.currentTarget.style.background = 'white')}
+                  inClass.map(e => (
+                    <div
+                      key={e.id}
+                      style={listItemStyle}
+                      onMouseEnter={ev => (ev.currentTarget.style.background = '#FEF2F2')}
+                      onMouseLeave={ev => (ev.currentTarget.style.background = 'white')}
+                    >
+                      <span>{e.name}</span>
+                      <button
+                        onClick={() => handleRemove(e.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 0, display: 'flex', alignItems: 'center' }}
+                        title={`Remove from ${selectedClass?.name}`}
                       >
-                        <span>{e.name}</span>
-                        <button
-                          onClick={() => handleRemove(e.id)}
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-text-tertiary)', padding: 0, display: 'flex', alignItems: 'center' }}
-                          title={`Remove from ${selectedClass?.name}`}
-                        >
-                          <i className="ti ti-x" style={{ fontSize: 13 }} />
-                        </button>
-                      </div>
-                    ))
+                        <i className="ti ti-x" style={{ fontSize: 13 }} />
+                      </button>
+                    </div>
+                  ))
                 )}
               </div>
             </div>
