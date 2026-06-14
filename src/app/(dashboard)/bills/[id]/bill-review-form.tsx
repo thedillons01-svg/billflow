@@ -1141,7 +1141,7 @@ export function BillReviewForm({
                                       const newCust: Job = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: null, is_customer: true, status: 'active' }
                                       setLiveCustomers(prev => [...prev, newCust])
                                       setNewJobCustomerId(result.qbJobId)
-                                      setNewJobName(bill.job_name_extracted ?? '')
+                                      setNewJobName(bill.job_name_extracted ?? bill.vendor_po_reference ?? '')
                                       setShowCustomerCreate(false)
                                       setNewCustomerName('')
                                       setShowJobCreate(true)
@@ -1161,7 +1161,7 @@ export function BillReviewForm({
                         {/* Create new job */}
                         {!showJobCreate && !showCustomerCreate && (
                           <button type="button"
-                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.job_name_extracted ?? ''); setNewJobCustomerId(bill.matched_customer_qb_id ?? '') }}
+                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.job_name_extracted ?? bill.vendor_po_reference ?? ''); setNewJobCustomerId(bill.matched_customer_qb_id ?? '') }}
                             style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
                           >
                             <i className="ti ti-plus" style={{ fontSize: 12 }} />
