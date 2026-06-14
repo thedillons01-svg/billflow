@@ -173,47 +173,7 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
               Assign QuickBooks classes to {entityType}s so bills are coded automatically.
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={handleCancel}
-              disabled={isSaving}
-              style={{
-                height: 34,
-                padding: '0 16px',
-                fontSize: 13,
-                fontWeight: 500,
-                background: 'white',
-                color: 'var(--color-text-primary)',
-                border: '0.5px solid var(--color-border-secondary)',
-                borderRadius: 6,
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              style={{
-                height: 34,
-                padding: '0 16px',
-                fontSize: 13,
-                fontWeight: 500,
-                background: '#2DB87A',
-                color: 'white',
-                border: 'none',
-                borderRadius: 6,
-                cursor: isSaving ? 'not-allowed' : 'pointer',
-                opacity: isSaving ? 0.7 : 1,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              {isSaving && <i className="ti ti-loader-2" style={{ fontSize: 13, animation: 'spin 1s linear infinite' }} />}
-              {isSaving ? 'Saving…' : 'Save & Close'}
-            </button>
-          </div>
+          <div />
         </div>
       </div>
 
@@ -412,6 +372,59 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
         )}
 
       </div>
+
+      {/* Sticky bottom bar */}
+      <div style={{
+        position: 'sticky',
+        bottom: 0,
+        background: 'white',
+        borderTop: '0.5px solid var(--color-border-tertiary)',
+        padding: '12px 20px',
+        display: 'flex',
+        justifyContent: 'flex-end',
+        gap: 8,
+      }}>
+        <button
+          onClick={handleCancel}
+          disabled={isSaving}
+          style={{
+            height: 34,
+            padding: '0 16px',
+            fontSize: 13,
+            fontWeight: 500,
+            background: 'white',
+            color: 'var(--color-text-primary)',
+            border: '0.5px solid var(--color-border-secondary)',
+            borderRadius: 6,
+            cursor: 'pointer',
+          }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={isSaving}
+          style={{
+            height: 34,
+            padding: '0 16px',
+            fontSize: 13,
+            fontWeight: 500,
+            background: '#2DB87A',
+            color: 'white',
+            border: 'none',
+            borderRadius: 6,
+            cursor: isSaving ? 'not-allowed' : 'pointer',
+            opacity: isSaving ? 0.7 : 1,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
+          {isSaving && <i className="ti ti-loader-2" style={{ fontSize: 13, animation: 'spin 1s linear infinite' }} />}
+          {isSaving ? 'Saving…' : 'Save & Close'}
+        </button>
+      </div>
+
     </div>
   )
 }
