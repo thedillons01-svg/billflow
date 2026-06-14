@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import Link from 'next/link'
-import { useRef, useState, useTransition, useEffect, useCallback } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 
 function blockedInfo(creditBalance: number, subscriptionStatus: string): { message: string; cta: string } | null {
@@ -13,7 +13,7 @@ function blockedInfo(creditBalance: number, subscriptionStatus: string): { messa
 
 export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }: { creditBalance?: number; subscriptionStatus?: string }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isUploading, setIsUploading] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragCounterRef = useRef(0)
@@ -30,19 +30,23 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
     }
 
     setStatus('Uploading…')
-    startTransition(async () => {
+    setIsUploading(true)
+
+    ;(async () => {
       try {
         const res = await fetch('/api/bills/upload', { method: 'POST', body: formData })
         const data = await res.json()
         if (!res.ok) {
           setStatus(`Error: ${data.error ?? 'Upload failed'}`)
+          setIsUploading(false)
         } else {
           const n = data.created
           if (n === 0 && data.errorDetails?.length > 0) {
             setStatus(`Upload failed: ${data.errorDetails[0]}`)
+            setIsUploading(false)
           } else {
             setStatus(`Processing ${n} bill${n !== 1 ? 's' : ''}…`)
-            router.refresh()  // show draft bill in list immediately (forces fresh server render)
+            router.refresh()
 
             const ids: string[] = data.ids ?? []
             if (ids.length > 0) {
@@ -50,16 +54,21 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
               const poll = async () => {
                 if (Date.now() > deadline) {
                   setStatus(null)
+                  setIsUploading(false)
                   window.location.reload()
                   return
                 }
-                const r = await fetch(`/api/bills/poll-status?ids=${ids.join(',')}`)
-                const d = await r.json()
-                const statuses: Record<string, string> = d.statuses ?? {}
-                const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
-                if (allDone) {
-                  window.location.reload()
-                } else {
+                try {
+                  const r = await fetch(`/api/bills/poll-status?ids=${ids.join(',')}`)
+                  const d = await r.json()
+                  const statuses: Record<string, string> = d.statuses ?? {}
+                  const allDone = ids.every(id => statuses[id] && statuses[id] !== 'draft')
+                  if (allDone) {
+                    window.location.reload()
+                  } else {
+                    setTimeout(poll, 2500)
+                  }
+                } catch {
                   setTimeout(poll, 2500)
                 }
               }
@@ -67,6 +76,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
             } else {
               setTimeout(() => {
                 setStatus(null)
+                setIsUploading(false)
                 window.location.reload()
               }, 4000)
             }
@@ -74,8 +84,9 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
         }
       } catch {
         setStatus('Upload failed — please try again')
+        setIsUploading(false)
       }
-    })
+    })()
   }, [router])
 
   function handleClick() {
@@ -184,7 +195,7 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
         ) : (
           <>
             {status && (
-              <span style={{ fontSize: 12, color: isPending ? 'var(--color-text-secondary)' : status.startsWith('Error:') ? '#DC2626' : '#065F46' }}>
+              <span style={{ fontSize: 12, color: isUploading ? 'var(--color-text-secondary)' : status.startsWith('Error:') ? '#DC2626' : '#065F46' }}>
                 {status}
               </span>
             )}
@@ -199,18 +210,18 @@ export function UploadButton({ creditBalance = 1, subscriptionStatus = 'trial' }
             <button
               type="button"
               onClick={handleClick}
-              disabled={isPending}
+              disabled={isUploading}
               style={{
                 display: 'flex', alignItems: 'center', gap: 6,
                 height: 32, paddingLeft: 12, paddingRight: 14,
-                background: isPending ? '#E5E7EB' : '#2DB87A',
-                color: isPending ? 'var(--color-text-secondary)' : 'white',
+                background: isUploading ? '#E5E7EB' : '#2DB87A',
+                color: isUploading ? 'var(--color-text-secondary)' : 'white',
                 borderRadius: 6, border: 'none', fontSize: 12, fontWeight: 500,
-                cursor: isPending ? 'not-allowed' : 'pointer',
+                cursor: isUploading ? 'not-allowed' : 'pointer',
               }}
             >
-              <i className={`ti ${isPending ? 'ti-loader-2' : 'ti-upload'}`} style={{ fontSize: 13 }} />
-              {isPending ? 'Processing…' : 'Upload PDFs'}
+              <i className={`ti ${isUploading ? 'ti-loader-2' : 'ti-upload'}`} style={{ fontSize: 13 }} />
+              {isUploading ? 'Processing…' : 'Upload PDFs'}
             </button>
           </>
         )}
