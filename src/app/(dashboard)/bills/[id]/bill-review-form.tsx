@@ -202,7 +202,7 @@ export function BillReviewForm({
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [localMatchedCustomerId, setLocalMatchedCustomerId] = useState<string | null>(() => {
-    if (bill.matched_customer_qb_id) return bill.matched_customer_qb_id
+    if (bill.matched_customer_qb_id) return bill.matched_customer_qb_id as string
     if (!bill.customer_name_extracted) return null
     const lower = (bill.customer_name_extracted as string).toLowerCase()
     const match = customers.find(c => {
