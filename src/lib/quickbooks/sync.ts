@@ -313,6 +313,7 @@ export async function closeInactiveJobs(companyId: string): Promise<void> {
     .select('qb_job_id, qb_created_at, qb_updated_at')
     .eq('company_id', companyId)
     .eq('status', 'active')
+    .eq('is_customer', false)
 
   if (!activeJobs?.length) return
 
