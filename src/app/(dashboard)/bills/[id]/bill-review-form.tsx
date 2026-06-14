@@ -170,7 +170,7 @@ export function BillReviewForm({
     glAccountId: string; accountName: string
   } | null>(null)
   const [headerJobPending, setHeaderJobPending] = useState<{
-    jobId: string | null; jobLabel: string
+    jobId: string | null; jobLabel: string; matchedOthers?: number
   } | null>(null)
   // Remember vendor default GL after header apply-to-all
   const [vendorGlRemember, setVendorGlRemember] = useState<{
@@ -1028,7 +1028,7 @@ export function BillReviewForm({
                         <i className={`ti ${headerJobPending.jobId ? 'ti-corner-down-right' : 'ti-x'}`} style={{ fontSize: 12, color: headerJobPending.jobId ? '#059669' : '#DC2626', flexShrink: 0 }} />
                         <span style={{ fontSize: 12, color: headerJobPending.jobId ? '#065F46' : '#991B1B', flex: 1 }}>
                           {headerJobPending.jobId
-                            ? <>Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?</>
+                            ? <><>Apply <strong>{headerJobPending.jobLabel}</strong> to all {lineItems.length} lines?</>{headerJobPending.matchedOthers ? <> Also matched {headerJobPending.matchedOthers} other bill{headerJobPending.matchedOthers !== 1 ? 's' : ''} to this job.</> : null}</>
                             : <>Clear job from all {lineItems.filter(li => li.job_id).length} lines?</>}
                         </span>
                         <button
@@ -1235,7 +1235,7 @@ export function BillReviewForm({
                                       setShowJobCreate(false)
                                       setNewJobName('')
                                       setNewJobCustomerId('')
-                                      setHeaderJobPending({ jobId: result.qbJobId, jobLabel: result.jobName })
+                                      setHeaderJobPending({ jobId: result.qbJobId, jobLabel: result.jobName, matchedOthers: result.matchedBillCount })
                                     }
                                   })
                                 }}

@@ -1,14 +1,16 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { getQBClient } from '@/lib/quickbooks/client'
+import { retryJobMatchForCompany } from '@/lib/ocr/process'
 
 export async function createJob(
   companyId: string,
   displayName: string,
   parentCustomerId?: string
-): Promise<{ qbJobId: string; jobName: string; jobNumber: string | null; customerName: string | null } | { error: string }> {
+): Promise<{ qbJobId: string; jobName: string; jobNumber: string | null; customerName: string | null; matchedBillCount: number } | { error: string }> {
   const supabase = await createClient()
 
   let qbJobId: string
@@ -76,7 +78,15 @@ export async function createJob(
   }, { onConflict: 'company_id,qb_job_id' })
 
   revalidatePath('/jobs')
-  return { qbJobId, jobName: returnedName, jobNumber, customerName }
+
+  // Auto-match unpublished bills that have a job reference but no match yet
+  let matchedBillCount = 0
+  try {
+    const service = createServiceClient()
+    matchedBillCount = await retryJobMatchForCompany(service, companyId, parentCustomerId)
+  } catch { /* non-fatal */ }
+
+  return { qbJobId, jobName: returnedName, jobNumber, customerName, matchedBillCount }
 }
 
 export async function renameJob(

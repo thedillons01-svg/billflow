@@ -1,8 +1,10 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { getQBClient } from '@/lib/quickbooks/client'
+import { applyCustomerClassToLines } from '@/lib/ocr/process'
 
 export async function updateVendor(vendorId: string, updates: Record<string, unknown>) {
   const supabase = await createClient()
@@ -70,6 +72,117 @@ export async function createVendorInQB(
   revalidatePath(`/vendors/${vendorId}`)
   revalidatePath('/vendors')
   return { qbVendorId, qbVendorName }
+}
+
+// Apply the vendor's current default GL account to all non-manually-set lines on unpublished bills.
+// Called after user saves a new GL account and confirms the apply prompt.
+export async function applyVendorGlToBills(vendorId: string): Promise<{ count: number }> {
+  const supabase = await createClient()
+  const service = createServiceClient()
+
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('company_id, billflow_gl_account_id, qb_default_gl_account_id')
+    .eq('vendor_id', vendorId)
+    .single()
+  if (!vendor) return { count: 0 }
+
+  const glAccountId = (vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id) as string | null
+  if (!glAccountId) return { count: 0 }
+
+  const { data: bills } = await service
+    .from('bills')
+    .select('bill_id')
+    .eq('vendor_id', vendorId)
+    .is('deleted_at', null)
+    .neq('status', 'published')
+    .neq('status', 'archived')
+    .neq('status', 'rejected')
+
+  if (!bills?.length) return { count: 0 }
+
+  const billIds = (bills as Array<{ bill_id: string }>).map(b => b.bill_id)
+  await service
+    .from('bill_line_items')
+    .update({ gl_account_id: glAccountId, gl_account_source: 'vendor_default' })
+    .in('bill_id', billIds)
+    .not('gl_account_source', 'in', '(manual,rule,mapping)')
+
+  return { count: bills.length }
+}
+
+// Apply the vendor's current default class to all unpublished bills from this vendor.
+export async function applyVendorClassToBills(vendorId: string): Promise<{ count: number }> {
+  const supabase = await createClient()
+  const service = createServiceClient()
+
+  const { data: vendor } = await supabase
+    .from('vendors')
+    .select('company_id, billflow_class_id')
+    .eq('vendor_id', vendorId)
+    .single()
+  if (!vendor?.billflow_class_id) return { count: 0 }
+
+  const classId = vendor.billflow_class_id as string
+
+  const { data: bills } = await service
+    .from('bills')
+    .select('bill_id, matched_customer_qb_id')
+    .eq('vendor_id', vendorId)
+    .is('deleted_at', null)
+    .neq('status', 'published')
+    .neq('status', 'archived')
+    .neq('status', 'rejected')
+
+  if (!bills?.length) return { count: 0 }
+
+  const billIds = (bills as Array<{ bill_id: string }>).map(b => b.bill_id)
+  await service
+    .from('bill_line_items')
+    .update({ class_id: classId })
+    .in('bill_id', billIds)
+
+  return { count: bills.length }
+}
+
+// Apply customer-derived class to all unpublished bills matched to the given customers.
+// Called from class setup page after user confirms apply prompt.
+export async function applyCustomerClassToBills(
+  companyId: string,
+  customerQbJobIds: string[],
+): Promise<{ count: number }> {
+  if (!customerQbJobIds.length) return { count: 0 }
+  const service = createServiceClient()
+
+  const { data: bills } = await service
+    .from('bills')
+    .select('bill_id, matched_customer_qb_id')
+    .eq('company_id', companyId)
+    .is('deleted_at', null)
+    .neq('status', 'published')
+    .neq('status', 'archived')
+    .neq('status', 'rejected')
+    .in('matched_customer_qb_id', customerQbJobIds)
+
+  if (!bills?.length) return { count: 0 }
+
+  let count = 0
+  for (const bill of bills as Array<{ bill_id: string; matched_customer_qb_id: string | null }>) {
+    // Prefer a job_id from line items for class lookup (it walks up to customer if no direct class)
+    const { data: lineWithJob } = await service
+      .from('bill_line_items')
+      .select('job_id')
+      .eq('bill_id', bill.bill_id)
+      .not('job_id', 'is', null)
+      .limit(1)
+      .maybeSingle()
+
+    const jobId = (lineWithJob?.job_id ?? bill.matched_customer_qb_id) as string | null
+    if (!jobId) continue
+    await applyCustomerClassToLines(service, bill.bill_id, companyId, jobId)
+    count++
+  }
+  return { count }
 }
 
 export async function deleteMapping(id: string) {

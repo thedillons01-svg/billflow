@@ -3,6 +3,7 @@
 import { useTransition, useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveClassSetup, createQBClass } from './actions'
+import { applyCustomerClassToBills } from '../../vendors/[id]/actions'
 
 type QBClass = { qb_class_id: string; name: string }
 type Vendor = { vendor_id: string; vendor_name_display: string | null; billflow_class_id: string | null }
@@ -19,6 +20,9 @@ type Props = {
 export function ClassSetupClient({ companyId, mode: initialMode, classes, vendors, customers }: Props) {
   const router = useRouter()
   const [isSaving, startSave] = useTransition()
+  const [applyPrompt, setApplyPrompt] = useState<{ customerIds: string[] } | null>(null)
+  const [isApplying, setIsApplying] = useState(false)
+  const [applyResult, setApplyResult] = useState<string | null>(null)
 
   const [mode, setMode] = useState(initialMode)
   const [selectedClassId, setSelectedClassId] = useState<string | null>(classes[0]?.qb_class_id ?? null)
@@ -92,7 +96,18 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
 
     startSave(async () => {
       await saveClassSetup(companyId, mode, vendorChanges, customerChanges)
-      router.push('/settings')
+
+      // After saving in customer mode, offer to apply updated class assignments to existing bills
+      const changedCustomerIds = customerChanges
+        .filter(c => c.classId !== null)
+        .map(c => c.qbJobId)
+
+      if (mode === 'customer' && changedCustomerIds.length > 0) {
+        setApplyPrompt({ customerIds: changedCustomerIds })
+        setApplyResult(null)
+      } else {
+        router.push('/settings')
+      }
     })
   }
 
@@ -372,6 +387,47 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
         )}
 
       </div>
+
+      {/* Apply-to-existing prompt — shown after saving customer class assignments */}
+      {applyPrompt && (
+        <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '12px 16px', margin: '0 20px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <p style={{ fontSize: 13, fontWeight: 500, color: '#92400E', margin: 0 }}>
+            Apply updated class assignments to existing unpublished bills?
+          </p>
+          <p style={{ fontSize: 12, color: '#B45309', margin: 0 }}>
+            Bills matched to the {applyPrompt.customerIds.length} updated customer{applyPrompt.customerIds.length !== 1 ? 's' : ''} will have their class updated.
+          </p>
+          <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+            <button
+              type="button"
+              disabled={isApplying}
+              onClick={async () => {
+                setIsApplying(true)
+                const r = await applyCustomerClassToBills(companyId, applyPrompt.customerIds)
+                setIsApplying(false)
+                setApplyPrompt(null)
+                setApplyResult(r.count === 0 ? 'No unpublished bills to update.' : `Updated ${r.count} unpublished bill${r.count !== 1 ? 's' : ''}.`)
+              }}
+              style={{ fontSize: 12, fontWeight: 600, color: 'white', background: '#D97706', border: 'none', borderRadius: 5, padding: '5px 12px', cursor: 'pointer', opacity: isApplying ? 0.6 : 1 }}
+            >
+              {isApplying ? 'Applying…' : 'Yes, apply'}
+            </button>
+            <button
+              type="button"
+              onClick={() => { setApplyPrompt(null); router.push('/settings') }}
+              style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', padding: '5px 0' }}
+            >
+              Skip
+            </button>
+          </div>
+          {applyResult && <p style={{ fontSize: 12, color: '#065F46', margin: 0 }}>{applyResult}</p>}
+          {applyResult && (
+            <button type="button" onClick={() => router.push('/settings')} style={{ alignSelf: 'flex-start', fontSize: 12, color: '#1A3D2B', fontWeight: 500, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+              Close →
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Sticky bottom bar */}
       <div style={{

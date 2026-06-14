@@ -746,6 +746,59 @@ export async function applyCustomerClassToLines(
 }
 
 // ---------------------------------------------------------------------------
+// Batch job re-match — runs after a new job is created, finds all unpublished
+// bills with a job reference but no match and tries to match the new job.
+// ---------------------------------------------------------------------------
+
+export async function retryJobMatchForCompany(
+  supabase: SupabaseClient,
+  companyId: string,
+  parentCustomerId?: string,
+): Promise<number> {
+  let q = supabase
+    .from('bills')
+    .select('bill_id, vendor_po_reference, job_name_extracted, customer_name_extracted')
+    .eq('company_id', companyId)
+    .is('deleted_at', null)
+    .neq('status', 'published')
+    .neq('status', 'archived')
+    .neq('status', 'rejected')
+    .neq('status', 'processing')
+  if (parentCustomerId) q = q.eq('matched_customer_qb_id', parentCustomerId)
+  const { data: bills } = await q
+
+  if (!bills?.length) return 0
+
+  // Reduce to bills that have a job reference
+  const withRef = (bills as Array<{ bill_id: string; vendor_po_reference: string | null; job_name_extracted: string | null; customer_name_extracted: string | null }>)
+    .filter(b => b.vendor_po_reference || b.job_name_extracted)
+  if (!withRef.length) return 0
+
+  // Exclude bills already matched (any line has job_id set)
+  const billIds = withRef.map(b => b.bill_id)
+  const { data: linesWithJobs } = await supabase
+    .from('bill_line_items')
+    .select('bill_id')
+    .in('bill_id', billIds)
+    .not('job_id', 'is', null)
+  const alreadyMatched = new Set((linesWithJobs ?? []).map((l: { bill_id: string }) => l.bill_id))
+
+  let matchCount = 0
+  for (const bill of withRef) {
+    if (alreadyMatched.has(bill.bill_id)) continue
+    const ref = bill.vendor_po_reference ?? bill.job_name_extracted
+    if (!ref) continue
+    const matched = await tryMatchJob(
+      supabase, bill.bill_id, companyId, ref,
+      bill.job_name_extracted ?? undefined,
+      bill.customer_name_extracted ?? undefined,
+    )
+    if (matched) matchCount++
+  }
+  return matchCount
+}
+
+// ---------------------------------------------------------------------------
 // PO matching — link bill to matching open PO by PO number
 // ---------------------------------------------------------------------------
 

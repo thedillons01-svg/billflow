@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useTransition, useEffect, useRef } from 'react'
-import { updateVendor, createVendorInQB } from './actions'
+import { updateVendor, createVendorInQB, applyVendorGlToBills, applyVendorClassToBills } from './actions'
 import { useDirty } from '@/components/unsaved-guard'
 
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
@@ -46,6 +46,9 @@ export function VendorGeneralTab({
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [qbCreateError, setQbCreateError] = useState<string | null>(null)
+  const [applyPrompt, setApplyPrompt] = useState<{ gl: boolean; cls: boolean } | null>(null)
+  const [isApplying, setIsApplying] = useState(false)
+  const [applyResult, setApplyResult] = useState<string | null>(null)
   const { setDirty, registerSaveFn } = useDirty()
 
   const [form, setForm] = useState({
@@ -75,6 +78,10 @@ export function VendorGeneralTab({
   }, [registerSaveFn])
 
   saveFnRef.current = async () => {
+    // Capture original values before save to detect changes
+    const prevGlId = vendor.billflow_gl_account_id || null
+    const prevClassId = vendor.billflow_class_id || null
+
     const selectedQbVendor = qbVendors.find(v => v.qb_vendor_id === form.qb_vendor_id)
     await updateVendor(vendor.vendor_id, {
       vendor_name_extracted:      form.vendor_name_extracted || null,
@@ -98,8 +105,17 @@ export function VendorGeneralTab({
       default_due_date:           form.default_due_date,
     })
     setDirty(false)
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+
+    const glChanged = (form.billflow_gl_account_id || null) !== prevGlId
+    const classChanged = (form.billflow_class_id || null) !== prevClassId
+
+    if (glChanged || classChanged) {
+      setApplyPrompt({ gl: glChanged, cls: classChanged })
+      setApplyResult(null)
+    } else {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    }
   }
 
   const handleSave = () => {
@@ -389,21 +405,66 @@ export function VendorGeneralTab({
       </Section>
 
       {/* Save */}
-      <div className="flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={isPending}
-          style={{
-            background: '#2DB87A', color: 'white',
-            borderRadius: 6, padding: '7px 16px',
-            fontSize: 13, fontWeight: 500,
-            border: 'none', cursor: 'pointer',
-            opacity: isPending ? 0.6 : 1,
-          }}
-        >
-          {isPending ? 'Saving…' : 'Save Changes'}
-        </button>
-        {saved && <span style={{ fontSize: 12, color: '#065F46' }}>Saved ✓</span>}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleSave}
+            disabled={isPending}
+            style={{
+              background: '#2DB87A', color: 'white',
+              borderRadius: 6, padding: '7px 16px',
+              fontSize: 13, fontWeight: 500,
+              border: 'none', cursor: 'pointer',
+              opacity: isPending ? 0.6 : 1,
+            }}
+          >
+            {isPending ? 'Saving…' : 'Save Changes'}
+          </button>
+          {saved && <span style={{ fontSize: 12, color: '#065F46' }}>Saved ✓</span>}
+        </div>
+
+        {applyPrompt && !applyResult && (
+          <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+            <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E', margin: 0 }}>
+              Apply {[applyPrompt.gl && 'new default GL account', applyPrompt.cls && 'new class'].filter(Boolean).join(' and ')} to existing unpublished bills from this vendor?
+            </p>
+            <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>Only lines that weren&apos;t manually set will be updated.</p>
+            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+              <button
+                type="button"
+                disabled={isApplying}
+                onClick={async () => {
+                  setIsApplying(true)
+                  let total = 0
+                  if (applyPrompt.gl) {
+                    const r = await applyVendorGlToBills(vendor.vendor_id)
+                    total = Math.max(total, r.count)
+                  }
+                  if (applyPrompt.cls) {
+                    const r = await applyVendorClassToBills(vendor.vendor_id)
+                    total = Math.max(total, r.count)
+                  }
+                  setIsApplying(false)
+                  setApplyPrompt(null)
+                  setApplyResult(total === 0 ? 'No unpublished bills to update.' : `Updated ${total} unpublished bill${total !== 1 ? 's' : ''}.`)
+                }}
+                style={{ fontSize: 12, fontWeight: 600, color: 'white', background: '#D97706', border: 'none', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', opacity: isApplying ? 0.6 : 1 }}
+              >
+                {isApplying ? 'Applying…' : 'Yes, apply'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setApplyPrompt(null); setSaved(true); setTimeout(() => setSaved(false), 2000) }}
+                style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}
+              >
+                Skip
+              </button>
+            </div>
+          </div>
+        )}
+        {applyResult && (
+          <span style={{ fontSize: 12, color: '#065F46' }}>{applyResult}</span>
+        )}
       </div>
     </div>
   )
