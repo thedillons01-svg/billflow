@@ -201,7 +201,16 @@ export function BillReviewForm({
   const [jobCreateError, setJobCreateError] = useState<string | null>(null)
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
-  const [localMatchedCustomerId, setLocalMatchedCustomerId] = useState(bill.matched_customer_qb_id ?? null)
+  const [localMatchedCustomerId, setLocalMatchedCustomerId] = useState<string | null>(() => {
+    if (bill.matched_customer_qb_id) return bill.matched_customer_qb_id
+    if (!bill.customer_name_extracted) return null
+    const lower = (bill.customer_name_extracted as string).toLowerCase()
+    const match = customers.find(c => {
+      const cn = (c.job_name ?? '').toLowerCase()
+      return cn === lower || lower.includes(cn) || cn.includes(lower)
+    })
+    return match?.qb_job_id ?? null
+  })
   const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
 
   // Invoice history popover
