@@ -159,6 +159,15 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
       <div style={{ background: 'white', borderBottom: '0.5px solid var(--color-border-tertiary)', padding: '14px 20px', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
+            <div style={{ marginBottom: 4 }}>
+              <button
+                onClick={handleCancel}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontSize: 12, color: 'var(--color-text-secondary)', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
+                Settings
+              </button>
+            </div>
             <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)', margin: 0 }}>Class Assignments</h1>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
               Assign QuickBooks classes to {entityType}s so bills are coded automatically.
