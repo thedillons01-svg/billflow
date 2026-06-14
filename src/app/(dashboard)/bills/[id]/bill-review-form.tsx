@@ -1185,6 +1185,30 @@ export function BillReviewForm({
                             {!newJobCustomerId && (
                               <p style={{ fontSize: 11, color: '#991B1B', margin: 0 }}>Jobs must belong to a customer. Use "Create new customer" above if needed.</p>
                             )}
+                            {(() => {
+                              const dupes = newJobCustomerId && newJobName.trim()
+                                ? liveJobs.filter(j => j.parent_id === newJobCustomerId && j.job_number && newJobName.includes(j.job_number))
+                                : []
+                              if (!dupes.length) return null
+                              return (
+                                <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 5, padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                  <p style={{ fontSize: 11, fontWeight: 500, color: '#92400E', margin: 0, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <i className="ti ti-alert-triangle" style={{ fontSize: 12 }} />
+                                    A job with this number already exists
+                                  </p>
+                                  {dupes.map(j => (
+                                    <div key={j.qb_job_id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                      <span style={{ fontSize: 11, color: '#92400E' }}>{j.job_name}</span>
+                                      <button type="button"
+                                        onClick={() => { setShowJobCreate(false); setNewJobName(''); setNewJobCustomerId(''); setHeaderJobPending({ jobId: j.qb_job_id, jobLabel: j.job_name ?? j.qb_job_id }) }}
+                                        style={{ fontSize: 11, color: '#D97706', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: 0 }}
+                                      >Use this job →</button>
+                                    </div>
+                                  ))}
+                                  <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>Or continue below to create a new job with a different name.</p>
+                                </div>
+                              )
+                            })()}
                             <div className="flex items-center gap-2">
                               <input type="text" value={newJobName} onChange={e => setNewJobName(e.target.value)} placeholder="Job name" autoFocus
                                 style={{ flex: 1, height: 28, border: '0.5px solid var(--color-border-secondary)', borderRadius: 5, padding: '0 8px', fontSize: 12 }}
