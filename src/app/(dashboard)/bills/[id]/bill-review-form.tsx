@@ -201,6 +201,7 @@ export function BillReviewForm({
   const [jobCreateError, setJobCreateError] = useState<string | null>(null)
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
+  const [localMatchedCustomerId, setLocalMatchedCustomerId] = useState(bill.matched_customer_qb_id ?? null)
   const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
 
   // Invoice history popover
@@ -1048,7 +1049,7 @@ export function BillReviewForm({
                         <i className="ti ti-search" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
                         <div>
                           <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
-                            {bill.matched_customer_qb_id
+                            {localMatchedCustomerId
                               ? `Customer matched — no job found yet`
                               : 'Job reference on invoice — no QuickBooks match found'}
                           </p>
@@ -1141,6 +1142,8 @@ export function BillReviewForm({
                                       const newCust: Job = { id: result.qbJobId, qb_job_id: result.qbJobId, job_number: result.jobNumber, job_name: result.jobName, customer_name: null, is_customer: true, status: 'active' }
                                       setLiveCustomers(prev => [...prev, newCust])
                                       setNewJobCustomerId(result.qbJobId)
+                                      setLocalMatchedCustomerId(result.qbJobId)
+                                      await updateBill(bill.bill_id, { matched_customer_qb_id: result.qbJobId })
                                       setNewJobName(bill.job_name_extracted ?? bill.vendor_po_reference ?? '')
                                       setShowCustomerCreate(false)
                                       setNewCustomerName('')
@@ -1161,7 +1164,7 @@ export function BillReviewForm({
                         {/* Create new job */}
                         {!showJobCreate && !showCustomerCreate && (
                           <button type="button"
-                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.job_name_extracted ?? bill.vendor_po_reference ?? ''); setNewJobCustomerId(bill.matched_customer_qb_id ?? '') }}
+                            onClick={() => { setShowJobCreate(true); setNewJobName(bill.job_name_extracted ?? bill.vendor_po_reference ?? ''); setNewJobCustomerId(localMatchedCustomerId ?? '') }}
                             style={{ background: 'none', border: 'none', padding: 0, fontSize: 12, color: '#2DB87A', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start' }}
                           >
                             <i className="ti ti-plus" style={{ fontSize: 12 }} />
