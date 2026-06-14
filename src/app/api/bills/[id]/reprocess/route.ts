@@ -2,7 +2,7 @@
 import { Resend } from 'resend'
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
-import { processBill } from '@/lib/ocr/process'
+import { processBill, applyCustomerClassToLines } from '@/lib/ocr/process'
 import { syncSingleVendorFromQB } from '@/lib/quickbooks/sync'
 
 export const maxDuration = 60
@@ -112,6 +112,17 @@ export async function POST(
     await service.from('bill_line_items')
       .update({ job_id: previousJobId })
       .eq('bill_id', billId)
+
+    // Apply customer class now that the job is restored — processBill skipped job matching
+    // (skipJobMatch=true) so step 6.3 ran before jobs were on the lines and found nothing.
+    const { data: classCfg } = await service
+      .from('companies')
+      .select('class_assignment_mode')
+      .eq('company_id', bill.company_id)
+      .single()
+    if (classCfg?.class_assignment_mode === 'customer') {
+      await applyCustomerClassToLines(service, billId, bill.company_id, previousJobId)
+    }
   }
 
   // Read after state for email diff + response payload

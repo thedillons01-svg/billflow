@@ -711,7 +711,7 @@ async function tryMatchCustomerForBill(
 // Only called when class_assignment_mode = 'customer'. Zero overhead otherwise.
 // ---------------------------------------------------------------------------
 
-async function applyCustomerClassToLines(
+export async function applyCustomerClassToLines(
   supabase: SupabaseClient,
   billId: string,
   companyId: string,
