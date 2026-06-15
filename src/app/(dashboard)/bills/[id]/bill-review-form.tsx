@@ -1059,14 +1059,16 @@ export function BillReviewForm({
                         <div>
                           <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
                             {localMatchedCustomerId
-                              ? `Customer matched — no job found yet`
+                              ? 'Customer matched — no job found yet'
                               : 'Job reference on invoice — no QuickBooks match found'}
                           </p>
                           <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
                             {[bill.job_name_extracted, bill.customer_name_extracted].filter(Boolean).join(' / ')}
                           </p>
                           <p style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
-                            Select a matching job below, or create a new one.
+                            {localMatchedCustomerId
+                              ? 'Tag lines to this customer directly, or select/create a job under them.'
+                              : 'Select a matching job below, or create a new one.'}
                           </p>
                         </div>
                       </div>
@@ -1144,7 +1146,21 @@ export function BillReviewForm({
                                 onClick={() => {
                                   setCustomerCreateError(null)
                                   startTransition(async () => {
-                                    const result = await createJob(bill.company_id, newCustomerName.trim(), undefined)
+                                    const trimmed = newCustomerName.trim()
+                                    const existing = liveCustomers.find(c =>
+                                      (c.job_name ?? '').toLowerCase() === trimmed.toLowerCase()
+                                    )
+                                    if (existing) {
+                                      setNewJobCustomerId(existing.qb_job_id)
+                                      setLocalMatchedCustomerId(existing.qb_job_id)
+                                      await updateBill(bill.bill_id, { matched_customer_qb_id: existing.qb_job_id })
+                                      setNewJobName(bill.job_name_extracted ?? bill.vendor_po_reference ?? '')
+                                      setShowCustomerCreate(false)
+                                      setNewCustomerName('')
+                                      setShowJobCreate(true)
+                                      return
+                                    }
+                                    const result = await createJob(bill.company_id, trimmed, undefined)
                                     if ('error' in result) {
                                       setCustomerCreateError(result.error)
                                     } else {
