@@ -187,7 +187,12 @@ export function PoList({
 
             <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none' }}>
               <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{vendorDisplay}</p>
-              {po.qb_sync_error && <p style={{ fontSize: 11, color: '#DC2626' }}>{po.qb_sync_error}</p>}
+              {po.qb_sync_error && (
+                <p style={{ fontSize: 11, color: '#DC2626', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}
+                  title={po.qb_sync_error}>
+                  {po.qb_sync_error.replace(/\{.*/, '').trim() || 'Sync error — click to view'}
+                </p>
+              )}
             </Link>
 
             <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none' }}>
