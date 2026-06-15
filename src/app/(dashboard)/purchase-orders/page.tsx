@@ -1,13 +1,8 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { PoUploadButton } from './po-upload-button'
+import { PoList } from './po-list'
 
-const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  open:               { bg: '#D1FAE5', color: '#065F46', label: 'Open' },
-  partially_received: { bg: '#FEF3C7', color: '#92400E', label: 'Partially Received' },
-  received:           { bg: '#DBEAFE', color: '#1E40AF', label: 'Received' },
-  closed:             { bg: '#F3F4F6', color: '#374151', label: 'Closed' },
-}
 
 export default async function PurchaseOrdersPage({
   searchParams,
@@ -116,80 +111,7 @@ export default async function PurchaseOrdersPage({
         {!pos || pos.length === 0 ? (
           <EmptyState tab={tab} />
         ) : (
-          <>
-            {/* Column headers */}
-            <div
-              className="grid px-5 py-2"
-              style={{
-                gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
-                borderBottom: '0.5px solid var(--color-border-tertiary)',
-              }}
-            >
-              {['Vendor', 'PO #', 'Date', 'Job', 'Status'].map(h => (
-                <span
-                  key={h}
-                  style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}
-                >
-                  {h}
-                </span>
-              ))}
-            </div>
-
-            {pos.map((po, i) => {
-              const badge = STATUS_BADGE[po.status] ?? STATUS_BADGE.open
-              const vendorDisplay = (po.vendors as unknown as { vendor_name_display: string | null } | null)?.vendor_name_display ?? po.vendor_name_raw ?? '—'
-              return (
-                <Link
-                  key={po.po_id}
-                  href={`/purchase-orders/${po.po_id}`}
-                  className="grid items-center px-5 py-[10px]"
-                  style={{
-                    gridTemplateColumns: '1.8fr 0.9fr 0.7fr 0.9fr 80px',
-                    borderBottom: '0.5px solid var(--color-border-tertiary)',
-                    background: i % 2 === 0 ? 'white' : 'var(--color-background-secondary)',
-                    textDecoration: 'none',
-                    display: 'grid',
-                  }}
-                >
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                      {vendorDisplay}
-                    </p>
-                    {po.qb_sync_error && (
-                      <p style={{ fontSize: 11, color: '#DC2626' }}>{po.qb_sync_error}</p>
-                    )}
-                  </div>
-                  <div>
-                    <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
-                      {po.po_number ?? '—'}
-                    </span>
-                    {po.qb_po_id && (
-                      <p style={{ fontSize: 10, color: '#059669', marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <i className="ti ti-circle-check" style={{ fontSize: 10 }} />
-                        In QuickBooks
-                      </p>
-                    )}
-                  </div>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    {po.order_date ? new Date(po.order_date).toLocaleDateString() : '—'}
-                  </span>
-                  <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                    {po.job_id ? (jobMap.get(po.job_id) ?? po.job_id) : '—'}
-                  </span>
-                  <span
-                    style={{
-                      display: 'inline-block',
-                      background: badge.bg, color: badge.color,
-                      borderRadius: 4, padding: '3px 8px',
-                      fontSize: 10, fontWeight: 500,
-                    }}
-                  >
-                    {badge.label}
-                  </span>
-                </Link>
-              )
-            })}
-          </>
+          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} />
         )}
       </div>
     </div>

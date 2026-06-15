@@ -1,9 +1,11 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createServiceClient } from '@/lib/supabase/service'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getQBClient } from '@/lib/quickbooks/client'
+import { pushPOToQBO } from '@/lib/quickbooks/push-po'
 
 export async function updatePO(
   poId: string,
@@ -79,6 +81,50 @@ export async function deletePO(poId: string) {
     .update({ deleted_at: new Date().toISOString() })
     .eq('po_id', poId)
   redirect('/purchase-orders')
+}
+
+export async function softDeletePO(poId: string) {
+  const supabase = await createClient()
+  await supabase
+    .from('purchase_orders')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('po_id', poId)
+  revalidatePath('/purchase-orders')
+}
+
+export async function bulkPublishPOs(
+  poIds: string[]
+): Promise<{ success: number; failed: number; errors: { poId: string; poNumber: string | null; reason: string }[] }> {
+  const supabase = createServiceClient()
+  const errors: { poId: string; poNumber: string | null; reason: string }[] = []
+  let success = 0
+
+  for (const poId of poIds) {
+    const { data: po } = await supabase
+      .from('purchase_orders')
+      .select('company_id, po_number')
+      .eq('po_id', poId)
+      .single()
+
+    if (!po) {
+      errors.push({ poId, poNumber: null, reason: 'PO not found' })
+      continue
+    }
+
+    try {
+      await pushPOToQBO(poId, po.company_id)
+      success++
+    } catch (err) {
+      errors.push({
+        poId,
+        poNumber: po.po_number,
+        reason: err instanceof Error ? err.message : 'Unknown error',
+      })
+    }
+  }
+
+  revalidatePath('/purchase-orders')
+  return { success, failed: errors.length, errors }
 }
 
 export async function createVendorFromPO(
