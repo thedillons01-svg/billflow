@@ -351,9 +351,6 @@ async function tryMatchJobForPO(
   const custSources = [fields.customerName, fields.jobName].filter(Boolean) as string[]
   const custCandidates = [...new Set(custSources.flatMap(extractCandidates))]
 
-  // Combined: all candidates for the broadest possible sweep
-  const allCandidates = [...new Set([...jobCandidates, ...custCandidates])]
-
   let allRows: CacheJob[] | null = null
 
   const fetchRows = async () => {
@@ -366,11 +363,12 @@ async function tryMatchJobForPO(
 
   allRows = await fetchRows()
 
-  // 1. Try to match a sub-customer (job) using job-focused candidates first,
-  //    then fall back to all candidates so customer_name on the row can help.
+  // 1. Match a sub-customer (job) using only job-focused candidates (PO number,
+  //    PO reference, extracted job name). Customer name is intentionally excluded
+  //    here — on vendor PO confirmations the buyer's own company name is often
+  //    extracted and would false-match every PO to the same job.
   const subCustomers = allRows.filter(r => !r.is_customer)
   let jobMatch = subCustomers.find(j => jobMatchesCandidates(j, jobCandidates))
-              ?? subCustomers.find(j => jobMatchesCandidates(j, allCandidates))
 
   // Cache miss — sync once then retry
   if (!jobMatch) {
@@ -378,7 +376,6 @@ async function tryMatchJobForPO(
     allRows = await fetchRows()
     const freshSubs = allRows.filter(r => !r.is_customer)
     jobMatch = freshSubs.find(j => jobMatchesCandidates(j, jobCandidates))
-            ?? freshSubs.find(j => jobMatchesCandidates(j, allCandidates))
   }
 
   if (jobMatch) {
