@@ -24,7 +24,7 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
   closed:             { bg: '#F3F4F6', color: '#374151', label: 'Closed' },
 }
 
-const COLS = '24px 1.8fr 0.9fr 0.7fr 0.9fr 80px'
+const COLS = '24px minmax(0,1.8fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(0,0.9fr) 80px'
 
 export function PoList({
   pos,
