@@ -16,6 +16,7 @@ type Vendor = {
   qb_vendor_id: string | null
   is_visible: boolean
   auto_publish_enabled: boolean
+  auto_publish_po_enabled: boolean
   hold_for_job_match: boolean
   mark_as_paid_default: boolean
   default_description: string | null
@@ -29,6 +30,7 @@ type Vendor = {
   billflow_class_id: string | null
   copy_po_to_qb_reference: boolean
   invoices_processed: number
+  pos_processed: number
   confidence_display: string | null
   default_due_date: string | null
 }
@@ -56,8 +58,9 @@ export function VendorGeneralTab({
     vendor_name_display:   vendor.vendor_name_display ?? '',
     qb_vendor_id:          vendor.qb_vendor_id ?? '',
     is_visible:            vendor.is_visible,
-    auto_publish_enabled:  vendor.auto_publish_enabled,
-    hold_for_job_match:    vendor.hold_for_job_match,
+    auto_publish_enabled:    vendor.auto_publish_enabled,
+    auto_publish_po_enabled: vendor.auto_publish_po_enabled,
+    hold_for_job_match:      vendor.hold_for_job_match,
     mark_as_paid_default:  vendor.mark_as_paid_default,
     default_description:   vendor.default_description ?? '',
     default_payment_account_id: vendor.default_payment_account_id ?? '',
@@ -90,6 +93,7 @@ export function VendorGeneralTab({
       qb_vendor_name:             selectedQbVendor?.name ?? null,
       is_visible:                 form.is_visible,
       auto_publish_enabled:       form.auto_publish_enabled,
+      auto_publish_po_enabled:    form.auto_publish_po_enabled,
       hold_for_job_match:         form.hold_for_job_match,
       mark_as_paid_default:       form.mark_as_paid_default,
       default_description:        form.default_description || null,
@@ -127,7 +131,8 @@ export function VendorGeneralTab({
     setDirty(true)
   }
 
-  const showAutoPublishPromo = vendor.invoices_processed >= 5 && !form.auto_publish_enabled
+  const showAutoPublishPromo   = vendor.invoices_processed >= 5 && !form.auto_publish_enabled
+  const showAutoPublishPoPromo = vendor.pos_processed >= 3 && !form.auto_publish_po_enabled
 
   return (
     <div style={{ maxWidth: 600 }} className="space-y-6">
@@ -156,6 +161,39 @@ export function VendorGeneralTab({
             onClick={() => {
               set('auto_publish_enabled', true)
             }}
+            style={{
+              background: '#2DB87A', color: 'white',
+              border: 'none', borderRadius: 6, padding: '6px 14px',
+              fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+            }}
+          >
+            Enable
+          </button>
+        </div>
+      )}
+
+      {/* PO auto-publish promotion banner */}
+      {showAutoPublishPoPromo && (
+        <div
+          className="flex items-start gap-3 px-4 py-3"
+          style={{
+            background: '#EBF5EF',
+            border: '1.5px solid #2DB87A',
+            borderRadius: 8,
+          }}
+        >
+          <i className="ti ti-rocket" style={{ fontSize: 20, color: '#2DB87A', marginTop: 1, flexShrink: 0 }} />
+          <div className="flex-1">
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>
+              Ready for PO auto-publish
+            </p>
+            <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 3, lineHeight: 1.5 }}>
+              {vendor.pos_processed} purchase orders from this vendor have been processed.
+              Enable PO auto-publish and confirmed orders will flow directly into QuickBooks without review.
+            </p>
+          </div>
+          <button
+            onClick={() => set('auto_publish_po_enabled', true)}
             style={{
               background: '#2DB87A', color: 'white',
               border: 'none', borderRadius: 6, padding: '6px 14px',
@@ -333,10 +371,16 @@ export function VendorGeneralTab({
           </select>
         </Field>
         <ToggleField
-          label="Auto-publish enabled"
+          label="Auto-publish bills"
           helper="When on, invoices from this vendor are automatically pushed to QuickBooks without review — as long as all eligibility checks pass. Purchasomatic will suggest enabling this after 5 accurate invoices."
           checked={form.auto_publish_enabled}
           onChange={v => set('auto_publish_enabled', v)}
+        />
+        <ToggleField
+          label="Auto-publish POs"
+          helper="When on, purchase order confirmations from this vendor are automatically pushed to QuickBooks without review. Requires PO push to be enabled in company settings."
+          checked={form.auto_publish_po_enabled}
+          onChange={v => set('auto_publish_po_enabled', v)}
         />
         <ToggleField
           label="Hold for job match"

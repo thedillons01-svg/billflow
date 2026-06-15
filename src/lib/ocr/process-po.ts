@@ -173,7 +173,7 @@ export async function processPO(poId: string): Promise<void> {
   // Insert PO line items, propagating the matched job to every line
   await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount, matchedJobId)
 
-  // Deduct 1 credit for PO processing
+  // Deduct 1 credit and increment pos_processed on the vendor
   const { data: co } = await supabase
     .from('companies')
     .select('credit_balance')
@@ -181,6 +181,14 @@ export async function processPO(poId: string): Promise<void> {
     .single()
 
   const newBalance = (co?.credit_balance ?? 0) - 1
+
+  // Fetch vendor_id from the PO (may have been set during vendor matching above)
+  const { data: poNow } = await supabase
+    .from('purchase_orders')
+    .select('vendor_id')
+    .eq('po_id', poId)
+    .single()
+
   await Promise.all([
     supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', po.company_id),
     supabase.from('credit_ledger').insert({
@@ -189,6 +197,18 @@ export async function processPO(poId: string): Promise<void> {
       description: `PO processed: ${result.vendor_name_raw ?? 'Unknown'} ${result.invoice_number ?? ''}`.trim(),
     }),
   ])
+
+  // Increment pos_processed on the vendor
+  if (poNow?.vendor_id) {
+    const { data: vend } = await supabase
+      .from('vendors')
+      .select('pos_processed')
+      .eq('vendor_id', poNow.vendor_id)
+      .single()
+    await supabase.from('vendors')
+      .update({ pos_processed: (vend?.pos_processed ?? 0) + 1 })
+      .eq('vendor_id', poNow.vendor_id)
+  }
 
   await supabase.from('processing_log').insert({
     document_id:   poId,
@@ -217,21 +237,35 @@ export async function processPO(poId: string): Promise<void> {
     console.error(`[ocr-po] saveToStorage failed for PO ${poId}:`, err)
   }
 
-  // Auto-push to QB if the company has push_pos_to_qb enabled and QB is connected.
-  // Runs after all other processing so a push failure doesn't block OCR or credits.
-  const { data: pushSettings } = await supabase
-    .from('companies')
-    .select('push_pos_to_qb, qb_connection_status')
-    .eq('company_id', po.company_id)
-    .single()
+  // Auto-push to QB if vendor has auto_publish_po_enabled and QB is connected.
+  // Same pattern as bill auto-publish — per-vendor flag, runs after all other processing.
+  if (poNow?.vendor_id) {
+    const { data: vendorFlags } = await supabase
+      .from('vendors')
+      .select('auto_publish_po_enabled')
+      .eq('vendor_id', poNow.vendor_id)
+      .single()
 
-  if (pushSettings?.push_pos_to_qb && pushSettings?.qb_connection_status === 'connected') {
-    try {
-      await pushPOToQBO(poId, po.company_id)
-      console.log(`[ocr-po] PO ${poId} auto-pushed to QB`)
-    } catch (pushErr) {
-      // pushPOToQBO already writes qb_sync_error to the PO row — just log here
-      console.error(`[ocr-po] Auto-push failed for PO ${poId}:`, pushErr)
+    if (vendorFlags?.auto_publish_po_enabled) {
+      const { data: companyConn } = await supabase
+        .from('companies')
+        .select('qb_connection_status, push_pos_to_qb')
+        .eq('company_id', po.company_id)
+        .single()
+
+      if (companyConn?.qb_connection_status === 'connected' && companyConn?.push_pos_to_qb !== false) {
+        try {
+          await pushPOToQBO(poId, po.company_id)
+          console.log(`[ocr-po] PO ${poId} auto-published to QB`)
+        } catch (pushErr) {
+          console.error(`[ocr-po] Auto-publish failed for PO ${poId}:`, pushErr)
+        }
+      } else {
+        const reason = companyConn?.qb_connection_status !== 'connected'
+          ? 'Auto-publish held: QuickBooks is not connected.'
+          : 'Auto-publish held: PO push is disabled in company settings.'
+        await supabase.from('purchase_orders').update({ qb_sync_error: reason }).eq('po_id', poId)
+      }
     }
   }
 }
