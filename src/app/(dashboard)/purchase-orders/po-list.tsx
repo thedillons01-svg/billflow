@@ -195,13 +195,13 @@ export function PoList({
               )}
             </Link>
 
-            <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none' }}>
+            <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{po.po_number ?? '—'}</span>
               {po.qb_po_id && (
-                <p style={{ fontSize: 10, color: '#059669', marginTop: 2, display: 'flex', alignItems: 'center', gap: 3 }}>
+                <span style={{ fontSize: 10, color: '#059669', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                   <i className="ti ti-circle-check" style={{ fontSize: 10 }} />
-                  In QuickBooks
-                </p>
+                  In QB
+                </span>
               )}
             </Link>
 
