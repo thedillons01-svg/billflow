@@ -6,6 +6,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { getQBClient } from '@/lib/quickbooks/client'
 import { pushPOToQBO } from '@/lib/quickbooks/push-po'
+import { retryPOJobMatching } from '@/lib/ocr/process-po'
 
 export async function updatePO(
   poId: string,
@@ -81,6 +82,39 @@ export async function deletePO(poId: string) {
     .update({ deleted_at: new Date().toISOString() })
     .eq('po_id', poId)
   redirect('/purchase-orders')
+}
+
+export async function recalculateAllPOJobs(): Promise<{ updated: number; cleared: number }> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { updated: 0, cleared: 0 }
+
+  const { data: member } = await supabase
+    .from('company_members')
+    .select('company_id')
+    .eq('user_id', user.id)
+    .single()
+  if (!member) return { updated: 0, cleared: 0 }
+
+  const serviceSupabase = createServiceClient()
+  const { data: pos } = await serviceSupabase
+    .from('purchase_orders')
+    .select('po_id')
+    .eq('company_id', member.company_id)
+    .is('deleted_at', null)
+
+  if (!pos?.length) return { updated: 0, cleared: 0 }
+
+  let updated = 0
+  let cleared = 0
+
+  for (const po of pos) {
+    const matched = await retryPOJobMatching(po.po_id, member.company_id)
+    if (matched) updated++; else cleared++
+  }
+
+  revalidatePath('/purchase-orders')
+  return { updated, cleared }
 }
 
 export async function softDeletePO(poId: string) {

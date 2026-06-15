@@ -96,6 +96,7 @@ export async function processPO(poId: string): Promise<void> {
       vendor_name_raw:          result.vendor_name_raw,
       po_number:                result.invoice_number,
       order_date:               result.invoice_date,
+      vendor_po_reference:      result.vendor_po_reference ?? null,
       job_name_extracted:       result.job_name_extracted ?? null,
       customer_name_extracted:  result.customer_name_extracted ?? null,
     })
@@ -495,4 +496,39 @@ async function insertPOLineItems(
       job_id:           jobId ?? null,
     }))
   )
+}
+
+// ---------------------------------------------------------------------------
+// Exported retry — re-run job matching for a single PO using stored fields
+// ---------------------------------------------------------------------------
+
+export async function retryPOJobMatching(poId: string, companyId: string): Promise<string | null> {
+  const supabase = getServiceClient()
+
+  const { data: po } = await supabase
+    .from('purchase_orders')
+    .select('vendor_po_reference, job_name_extracted, customer_name_extracted')
+    .eq('po_id', poId)
+    .single()
+
+  // Clear existing assignment first
+  await Promise.all([
+    supabase.from('purchase_orders').update({ job_id: null, matched_customer_qb_id: null }).eq('po_id', poId),
+    supabase.from('po_line_items').update({ job_id: null }).eq('po_id', poId),
+  ])
+
+  if (!po) return null
+
+  const matchedJobId = await tryMatchJobForPO(supabase, poId, companyId, {
+    poNumber:     null,
+    poReference:  (po as Record<string, string | null>).vendor_po_reference ?? null,
+    jobName:      (po as Record<string, string | null>).job_name_extracted ?? null,
+    customerName: (po as Record<string, string | null>).customer_name_extracted ?? null,
+  })
+
+  if (matchedJobId) {
+    await supabase.from('po_line_items').update({ job_id: matchedJobId }).eq('po_id', poId)
+  }
+
+  return matchedJobId
 }

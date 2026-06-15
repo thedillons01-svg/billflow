@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import { PoUploadButton } from './po-upload-button'
 import { PoList } from './po-list'
+import { RecalculateJobsButton } from './recalculate-jobs-button'
 
 
 export default async function PurchaseOrdersPage({
@@ -67,7 +68,10 @@ export default async function PurchaseOrdersPage({
             PO confirmations captured via email, pushed to QuickBooks
           </p>
         </div>
-        <PoUploadButton creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
+        <div className="flex items-center gap-4">
+          <RecalculateJobsButton />
+          <PoUploadButton creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
+        </div>
       </div>
 
       {/* Tab bar */}
