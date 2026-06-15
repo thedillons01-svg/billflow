@@ -6,6 +6,7 @@ import type { ExtractionResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { syncVendorsIfStale, syncJobsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
+import { pushPOToQBO } from '@/lib/quickbooks/push-po'
 
 // Generate normalized variants of a vendor name to handle punctuation differences
 // e.g. "Gensco, Inc." → ["Gensco, Inc.", "Gensco Inc.", "Gensco Inc"]
@@ -214,6 +215,24 @@ export async function processPO(poId: string): Promise<void> {
     await saveToStorage(poId, 'po', po.company_id)
   } catch (err) {
     console.error(`[ocr-po] saveToStorage failed for PO ${poId}:`, err)
+  }
+
+  // Auto-push to QB if the company has push_pos_to_qb enabled and QB is connected.
+  // Runs after all other processing so a push failure doesn't block OCR or credits.
+  const { data: pushSettings } = await supabase
+    .from('companies')
+    .select('push_pos_to_qb, qb_connection_status')
+    .eq('company_id', po.company_id)
+    .single()
+
+  if (pushSettings?.push_pos_to_qb && pushSettings?.qb_connection_status === 'connected') {
+    try {
+      await pushPOToQBO(poId, po.company_id)
+      console.log(`[ocr-po] PO ${poId} auto-pushed to QB`)
+    } catch (pushErr) {
+      // pushPOToQBO already writes qb_sync_error to the PO row — just log here
+      console.error(`[ocr-po] Auto-push failed for PO ${poId}:`, pushErr)
+    }
   }
 }
 
