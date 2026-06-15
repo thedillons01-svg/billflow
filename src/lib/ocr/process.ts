@@ -856,20 +856,12 @@ async function tryMatchPO(
 ): Promise<void> {
   const normalised = poReference.trim().toLowerCase()
 
-  const { data: openPOs, error: poQueryErr } = await supabase
+  const { data: openPOs } = await supabase
     .from('purchase_orders')
     .select('po_id, po_number, vendor_name_raw, vendor_id')
     .eq('company_id', companyId)
     .in('status', ['open', 'partially_received'])
     .is('deleted_at', null)
-
-  const debugInfo = {
-    ref: normalised,
-    openPOsCount: openPOs?.length ?? 0,
-    queryErr: poQueryErr?.message ?? null,
-    poNumbers: openPOs?.map(p => p.po_number) ?? [],
-  }
-  await supabase.from('processing_log').insert({ bill_id: billId, action: 'po_match_debug', actor: 'system', after_state: debugInfo })
 
   if (!openPOs || openPOs.length === 0) return
 
@@ -877,14 +869,10 @@ async function tryMatchPO(
     po => po.po_number?.trim().toLowerCase() === normalised
   )
 
-  const matchDebug = { matchedPoId: match?.po_id ?? null }
-  await supabase.from('processing_log').insert({ bill_id: billId, action: 'po_match_result', actor: 'system', after_state: matchDebug })
-
   if (!match) return
 
   // Link bill to PO immediately
-  const { error: linkErr } = await supabase.from('bills').update({ matched_po_id: match.po_id }).eq('bill_id', billId)
-  await supabase.from('processing_log').insert({ bill_id: billId, action: 'po_match_linked', actor: 'system', after_state: { poId: match.po_id, linkErr: linkErr?.message ?? null } })
+  await supabase.from('bills').update({ matched_po_id: match.po_id }).eq('bill_id', billId)
 
   // Load PO and bill line items in parallel — only executed when a PO match is found
   const [{ data: poLines }, { data: billLines }] = await Promise.all([
