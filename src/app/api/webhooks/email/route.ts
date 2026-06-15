@@ -341,7 +341,7 @@ export async function POST(request: NextRequest) {
           company_id:    company.company_id,
           action:        'captured',
           actor:         'system',
-          after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+          after_state:   { capture_source: 'email', from: payload.From, to: toAddress, subject, pdf_url: storagePath },
         })
 
         after(processPO(docId).catch(err => console.error(`[email-webhook] processPO threw (${docId}):`, err)))
@@ -367,7 +367,7 @@ export async function POST(request: NextRequest) {
           company_id:    company.company_id,
           action:        'captured',
           actor:         'system',
-          after_state:   { capture_source: 'email', from: payload.From, subject, pdf_url: storagePath },
+          after_state:   { capture_source: 'email', from: payload.From, to: toAddress, subject, pdf_url: storagePath },
         })
 
         after(processBill(docId).catch(err => console.error(`[email-webhook] processBill threw (${docId}):`, err)))
