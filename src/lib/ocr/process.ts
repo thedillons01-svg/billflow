@@ -943,7 +943,7 @@ async function tryMatchPO(
   if (lineDiscrepancies.length > 0) {
     holdReason = `PO line discrepancies: ${lineDiscrepancies.join('; ')}`
   } else if (totalDiscrepancy > 0.01) {
-    holdReason = `PO total $${Number(match.total).toFixed(2)} differs from invoice total $${billTotal.toFixed(2)} by $${totalDiscrepancy.toFixed(2)}`
+    holdReason = `PO total $${poTotal.toFixed(2)} differs from invoice total $${billTotal.toFixed(2)} by $${totalDiscrepancy.toFixed(2)}`
   }
 
   await supabase.from('bills').update({ autopublish_hold_reason: holdReason }).eq('bill_id', billId)
