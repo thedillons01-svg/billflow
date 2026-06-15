@@ -307,12 +307,16 @@ type CacheJob = {
 // Returns true if any candidate fuzzy-matches the job's number or name.
 // customer_name is intentionally excluded — a customer-name match alone is not
 // sufficient to identify a specific job. Customer matching is a separate fallback pass.
+// Year-like job_numbers (2000-2099) are skipped for the "contained in" check to prevent
+// a PO number like "PO-2026-1061" from matching a job named "2026-Riverside HVAC".
 function jobMatchesCandidates(job: CacheJob, candidates: string[]): boolean {
   const num  = job.job_number?.trim().toLowerCase()
   const name = job.job_name?.trim().toLowerCase()
+  const numInt = num ? parseInt(num, 10) : NaN
+  const numIsYear = !isNaN(numInt) && numInt >= 2000 && numInt <= 2099
   for (const c of candidates) {
     if (num === c || name === c) return true
-    if (num  && num.length  >= 4 && c.includes(num))                        return true
+    if (num && !numIsYear && num.length >= 4 && c.includes(num)) return true
     if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
   }
   return false
@@ -334,48 +338,40 @@ async function tryMatchJobForPO(
   poId: string,
   companyId: string,
   fields: {
-    poNumber: string | null
-    poReference: string | null
-    jobName: string | null
-    customerName: string | null
+    poNumber: string | null     // vendor's confirmation number — NOT used for job matching
+    poReference: string | null  // contractor's own reference echoed by the vendor
+    jobName: string | null      // explicitly labeled job/project field
+    customerName: string | null // end customer/project name
   },
 ): Promise<string | null> {
-  const allSources = [fields.poNumber, fields.poReference, fields.jobName, fields.customerName].filter(Boolean) as string[]
-  if (!allSources.length) return null
+  // Mirror bill job matching: use jobName as primary when present, otherwise poReference.
+  // Never use poNumber (the vendor's order number) — it's irrelevant to QB job matching.
+  const primaryRef = fields.jobName ?? fields.poReference
+  if (!primaryRef) return null
 
-  // Job candidates: PO number, reference, and job name field
-  const jobSources = [fields.poNumber, fields.poReference, fields.jobName].filter(Boolean) as string[]
-  const jobCandidates = [...new Set(jobSources.flatMap(extractCandidates))]
+  const candidates = [
+    ...extractCandidates(primaryRef),
+    ...(fields.customerName ? extractCandidates(fields.customerName) : []),
+  ]
 
-  // Customer candidates: customer name field, plus job name as fallback
-  const custSources = [fields.customerName, fields.jobName].filter(Boolean) as string[]
-  const custCandidates = [...new Set(custSources.flatMap(extractCandidates))]
+  const { data: rows } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id, job_number, job_name, customer_name, is_customer')
+    .eq('company_id', companyId)
 
-  let allRows: CacheJob[] | null = null
+  const allRows = (rows ?? []) as CacheJob[]
 
-  const fetchRows = async () => {
-    const { data } = await supabase
-      .from('qb_jobs_cache')
-      .select('qb_job_id, job_number, job_name, customer_name, is_customer')
-      .eq('company_id', companyId)
-    return (data ?? []) as CacheJob[]
-  }
-
-  allRows = await fetchRows()
-
-  // 1. Match a sub-customer (job) using only job-focused candidates (PO number,
-  //    PO reference, extracted job name). Customer name is intentionally excluded
-  //    here — on vendor PO confirmations the buyer's own company name is often
-  //    extracted and would false-match every PO to the same job.
   const subCustomers = allRows.filter(r => !r.is_customer)
-  let jobMatch = subCustomers.find(j => jobMatchesCandidates(j, jobCandidates))
+  let jobMatch = subCustomers.find(j => jobMatchesCandidates(j, candidates))
 
   // Cache miss — sync once then retry
   if (!jobMatch) {
     await syncJobsIfStale(companyId)
-    allRows = await fetchRows()
-    const freshSubs = allRows.filter(r => !r.is_customer)
-    jobMatch = freshSubs.find(j => jobMatchesCandidates(j, jobCandidates))
+    const { data: freshRows } = await supabase
+      .from('qb_jobs_cache')
+      .select('qb_job_id, job_number, job_name, customer_name, is_customer')
+      .eq('company_id', companyId)
+    jobMatch = ((freshRows ?? []) as CacheJob[]).filter(r => !r.is_customer).find(j => jobMatchesCandidates(j, candidates))
   }
 
   if (jobMatch) {
@@ -387,8 +383,9 @@ async function tryMatchJobForPO(
     return jobMatch.qb_job_id
   }
 
-  // 2. No job match — try to identify the customer so the UI can pre-populate the create form.
-  if (custCandidates.length) {
+  // No job match — try to identify the customer so the UI can pre-populate the create form.
+  if (fields.customerName) {
+    const custCandidates = extractCandidates(fields.customerName)
     const customers = allRows.filter(r => r.is_customer)
     const custMatch = customers.find(c => customerMatchesCandidates(c, custCandidates))
     if (custMatch) {
