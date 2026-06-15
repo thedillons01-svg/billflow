@@ -218,6 +218,17 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       if (byExtracted) return byExtracted
       if (byDisplay) return byDisplay
 
+      // Tier 2.5: contains search on raw name — catches when stored name has a suffix the
+      // OCR dropped, e.g. extracted "Ferguson Enterprises" → stored "Ferguson Enterprises, LLC"
+      if (rawName.length >= 5) {
+        const [{ data: byExtracted15 }, { data: byDisplay15 }] = await Promise.all([
+          supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).ilike('vendor_name_extracted', `%${rawName}%`).limit(1).maybeSingle(),
+          supabase.from('vendors').select(vendorCols).eq('company_id', bill.company_id).ilike('vendor_name_display', `%${rawName}%`).limit(1).maybeSingle(),
+        ])
+        if (byExtracted15) return byExtracted15
+        if (byDisplay15) return byDisplay15
+      }
+
       // Tier 3: strip legal suffixes (LLC, Inc., etc.) and do a contains search
       const baseName = rawName
         .replace(/,?\s*(llc|l\.l\.c\.|inc\.?|corp\.?|co\.|ltd\.?|limited)\.?\s*$/i, '')

@@ -112,13 +112,18 @@ export async function processPO(poId: string): Promise<void> {
     const orCondition = vendorVariants
       .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
       .join(',')
-    const { data: vendor } = await supabase
-      .from('vendors')
-      .select('vendor_id')
-      .eq('company_id', po.company_id)
-      .or(orCondition)
-      .limit(1)
-      .single()
+    let vendor = orCondition
+      ? await supabase.from('vendors').select('vendor_id').eq('company_id', po.company_id).or(orCondition).limit(1).maybeSingle().then(r => r.data)
+      : null
+
+    // Contains fallback — catches "Ferguson Enterprises" → "Ferguson Enterprises, LLC"
+    if (!vendor && result.vendor_name_raw.length >= 5) {
+      const [r1, r2] = await Promise.all([
+        supabase.from('vendors').select('vendor_id').eq('company_id', po.company_id).ilike('vendor_name_extracted', `%${result.vendor_name_raw}%`).limit(1).maybeSingle(),
+        supabase.from('vendors').select('vendor_id').eq('company_id', po.company_id).ilike('vendor_name_display', `%${result.vendor_name_raw}%`).limit(1).maybeSingle(),
+      ])
+      vendor = r1.data ?? r2.data ?? null
+    }
 
     if (vendor) {
       await supabase.from('purchase_orders').update({ vendor_id: vendor.vendor_id }).eq('po_id', poId)
