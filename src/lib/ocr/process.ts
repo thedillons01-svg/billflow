@@ -858,7 +858,7 @@ async function tryMatchPO(
 
   const { data: openPOs } = await supabase
     .from('purchase_orders')
-    .select('po_id, po_number, total, vendor_name_raw, vendor_id')
+    .select('po_id, po_number, vendor_name_raw, vendor_id')
     .eq('company_id', companyId)
     .in('status', ['open', 'partially_received'])
     .is('deleted_at', null)
@@ -877,7 +877,7 @@ async function tryMatchPO(
   // Load PO and bill line items in parallel — only executed when a PO match is found
   const [{ data: poLines }, { data: billLines }] = await Promise.all([
     supabase.from('po_line_items')
-      .select('line_id, description, quantity_ordered, unit_cost, gl_account_id, job_id')
+      .select('line_id, description, quantity_ordered, unit_cost, extended_cost, gl_account_id, job_id')
       .eq('po_id', match.po_id),
     supabase.from('bill_line_items')
       .select('line_id, description, quantity, unit_cost')
@@ -925,7 +925,8 @@ async function tryMatchPO(
   }
 
   // Line discrepancies take priority; fall back to total discrepancy if no line-level data
-  const totalDiscrepancy = Math.abs((match.total ?? 0) - billTotal)
+  const poTotal = poLines?.reduce((sum, l) => sum + Number(l.extended_cost ?? 0), 0) ?? 0
+  const totalDiscrepancy = Math.abs(poTotal - billTotal)
   let holdReason: string | null = null
   if (lineDiscrepancies.length > 0) {
     holdReason = `PO line discrepancies: ${lineDiscrepancies.join('; ')}`
