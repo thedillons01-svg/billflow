@@ -24,14 +24,16 @@ const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }>
   closed:             { bg: '#F3F4F6', color: '#374151', label: 'Closed' },
 }
 
-const COLS = '24px minmax(0,1.2fr) minmax(0,0.9fr) minmax(0,0.7fr) minmax(0,1.5fr) 80px'
+const COLS = '24px minmax(0,1.2fr) minmax(0,0.8fr) minmax(0,0.8fr) minmax(0,0.6fr) minmax(0,1.1fr) 80px'
 
 export function PoList({
   pos,
   jobMap,
+  matchedBillMap,
 }: {
   pos: PO[]
   jobMap: Map<string, string>
+  matchedBillMap?: Map<string, { bill_id: string; invoice_number: string | null }>
 }) {
   const router = useRouter()
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -154,7 +156,7 @@ export function PoList({
           onChange={toggleAll}
           style={{ cursor: 'pointer', width: 14, height: 14 }}
         />
-        {['Vendor', 'PO #', 'Date', 'Job', 'Status'].map(h => (
+        {['Vendor', 'PO #', 'Invoice', 'Date', 'Job', 'Status'].map(h => (
           <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
             {h}
           </span>
@@ -166,6 +168,8 @@ export function PoList({
         const badge = STATUS_BADGE[po.status] ?? STATUS_BADGE.open
         const vendorDisplay = (po.vendors as { vendor_name_display: string | null } | null)?.vendor_name_display ?? po.vendor_name_raw ?? '—'
         const isChecked = selected.has(po.po_id)
+
+        const matchedBill = matchedBillMap?.get(po.po_id)
 
         return (
           <div
@@ -204,6 +208,18 @@ export function PoList({
                 </span>
               )}
             </Link>
+
+            {matchedBill ? (
+              <Link href={`/bills/${matchedBill.bill_id}`} style={{ textDecoration: 'none' }} onClick={e => e.stopPropagation()}>
+                <span style={{ fontSize: 13, color: '#2DB87A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>
+                  {matchedBill.invoice_number ?? 'Matched'}
+                </span>
+              </Link>
+            ) : (
+              <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none' }}>
+                <span style={{ fontSize: 13, color: 'var(--color-text-tertiary)' }}>—</span>
+              </Link>
+            )}
 
             <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none' }}>
               <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>

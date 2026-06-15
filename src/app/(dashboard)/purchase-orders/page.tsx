@@ -32,12 +32,17 @@ export default async function PurchaseOrdersPage({
 
   const { data: pos } = await query
 
-  // Counts for tab badges + jobs lookup + credit status
-  const [{ count: openCount }, { count: partialCount }, { data: jobs }, { data: company }] = await Promise.all([
+  const poIds = (pos ?? []).map(p => p.po_id)
+
+  // Counts for tab badges + jobs lookup + credit status + matched bills
+  const [{ count: openCount }, { count: partialCount }, { data: jobs }, { data: company }, { data: matchedBillRows }] = await Promise.all([
     supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('status', 'open').is('deleted_at', null),
     supabase.from('purchase_orders').select('*', { count: 'exact', head: true }).eq('status', 'partially_received').is('deleted_at', null),
     supabase.from('qb_jobs_cache').select('qb_job_id, job_number, job_name, customer_name'),
     supabase.from('companies').select('credit_balance, subscription_status').single(),
+    poIds.length > 0
+      ? supabase.from('bills').select('bill_id, invoice_number, matched_po_id').in('matched_po_id', poIds).is('deleted_at', null)
+      : Promise.resolve({ data: [] }),
   ])
   const creditBalance = company?.credit_balance ?? 1
   const subscriptionStatus = company?.subscription_status ?? 'trial'
@@ -45,6 +50,11 @@ export default async function PurchaseOrdersPage({
   const jobMap = new Map((jobs ?? []).map(j => [
     j.qb_job_id,
     [j.customer_name, j.job_number, j.job_name].filter(Boolean).join(' – '),
+  ]))
+
+  const matchedBillMap = new Map((matchedBillRows ?? []).map(b => [
+    b.matched_po_id as string,
+    { bill_id: b.bill_id as string, invoice_number: b.invoice_number as string | null },
   ]))
 
   const tabs = [
@@ -115,7 +125,7 @@ export default async function PurchaseOrdersPage({
         {!pos || pos.length === 0 ? (
           <EmptyState tab={tab} />
         ) : (
-          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} />
+          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} matchedBillMap={matchedBillMap} />
         )}
       </div>
     </div>
