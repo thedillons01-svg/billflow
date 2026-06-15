@@ -856,12 +856,14 @@ async function tryMatchPO(
 ): Promise<void> {
   const normalised = poReference.trim().toLowerCase()
 
-  const { data: openPOs } = await supabase
+  const { data: openPOs, error: poQueryErr } = await supabase
     .from('purchase_orders')
     .select('po_id, po_number, vendor_name_raw, vendor_id')
     .eq('company_id', companyId)
     .in('status', ['open', 'partially_received'])
     .is('deleted_at', null)
+
+  console.log(`[ocr] tryMatchPO bill=${billId} ref="${normalised}" openPOs=${openPOs?.length ?? 0} err=${poQueryErr?.message ?? 'none'}`)
 
   if (!openPOs || openPOs.length === 0) return
 
@@ -869,10 +871,13 @@ async function tryMatchPO(
     po => po.po_number?.trim().toLowerCase() === normalised
   )
 
+  console.log(`[ocr] tryMatchPO match=${match ? match.po_id : 'none'} po_numbers=${openPOs.map(p => p.po_number).join(',')}`)
+
   if (!match) return
 
   // Link bill to PO immediately
-  await supabase.from('bills').update({ matched_po_id: match.po_id }).eq('bill_id', billId)
+  const { error: linkErr } = await supabase.from('bills').update({ matched_po_id: match.po_id }).eq('bill_id', billId)
+  console.log(`[ocr] tryMatchPO linked bill=${billId} po=${match.po_id} linkErr=${linkErr?.message ?? 'none'}`)
 
   // Load PO and bill line items in parallel — only executed when a PO match is found
   const [{ data: poLines }, { data: billLines }] = await Promise.all([
