@@ -560,6 +560,24 @@ export default async function SettingsPage({
             </div>
           </GuardedLink>
 
+          <GuardedLink href="/settings/rules" style={{ display: 'block', width: '100%' }}>
+            <div
+              className="flex items-center justify-between"
+              style={{
+                background: 'white', border: '0.5px solid var(--color-border-tertiary)',
+                borderRadius: 8, padding: '16px 20px', cursor: 'pointer',
+              }}
+            >
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>Company Rules</p>
+                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                  Assign GL accounts to line items by description or amount — applies across all vendors
+                </p>
+              </div>
+              <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+            </div>
+          </GuardedLink>
+
           {/* ── Billing & Credits ─────────────────────────────────────── */}
           <Card title="Billing & Credits" subtitle="Your current plan and credit balance.">
             <div className="space-y-4">

@@ -334,16 +334,24 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     }
   }
 
-  // 5b. Load line item mappings and rules for this vendor
-  let mappings: Array<{ description_text: string; gl_account_id: string }> = []
-  let rules: Array<{
+  // 5b. Load line item mappings, vendor rules, and company rules
+  type RuleRow = {
     match_type: string
     conditions: Array<{ field: string; operator: string; value: string }>
     gl_account_id: string
     priority: number
-  }> = []
-  if (vendorId) {
-    const [mappingsResult, rulesResult] = await Promise.all([
+  }
+  let mappings: Array<{ description_text: string; gl_account_id: string }> = []
+  let vendorRules: RuleRow[] = []
+  let companyRules: RuleRow[] = []
+
+  const [companyRulesResult, ...vendorResults] = await Promise.all([
+    supabase
+      .from('company_line_item_rules')
+      .select('match_type, conditions, gl_account_id, priority')
+      .eq('company_id', bill.company_id)
+      .order('priority'),
+    ...(vendorId ? [
       supabase
         .from('vendor_line_item_mappings')
         .select('description_text, gl_account_id')
@@ -353,9 +361,12 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
         .select('match_type, conditions, gl_account_id, priority')
         .eq('vendor_id', vendorId)
         .order('priority'),
-    ])
-    mappings = mappingsResult.data ?? []
-    rules = (rulesResult.data ?? []) as typeof rules
+    ] : []),
+  ])
+  companyRules = (companyRulesResult.data ?? []) as RuleRow[]
+  if (vendorId && vendorResults.length === 2) {
+    mappings = (vendorResults[0].data ?? []) as typeof mappings
+    vendorRules = (vendorResults[1].data ?? []) as RuleRow[]
   }
 
   // 5c. Insert line items with smart GL account assignment
@@ -387,23 +398,30 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       let glAccountId: string | null = null
       let glSource: 'stored_mapping' | 'rule' | 'qb_default' | 'not_set' = 'not_set'
 
-      // 1. Check stored mappings (exact description match)
+      // 1. Check stored mappings (exact description match, vendor-specific)
       const mapping = mappings.find(m => m.description_text.toLowerCase() === desc.toLowerCase())
       if (mapping) {
         glAccountId = mapping.gl_account_id
         glSource = 'stored_mapping'
       }
 
-      // 2. Check rules (override mappings)
-      if (!glAccountId || rules.length > 0) {
-        const matchedRule = rules.find(rule => evaluateRule(rule, desc, li.unit_price ?? 0))
-        if (matchedRule) {
-          glAccountId = matchedRule.gl_account_id
+      // 2. Vendor rules override stored mappings (most specific, highest priority)
+      const matchedVendorRule = vendorRules.find(rule => evaluateRule(rule, desc, li.unit_price ?? 0))
+      if (matchedVendorRule) {
+        glAccountId = matchedVendorRule.gl_account_id
+        glSource = 'rule'
+      }
+
+      // 3. Company rules as fallback default (only if nothing vendor-specific matched)
+      if (!glAccountId) {
+        const matchedCompanyRule = companyRules.find(rule => evaluateRule(rule, desc, li.unit_price ?? 0))
+        if (matchedCompanyRule) {
+          glAccountId = matchedCompanyRule.gl_account_id
           glSource = 'rule'
         }
       }
 
-      // 3. Fall back to vendor default GL
+      // 4. Fall back to vendor default GL
       if (!glAccountId && vendorDefaultGlAccountId) {
         glAccountId = vendorDefaultGlAccountId
         glSource = 'qb_default'

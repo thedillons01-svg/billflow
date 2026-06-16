@@ -1,7 +1,7 @@
-﻿'use client'
+'use client'
 
 import { useState, useTransition } from 'react'
-import { saveRule, deleteRule } from './actions'
+import { saveCompanyRule, deleteCompanyRule } from './actions'
 
 type Rule = {
   id: string
@@ -17,16 +17,14 @@ type Account = { qb_account_id: string; name: string | null }
 const OPERATORS = ['contains', 'equals', 'begins with', 'ends with']
 const FIELDS = ['Description', 'Unit Price']
 
-export function VendorRulesTab({
-  vendorId,
-  rules,
+export function CompanyRulesClient({
+  rules: initialRules,
   accounts,
 }: {
-  vendorId: string
   rules: Rule[]
   accounts: Account[]
 }) {
-  const [list, setList] = useState(rules)
+  const [list, setList] = useState(initialRules)
   const [isPending, startTransition] = useTransition()
   const [adding, setAdding] = useState(false)
   const [newRule, setNewRule] = useState({
@@ -42,7 +40,7 @@ export function VendorRulesTab({
   const handleSave = () => {
     if (!newRule.rule_name || !newRule.gl_account_id) return
     startTransition(async () => {
-      const saved = await saveRule(vendorId, newRule)
+      const saved = await saveCompanyRule(newRule)
       if (saved) {
         setList(l => [...l, saved as Rule])
         setAdding(false)
@@ -53,7 +51,7 @@ export function VendorRulesTab({
 
   const handleDelete = (id: string) => {
     startTransition(async () => {
-      await deleteRule(id)
+      await deleteCompanyRule(id)
       setList(l => l.filter(r => r.id !== id))
     })
   }
@@ -61,9 +59,16 @@ export function VendorRulesTab({
   return (
     <div style={{ maxWidth: 700 }}>
       <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 16, lineHeight: 1.6 }}>
-        Vendor-specific rules automatically assign GL accounts to line items based on description text or unit price.
-        These take priority over both stored mappings and company-wide rules — use them for exceptions to the company defaults.
+        Company rules automatically assign GL accounts to line items across all vendors based on description text or unit price.
+        They apply as a default when no vendor-specific rule or stored mapping matches — vendor rules always take priority.
+        Use these for patterns that apply everywhere, like <em>tax lines</em> or <em>freight charges</em>.
       </p>
+
+      {list.length === 0 && !adding && (
+        <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 16 }}>
+          No company rules yet. Add one below.
+        </p>
+      )}
 
       {list.length > 0 && (
         <div className="space-y-3 mb-5">
@@ -117,7 +122,7 @@ export function VendorRulesTab({
               <input
                 value={newRule.rule_name}
                 onChange={e => setNewRule(r => ({ ...r, rule_name: e.target.value }))}
-                placeholder="e.g. Refrigerant lines"
+                placeholder="e.g. Tax lines, Freight charges"
                 style={inputStyle}
               />
             </div>
@@ -152,6 +157,15 @@ export function VendorRulesTab({
                     placeholder="value"
                     style={{ ...inputStyle, flex: 1 }}
                   />
+                  {newRule.conditions.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => setNewRule(r => ({ ...r, conditions: r.conditions.filter((_, j) => j !== i) }))}
+                      style={{ fontSize: 11, color: '#991B1B', background: 'none', border: 'none', cursor: 'pointer', padding: '0 4px', flexShrink: 0 }}
+                    >
+                      ✕
+                    </button>
+                  )}
                 </div>
               ))}
               <button
