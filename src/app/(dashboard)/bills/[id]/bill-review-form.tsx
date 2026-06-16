@@ -905,8 +905,87 @@ export function BillReviewForm({
               >
                 <AutoSaveInput initialValue={bill.description ?? ''} onSave={v => updateBill(bill.bill_id, { description: v || null })} placeholder="Memo on QB bill" />
               </Field>
+              {classTrackingEnabled && lineItems.length > 0 && (
+                <Field label="Class (all lines)" helper="Sets the class for all line items at once. Individual line items can still be changed after.">
+                    <InlineSelect
+                      initialValue={
+                        lineItems.every(li => li.class_id === lineItems[0].class_id)
+                          ? (lineItems[0].class_id ?? '')
+                          : ''
+                      }
+                      options={classes.map(c => ({ value: c.qb_class_id, label: c.name ?? c.qb_class_id }))}
+                      onSave={async (v) => {
+                        if (!v) return
+                        const cls = classes.find(c => c.qb_class_id === v)
+                        const name = cls?.name ?? v
+                        if (lineItems.length > 1) {
+                          setHeaderClassPending({ classId: v, className: name })
+                        } else if (lineItems.length === 1) {
+                          await updateLineItem(lineItems[0].line_id, { class_id: v })
+                          if (bill.vendor_id) setVendorClassRemember({ classId: v, className: name })
+                          router.refresh()
+                        }
+                      }}
+                      placeholder={lineItems.every(li => li.class_id === lineItems[0].class_id) ? 'Class…' : 'Mixed — select to apply all'}
+                      emptyLabel="—"
+                    />
+                    {vendorClassRemember && (
+                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
+                        <i className="ti ti-bulb" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                          Remember <strong>{vendorClassRemember.className}</strong> as the default class for this vendor?
+                        </span>
+                        <button
+                          onClick={async () => {
+                            await saveVendorClassDefault(bill.vendor_id!, vendorClassRemember.classId)
+                            setVendorClassRemember(null)
+                          }}
+                          style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Yes
+                        </button>
+                        <button
+                          onClick={() => setVendorClassRemember(null)}
+                          style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    )}
+                    {headerClassPending && (
+                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
+                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
+                        <span style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                          Apply <strong>{headerClassPending.className}</strong> to all {lineItems.length} lines?
+                        </span>
+                        <button
+                          onClick={async () => {
+                            const pending = headerClassPending
+                            setHeaderClassPending(null)
+                            setLineItems(ls => ls.map(li => ({ ...li, class_id: pending.classId })))
+                            for (const li of lineItems) {
+                              await updateLineItem(li.line_id, { class_id: pending.classId })
+                            }
+                            if (bill.vendor_id) setVendorClassRemember({ classId: pending.classId, className: pending.className })
+                            router.refresh()
+                          }}
+                          style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: '#FEF3C7', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          Yes, all {lineItems.length}
+                        </button>
+                        <button
+                          onClick={() => setHeaderClassPending(null)}
+                          style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
+                        >
+                          No
+                        </button>
+                      </div>
+                    )}
+                  </Field>
+              )}
               {lineItems.length > 0 && (
-                <Field label="GL Account (all lines)" helper="Sets the GL account for all line items at once. Useful when all items go to the same account. Individual line items can still be changed after.">
+                <div className="col-span-2">
+                  <Field label="GL Account (all lines)" helper="Sets the GL account for all line items at once. Useful when all items go to the same account. Individual line items can still be changed after.">
                     <InlineSelect
                       initialValue={
                         lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id)
@@ -981,85 +1060,6 @@ export function BillReviewForm({
                         </button>
                         <button
                           onClick={() => setHeaderGlPending(null)}
-                          style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
-                        >
-                          No
-                        </button>
-                      </div>
-                    )}
-                  </Field>
-              )}
-              {classTrackingEnabled && lineItems.length > 0 && (
-                <div className="col-span-2">
-                  <Field label="Class (all lines)" helper="Sets the class for all line items at once. Individual line items can still be changed after.">
-                    <InlineSelect
-                      initialValue={
-                        lineItems.every(li => li.class_id === lineItems[0].class_id)
-                          ? (lineItems[0].class_id ?? '')
-                          : ''
-                      }
-                      options={classes.map(c => ({ value: c.qb_class_id, label: c.name ?? c.qb_class_id }))}
-                      onSave={async (v) => {
-                        if (!v) return
-                        const cls = classes.find(c => c.qb_class_id === v)
-                        const name = cls?.name ?? v
-                        if (lineItems.length > 1) {
-                          setHeaderClassPending({ classId: v, className: name })
-                        } else if (lineItems.length === 1) {
-                          await updateLineItem(lineItems[0].line_id, { class_id: v })
-                          if (bill.vendor_id) setVendorClassRemember({ classId: v, className: name })
-                          router.refresh()
-                        }
-                      }}
-                      placeholder={lineItems.every(li => li.class_id === lineItems[0].class_id) ? 'Class…' : 'Mixed — select to apply all'}
-                      emptyLabel="—"
-                    />
-                    {vendorClassRemember && (
-                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
-                        <i className="ti ti-bulb" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
-                          Remember <strong>{vendorClassRemember.className}</strong> as the default class for this vendor?
-                        </span>
-                        <button
-                          onClick={async () => {
-                            await saveVendorClassDefault(bill.vendor_id!, vendorClassRemember.classId)
-                            setVendorClassRemember(null)
-                          }}
-                          style={{ fontSize: 12, fontWeight: 500, color: '#1A3D2B', background: '#D1FAE5', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
-                        >
-                          Yes
-                        </button>
-                        <button
-                          onClick={() => setVendorClassRemember(null)}
-                          style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
-                        >
-                          No
-                        </button>
-                      </div>
-                    )}
-                    {headerClassPending && (
-                      <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
-                        <i className="ti ti-corner-down-right" style={{ fontSize: 12, color: '#D97706', flexShrink: 0 }} />
-                        <span style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
-                          Apply <strong>{headerClassPending.className}</strong> to all {lineItems.length} lines?
-                        </span>
-                        <button
-                          onClick={async () => {
-                            const pending = headerClassPending
-                            setHeaderClassPending(null)
-                            setLineItems(ls => ls.map(li => ({ ...li, class_id: pending.classId })))
-                            for (const li of lineItems) {
-                              await updateLineItem(li.line_id, { class_id: pending.classId })
-                            }
-                            if (bill.vendor_id) setVendorClassRemember({ classId: pending.classId, className: pending.className })
-                            router.refresh()
-                          }}
-                          style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: '#FEF3C7', border: 'none', borderRadius: 4, padding: '3px 10px', cursor: 'pointer', flexShrink: 0 }}
-                        >
-                          Yes, all {lineItems.length}
-                        </button>
-                        <button
-                          onClick={() => setHeaderClassPending(null)}
                           style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: '3px 6px' }}
                         >
                           No
