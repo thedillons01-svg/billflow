@@ -1678,10 +1678,12 @@ export function BillReviewForm({
           padding: '12px 16px',
           borderTop: '0.5px solid var(--color-border-tertiary)',
           background: 'white',
+          flexWrap: 'wrap',
+          gap: 8,
         }}
       >
-        {/* Left: delete + reprocess */}
-        <div className="flex items-center gap-2">
+        {/* Left: delete + reprocess + move to POs */}
+        <div className="flex items-center flex-wrap gap-2">
           {!isPublished && (
             <button
               onClick={handleDelete}
@@ -1729,13 +1731,13 @@ export function BillReviewForm({
             >
               {isMovingToPO
                 ? <><i className="ti ti-loader-2" style={{ fontSize: 11, marginRight: 4 }} />Moving…</>
-                : 'This is a PO →'}
+                : 'Move to POs'}
             </button>
           )}
         </div>
 
         {/* Right: status actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           {publishError && (
             <span style={{ fontSize: 11, color: '#991B1B' }}>{publishError}</span>
           )}
