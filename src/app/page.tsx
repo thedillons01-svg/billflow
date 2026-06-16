@@ -3,9 +3,9 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Purchasomatic — Automated Invoice Capture for QuickBooks',
+  title: 'Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
   description:
-    'Forward invoices from any vendor. Purchasomatic reads every line item, matches the right customer or job in QuickBooks, and publishes automatically — no data entry required.',
+    'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks. Forward invoices and POs — Purchasomatic reads every line item and publishes automatically.',
 }
 
 export default async function LandingPage() {

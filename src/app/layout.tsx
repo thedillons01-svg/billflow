@@ -13,8 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Purchasomatic',
-  description: 'Automated vendor invoice capture and QuickBooks sync for contractors',
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.purchasomatic.com'),
+  title: {
+    default: 'Purchasomatic — Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
+    template: '%s | Purchasomatic',
+  },
+  description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
 };
 
 export default function RootLayout({
