@@ -1336,7 +1336,7 @@ export function BillReviewForm({
                       background: 'white',
                     }}
                   >
-                    <InlineInput initialValue={item.description ?? ''} onSave={v => updateLineItem(item.line_id, { description: v || null })} placeholder="Description" />
+                    <InlineInput initialValue={item.description ?? ''} onSave={v => updateLineItem(item.line_id, { description: v || null })} placeholder="Description" title={item.description ?? undefined} expandOnFocus />
                     <InlineInput initialValue={item.quantity != null ? String(item.quantity) : ''} onSave={async v => {
                       const qty = v ? parseFloat(v) : null
                       const ext = qty != null && item.unit_cost != null ? +(qty * item.unit_cost).toFixed(2) : item.extended_cost
@@ -1742,9 +1742,6 @@ export function BillReviewForm({
 
         {/* Right: status actions */}
         <div className="flex items-center flex-wrap gap-2">
-          {publishError && (
-            <span style={{ fontSize: 11, color: '#991B1B' }}>{publishError}</span>
-          )}
           {savedFeedback && (
             <span style={{ fontSize: 11, color: '#065F46' }}>Saved ✓</span>
           )}
@@ -1989,6 +1986,72 @@ export function BillReviewForm({
           </div>
         </div>
       )}
+
+      {publishError && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={() => setPublishError(null)}
+        >
+          <div
+            style={{
+              background: 'white', borderRadius: 8,
+              maxWidth: 400, width: '100%', margin: '0 16px',
+              padding: '20px 24px',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.18)',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 16 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 8, flexShrink: 0,
+                background: '#FEF2F2',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 17, color: '#DC2626' }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>
+                  {publishError === 'QuickBooks is not connected' ? "Can't publish — QuickBooks isn't connected" : 'Publish failed'}
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
+                  {publishError === 'QuickBooks is not connected'
+                    ? 'Connect QuickBooks in Settings before publishing bills.'
+                    : publishError}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={() => setPublishError(null)}
+                style={{
+                  background: 'white', color: 'var(--color-text-secondary)',
+                  border: '0.5px solid var(--color-border-secondary)',
+                  borderRadius: 6, padding: '7px 14px',
+                  fontSize: 13, fontWeight: 500, cursor: 'pointer',
+                }}
+              >
+                Close
+              </button>
+              {publishError === 'QuickBooks is not connected' && (
+                <Link
+                  href="/settings"
+                  style={{
+                    background: '#2DB87A', color: 'white',
+                    borderRadius: 6, padding: '7px 14px',
+                    fontSize: 13, fontWeight: 500, textDecoration: 'none',
+                  }}
+                >
+                  Go to Settings
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -2092,7 +2155,7 @@ function AutoSaveInput({
 
 // ── Inline table inputs ────────────────────────────────────────────────────────
 
-function InlineInput({ initialValue, onSave, placeholder, align, currency, warn }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right'; currency?: boolean; warn?: boolean }) {
+function InlineInput({ initialValue, onSave, placeholder, align, currency, warn, title, expandOnFocus }: { initialValue: string; onSave: (v: string) => Promise<void>; placeholder?: string; align?: 'right'; currency?: boolean; warn?: boolean; title?: string; expandOnFocus?: boolean }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
   const [hovered, setHovered] = useState(false)
@@ -2104,8 +2167,9 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency, warn 
 
   const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : warn ? '#FCA5A5' : 'transparent'
   const bgColor = focused ? 'white' : warn && !value ? '#FEF2F2' : 'transparent'
+  const expanded = !!expandOnFocus && focused
 
-  return (
+  const input = (
     <input
       value={displayValue}
       onChange={e => {
@@ -2121,16 +2185,26 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency, warn 
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       placeholder={placeholder}
+      title={!focused ? title : undefined}
       style={{
-        width: '100%', border: `0.5px solid ${borderColor}`, borderRadius: 4,
+        width: expanded ? 420 : '100%',
+        maxWidth: expanded ? '60vw' : undefined,
+        position: expanded ? 'absolute' : 'static',
+        top: 0, left: 0,
+        border: `0.5px solid ${borderColor}`, borderRadius: 4,
         padding: '3px 4px', fontSize: 12,
-        background: bgColor,
+        background: expanded ? 'white' : bgColor,
         color: warn && !value && !focused ? '#DC2626' : 'var(--color-text-primary)',
         textAlign: align === 'right' ? 'right' : 'left',
         outline: 'none',
+        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+        boxShadow: expanded ? '0 2px 8px rgba(0,0,0,0.18)' : undefined,
+        zIndex: expanded ? 20 : undefined,
       }}
     />
   )
+
+  return expandOnFocus ? <div style={{ position: 'relative' }}>{input}</div> : input
 }
 
 function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClosed, placeholder, emptyLabel, title }: {
