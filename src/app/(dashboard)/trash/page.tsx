@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { restoreBill, permanentlyDeleteBill, restorePO, permanentlyDeletePO } from './actions'
+import { formatDateOnly } from '@/lib/utils/date'
 
 export default async function TrashPage() {
   const supabase = await createClient()
@@ -92,7 +93,7 @@ export default async function TrashPage() {
                       </div>
                       <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{bill.invoice_number ?? '—'}</span>
                       <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                        {bill.invoice_date ? new Date(bill.invoice_date).toLocaleDateString() : '—'}
+                        {formatDateOnly(bill.invoice_date)}
                       </span>
                       <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>
                         {bill.total != null ? `$${Number(bill.total).toFixed(2)}` : '—'}

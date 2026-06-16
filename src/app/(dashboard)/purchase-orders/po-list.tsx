@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { softDeletePO, bulkPublishPOs } from './actions'
+import { formatDateOnly } from '@/lib/utils/date'
 
 type PO = {
   po_id: string
@@ -223,7 +224,7 @@ export function PoList({
 
             <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none' }}>
               <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                {po.order_date ? new Date(po.order_date).toLocaleDateString() : '—'}
+                {formatDateOnly(po.order_date)}
               </span>
             </Link>
 

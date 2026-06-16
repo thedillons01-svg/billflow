@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { softDeleteBill, setBillStatus, updateBill } from './actions'
 import { bulkPublish } from './bulk-actions'
+import { formatDateOnly } from '@/lib/utils/date'
 
 type Bill = {
   bill_id: string
@@ -400,7 +401,7 @@ export function BillsList({
             </Link>
             <Link href={`/bills/${bill.bill_id}`} style={{ textDecoration: 'none' }}>
               <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>
-                {bill.invoice_date ? new Date(bill.invoice_date).toLocaleDateString() : '—'}
+                {formatDateOnly(bill.invoice_date)}
               </span>
             </Link>
             <Link href={`/bills/${bill.bill_id}`} style={{ textDecoration: 'none' }}>

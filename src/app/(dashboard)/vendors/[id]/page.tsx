@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
+import { formatDateOnly } from '@/lib/utils/date'
 import { VendorGeneralTab } from './vendor-general-tab'
 import { VendorLineItemsTab } from './vendor-line-items-tab'
 import { VendorRulesTab } from './vendor-rules-tab'
@@ -179,7 +180,7 @@ function BillListTab({ bills, empty }: { bills: { bill_id: string; invoice_numbe
                 <p style={{ fontSize: 11, color: '#D97706' }}>{bill.autopublish_hold_reason}</p>
               )}
               <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                {bill.invoice_date ? new Date(bill.invoice_date).toLocaleDateString() : '—'}
+                {formatDateOnly(bill.invoice_date)}
               </p>
             </div>
             <div className="flex items-center gap-3">

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback, createContext, useContext } from 'react'
 import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
+import { formatDateOnly } from '@/lib/utils/date'
 import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB, moveBillToPO } from '../actions'
 import { reopenJob, createJob } from '../../jobs/actions'
 
@@ -565,7 +566,7 @@ export function BillReviewForm({
                             {b.invoice_number ?? '—'}
                           </p>
                           <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-                            {b.invoice_date ? new Date(b.invoice_date).toLocaleDateString() : '—'}
+                            {formatDateOnly(b.invoice_date)}
                           </p>
                         </div>
                         <div style={{ textAlign: 'right' }}>

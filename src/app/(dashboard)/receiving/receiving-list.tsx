@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { useState } from 'react'
+import { formatDateOnly } from '@/lib/utils/date'
 
 type PO = {
   po_id: string
@@ -132,7 +133,7 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
                       )}
                     </p>
                     <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-                      {po.order_date ? `Ordered ${new Date(po.order_date).toLocaleDateString()}` : ''}
+                      {po.order_date ? `Ordered ${formatDateOnly(po.order_date)}` : ''}
                       {jobLabel ? ` · ${jobLabel}` : ''}
                       {po.ordered_by ? ` · ${po.ordered_by}` : ''}
                       {' · '}
