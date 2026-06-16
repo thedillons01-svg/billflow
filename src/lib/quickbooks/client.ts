@@ -64,20 +64,9 @@ export async function getQBClient(companyId: string) {
 
   let { qb_access_token: accessToken, qb_refresh_token: refreshToken, qb_token_expires_at: expiresAt, qb_realm_id: realmId } = company
 
-  // Refresh if expiring within 5 minutes
-  if (new Date(expiresAt as string).getTime() - Date.now() < 5 * 60 * 1000) {
-    const newTokens = await refreshAccessToken(refreshToken as string)
-    accessToken  = newTokens.access_token
-    refreshToken = newTokens.refresh_token
-    const newExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
-    await supabase
-      .from('companies')
-      .update({ qb_access_token: accessToken, qb_refresh_token: refreshToken, qb_token_expires_at: newExpiresAt })
-      .eq('company_id', companyId)
-  }
-
   // ---------------------------------------------------------------------------
-  // Handle externally revoked tokens (user disconnected from Intuit's portal)
+  // Handle externally revoked tokens (user disconnected from Intuit's portal,
+  // or another account connected to the same QBO company, invalidating this token)
   // ---------------------------------------------------------------------------
   async function handleUnauthorized(): Promise<never> {
     await supabase
@@ -90,15 +79,31 @@ export async function getQBClient(companyId: string) {
       })
       .eq('company_id', companyId)
 
-    // Notify the user so they know to reconnect
     await sendNotification({
       companyId,
       event:   'bill_sync_error',
       subject: 'QuickBooks connection lost',
-      body:    'Your QuickBooks connection was disconnected — possibly from the QuickBooks or Intuit account settings. Go to Settings in Purchasomatic to reconnect.',
+      body:    'Your QuickBooks connection was disconnected. Go to Settings in Purchasomatic to reconnect.',
     }).catch(() => {})
 
-    throw new Error('QuickBooks token was revoked. Reconnect in Settings.')
+    throw new Error('QuickBooks connection lost. Reconnect in Settings.')
+  }
+
+  // Refresh if expiring within 5 minutes
+  if (new Date(expiresAt as string).getTime() - Date.now() < 5 * 60 * 1000) {
+    try {
+      const newTokens = await refreshAccessToken(refreshToken as string)
+      accessToken  = newTokens.access_token
+      refreshToken = newTokens.refresh_token
+      const newExpiresAt = new Date(Date.now() + newTokens.expires_in * 1000).toISOString()
+      await supabase
+        .from('companies')
+        .update({ qb_access_token: accessToken, qb_refresh_token: refreshToken, qb_token_expires_at: newExpiresAt })
+        .eq('company_id', companyId)
+    } catch {
+      // Refresh token rejected (expired, revoked, or issued under a different QB app connection)
+      return handleUnauthorized()
+    }
   }
 
   // ---------------------------------------------------------------------------

@@ -46,7 +46,13 @@ export async function disconnectQuickBooks(companyId: string) {
 }
 
 export async function triggerQBSync(companyId: string) {
-  await syncAll(companyId)
+  try {
+    await syncAll(companyId)
+  } catch (err) {
+    // Auth errors are already handled in getQBClient (company marked disconnected).
+    // Other transient errors shouldn't crash the page — log and let the UI revalidate.
+    console.error('[triggerQBSync]', err)
+  }
   revalidatePath('/settings')
 }
 

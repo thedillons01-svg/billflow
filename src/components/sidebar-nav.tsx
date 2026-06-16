@@ -122,7 +122,9 @@ function NavItem({
         color: active ? '#1A3D2B' : '#3D4856',
         background: active ? '#E6F4ED' : 'transparent',
         borderLeft: active ? '3px solid #2DB87A' : '3px solid transparent',
-        border: 'none',
+        borderTop: 'none',
+        borderRight: 'none',
+        borderBottom: 'none',
         cursor: 'pointer',
       }}
     >
