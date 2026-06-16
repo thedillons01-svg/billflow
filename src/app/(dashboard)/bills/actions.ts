@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { getQBClient } from '@/lib/quickbooks/client'
+import { randomUUID } from 'crypto'
 
 // Recomputes draft ↔ ready based on data completeness.
 // Only touches bills in those two states — never overwrites sync_error, published, etc.
@@ -81,6 +82,48 @@ export async function softDeleteBill(billId: string) {
     .update({ deleted_at: new Date().toISOString() })
     .eq('bill_id', billId)
   revalidatePath('/bills')
+}
+
+// Reclassifies a misrouted bill as a PO: points a new purchase_orders row at the
+// same already-stored PDF, soft-deletes the bill, and re-extracts via the PO
+// pipeline. skipCredits is set because the original capture already charged
+// 1 credit — this is a correction, not a new transaction.
+export async function moveBillToPO(billId: string): Promise<{ poId: string }> {
+  const supabase = await createClient()
+  const { data: bill, error } = await supabase
+    .from('bills')
+    .select('company_id, pdf_url, capture_source, file_fingerprint')
+    .eq('bill_id', billId)
+    .single()
+  if (error || !bill) throw new Error('Bill not found')
+
+  const poId = randomUUID()
+  const { error: insertErr } = await supabase.from('purchase_orders').insert({
+    po_id:            poId,
+    company_id:       bill.company_id,
+    status:           'open',
+    capture_source:   bill.capture_source,
+    pdf_url:          bill.pdf_url,
+    file_fingerprint: bill.file_fingerprint,
+  })
+  if (insertErr) throw new Error(insertErr.message)
+
+  await supabase.from('bills').update({ deleted_at: new Date().toISOString() }).eq('bill_id', billId)
+
+  await supabase.from('processing_log').insert({
+    bill_id:     billId,
+    company_id:  bill.company_id,
+    action:      'moved_to_po',
+    actor:       'user',
+    after_state: { new_po_id: poId },
+  })
+
+  const { processPO } = await import('@/lib/ocr/process-po')
+  processPO(poId, { skipCredits: true }).catch(console.error)
+
+  revalidatePath('/bills')
+  revalidatePath('/purchase-orders')
+  return { poId }
 }
 
 export async function addLineItem(billId: string, companyId: string) {

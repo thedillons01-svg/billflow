@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState, useRef, useTransition, useEffect, useCallback, createContext, useContext } from 'react'
 import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
-import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB } from '../actions'
+import { updateBill, updateLineItem, setBillStatus, softDeleteBill, addLineItem, deleteLineItem, saveLineItemMapping, enableVendorAutoPublish, saveVendorPaymentDefaults, saveVendorClassDefault, saveVendorGlDefault, getVendorBillHistory, createVendorFromBill, addVendorToQB, moveBillToPO } from '../actions'
 import { reopenJob, createJob } from '../../jobs/actions'
 
 const FieldTipsContext = createContext(true)
@@ -143,6 +143,7 @@ export function BillReviewForm({
   const [swapped, setSwapped] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [isReprocessing, setIsReprocessing] = useState(false)
+  const [isMovingToPO, setIsMovingToPO] = useState(false)
   const reprocessCount = bill.reprocess_count ?? 0
   const nextTier = reprocessCount === 0 ? 2 : 3
   const tierLabel = nextTier === 2
@@ -350,6 +351,20 @@ export function BillReviewForm({
     startTransition(async () => {
       await softDeleteBill(bill.bill_id)
       router.push('/bills')
+    })
+  }
+
+  const handleMoveToPO = () => {
+    if (!confirm('Move this to Purchase Orders? It will be removed from Bills and re-processed as a PO. No additional credit will be charged.')) return
+    setIsMovingToPO(true)
+    startTransition(async () => {
+      try {
+        const { poId } = await moveBillToPO(bill.bill_id)
+        router.push(`/purchase-orders/${poId}`)
+      } catch (err) {
+        setIsMovingToPO(false)
+        alert(err instanceof Error ? err.message : 'Failed to move to Purchase Orders')
+      }
     })
   }
 
@@ -1697,6 +1712,24 @@ export function BillReviewForm({
               {isReprocessing
                 ? <><i className="ti ti-loader-2" style={{ fontSize: 11, marginRight: 4 }} />Reprocessing…</>
                 : 'Reprocess (free)'}
+            </button>
+          )}
+          {!isPublished && (
+            <button
+              onClick={handleMoveToPO}
+              disabled={isPending || isMovingToPO}
+              title="This document is actually a PO confirmation, not an invoice. Moves it to Purchase Orders — no additional credit charged."
+              style={{
+                background: 'white', color: 'var(--color-text-secondary)',
+                border: '0.5px solid var(--color-border-secondary)',
+                borderRadius: 6, padding: '7px 12px',
+                fontSize: 12, cursor: isPending || isMovingToPO ? 'not-allowed' : 'pointer',
+                opacity: isPending ? 0.6 : 1,
+              }}
+            >
+              {isMovingToPO
+                ? <><i className="ti ti-loader-2" style={{ fontSize: 11, marginRight: 4 }} />Moving…</>
+                : 'This is a PO →'}
             </button>
           )}
         </div>

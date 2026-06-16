@@ -29,7 +29,7 @@ const STORAGE_BUCKET = 'bill-pdfs'
 
 type SupabaseClient = ReturnType<typeof getServiceClient>
 
-export async function processPO(poId: string): Promise<void> {
+export async function processPO(poId: string, opts?: { skipCredits?: boolean }): Promise<void> {
   const supabase = getServiceClient()
 
   const { data: po } = await supabase
@@ -179,14 +179,25 @@ export async function processPO(poId: string): Promise<void> {
   // Insert PO line items, propagating the matched job to every line
   await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount, matchedJobId)
 
-  // Deduct 1 credit and increment pos_processed on the vendor
-  const { data: co } = await supabase
-    .from('companies')
-    .select('credit_balance')
-    .eq('company_id', po.company_id)
-    .single()
+  // Deduct 1 credit and increment pos_processed on the vendor (skipped on reprocess / reclassify — already charged once)
+  if (!opts?.skipCredits) {
+    const { data: co } = await supabase
+      .from('companies')
+      .select('credit_balance')
+      .eq('company_id', po.company_id)
+      .single()
 
-  const newBalance = (co?.credit_balance ?? 0) - 1
+    const newBalance = (co?.credit_balance ?? 0) - 1
+
+    await Promise.all([
+      supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', po.company_id),
+      supabase.from('credit_ledger').insert({
+        company_id:  po.company_id,
+        amount:      -1,
+        description: `PO processed: ${result.vendor_name_raw ?? 'Unknown'} ${result.invoice_number ?? ''}`.trim(),
+      }),
+    ])
+  }
 
   // Fetch vendor_id from the PO (may have been set during vendor matching above)
   const { data: poNow } = await supabase
@@ -194,15 +205,6 @@ export async function processPO(poId: string): Promise<void> {
     .select('vendor_id')
     .eq('po_id', poId)
     .single()
-
-  await Promise.all([
-    supabase.from('companies').update({ credit_balance: newBalance }).eq('company_id', po.company_id),
-    supabase.from('credit_ledger').insert({
-      company_id:  po.company_id,
-      amount:      -1,
-      description: `PO processed: ${result.vendor_name_raw ?? 'Unknown'} ${result.invoice_number ?? ''}`.trim(),
-    }),
-  ])
 
   // Increment pos_processed on the vendor
   if (poNow?.vendor_id) {
@@ -222,7 +224,7 @@ export async function processPO(poId: string): Promise<void> {
     company_id:    po.company_id,
     action:        'ocr_complete',
     actor:         'system',
-    credits_used:  1,
+    credits_used:  opts?.skipCredits ? 0 : 1,
     after_state:   { tier, status: 'open', po_number: result.invoice_number },
   })
 
