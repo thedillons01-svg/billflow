@@ -180,12 +180,17 @@ function QBConnectBanner() {
       className="flex-none flex items-center justify-between px-5 py-3 gap-4"
       style={{ background: '#EBF5EF', borderBottom: '0.5px solid #C3DEC9' }}
     >
-      <div className="flex items-center gap-2">
-        <i className="ti ti-plug" style={{ fontSize: 15, color: '#1A3D2B', flexShrink: 0 }} />
-        <p style={{ fontSize: 13, color: '#1A3D2B' }}>
-          <span style={{ fontWeight: 500 }}>QuickBooks not connected.</span>
-          {' '}Upload or forward invoices to see OCR in action — connect QuickBooks when you&apos;re ready to push bills.
-        </p>
+      <div className="flex items-start gap-2">
+        <i className="ti ti-plug" style={{ fontSize: 15, color: '#1A3D2B', flexShrink: 0, marginTop: 1 }} />
+        <div>
+          <p style={{ fontSize: 13, color: '#1A3D2B' }}>
+            <span style={{ fontWeight: 500 }}>QuickBooks not connected.</span>
+            {' '}Upload or forward invoices to see OCR in action — connect QuickBooks when you&apos;re ready to push bills.
+          </p>
+          <p style={{ fontSize: 11, color: '#3D6B4D', marginTop: 2 }}>
+            Vendor defaults, GL accounts, and other setup live under Settings in the sidebar whenever you want to fine-tune things.
+          </p>
+        </div>
       </div>
       <Link
         href="/settings"
