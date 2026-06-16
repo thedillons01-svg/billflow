@@ -977,6 +977,7 @@ export function PODetail({
               }}
               disabled={reprocessing || isPending}
               icon="ti-scan"
+              title="Re-run extraction on the original PDF and re-attempt job/customer matching. No credit charge."
             >
               {reprocessing ? 'Reprocessing…' : 'Reprocess PDF'}
             </ActionButton>
@@ -998,7 +999,7 @@ export function PODetail({
               </ActionButton>
             )}
             {canClose && (
-              <ActionButton onClick={handleClose} disabled={isPending} icon="ti-lock">Close PO</ActionButton>
+              <ActionButton onClick={handleClose} disabled={isPending} icon="ti-lock" title="Mark this PO as closed and remove it from the Open queue. Use when no further deliveries or invoices are expected.">Close PO</ActionButton>
             )}
             <ActionButton onClick={handleDelete} disabled={isPending} danger icon="ti-trash">Delete</ActionButton>
           </div>
@@ -1082,14 +1083,15 @@ function Banner({ icon, color, children }: { icon: string; color: 'gray' | 'red'
   )
 }
 
-function ActionButton({ onClick, disabled, children, primary, danger, icon }: {
+function ActionButton({ onClick, disabled, children, primary, danger, icon, title }: {
   onClick: () => void; disabled: boolean; children: React.ReactNode
-  primary?: boolean; danger?: boolean; icon?: string
+  primary?: boolean; danger?: boolean; icon?: string; title?: string
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      title={title}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 6,
         background: primary ? '#2DB87A' : 'white',
