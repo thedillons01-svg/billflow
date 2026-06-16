@@ -1812,7 +1812,7 @@ export function BillReviewForm({
             >
               {isReprocessing
                 ? <><i className="ti ti-loader-2" style={{ fontSize: 11, marginRight: 4 }} />Reprocessing…</>
-                : 'Reprocess (free)'}
+                : 'Reprocess'}
             </button>
           )}
           {!isPublished && (
