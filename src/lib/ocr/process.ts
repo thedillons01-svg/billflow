@@ -109,6 +109,13 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     return
   }
 
+  // 3.5 No invoice number found — fall back to the PO/reference number rather than
+  // leaving the bill with nothing to identify it by. Still better than nothing, but
+  // a real invoice number (when found) always wins.
+  if (!result.invoice_number && result.vendor_po_reference) {
+    result.invoice_number = result.vendor_po_reference
+  }
+
   // 4. Duplicate detection — check vendor_name_raw + invoice_number (excluding self)
   let isDuplicate = false
   if (result.vendor_name_raw && result.invoice_number) {

@@ -242,10 +242,19 @@ function extractLineItems(text: string): LineItem[] {
 // Utilities
 // ---------------------------------------------------------------------------
 
+// Placeholder/artifact text that sometimes leaks into pdf-parse output from an empty
+// fillable form field (e.g. an AcroForm text field's default appearance literally
+// renders as "Field") — never a real extracted value, so skip and keep trying patterns.
+const JUNK_VALUES = new Set(['field', 'n/a', 'na', 'none', 'blank', 'tbd', 'unknown'])
+
 function firstMatch(text: string, patterns: RegExp[]): string | null {
   for (const re of patterns) {
     const m = re.exec(text)
-    if (m?.[1]) return m[1].trim()
+    if (m?.[1]) {
+      const val = m[1].trim()
+      if (JUNK_VALUES.has(val.toLowerCase())) continue
+      return val
+    }
   }
   return null
 }
