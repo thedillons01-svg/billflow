@@ -673,52 +673,44 @@ export function BillReviewForm({
           {/* Auto-publish promotion banner */}
           {vendorPromo && !promoDismissed && !promoEnabled && (
             <div
-              className="flex items-start gap-3"
+              className="flex items-center gap-3"
               style={{
                 background: '#EBF5EF',
                 border: '1.5px solid #2DB87A',
-                borderRadius: 8,
-                padding: '12px 14px',
+                borderRadius: 6,
+                padding: '8px 12px',
               }}
             >
-              <i className="ti ti-rocket" style={{ fontSize: 18, color: '#2DB87A', marginTop: 1, flexShrink: 0 }} />
-              <div className="flex-1">
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>
-                  Ready for auto-publish
-                </p>
-                <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 2, lineHeight: 1.5 }}>
-                  {vendorPromo.invoicesProcessed} invoices from this vendor have processed accurately.
-                  Enable auto-publish and future invoices will go straight to QuickBooks — no review needed.
-                </p>
-                <div className="flex items-center gap-2 mt-3">
-                  <button
-                    onClick={() => {
-                      startTransition(async () => {
-                        await enableVendorAutoPublish(vendorPromo.vendorId)
-                        setPromoEnabled(true)
-                      })
-                    }}
-                    disabled={isPending}
-                    style={{
-                      background: '#2DB87A', color: 'white',
-                      border: 'none', borderRadius: 6, padding: '5px 14px',
-                      fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                      opacity: isPending ? 0.6 : 1,
-                    }}
-                  >
-                    Enable auto-publish
-                  </button>
-                  <button
-                    onClick={() => setPromoDismissed(true)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 12, color: '#64748B',
-                    }}
-                  >
-                    Not yet
-                  </button>
-                </div>
-              </div>
+              <i className="ti ti-rocket" style={{ fontSize: 14, color: '#2DB87A', flexShrink: 0 }} />
+              <p style={{ fontSize: 12, color: '#1A3D2B', flex: 1, lineHeight: 1.4 }}>
+                <strong>Ready for auto-publish</strong> — {vendorPromo.invoicesProcessed} invoices accurate. Future invoices will go straight to QuickBooks.
+              </p>
+              <button
+                onClick={() => {
+                  startTransition(async () => {
+                    await enableVendorAutoPublish(vendorPromo.vendorId)
+                    setPromoEnabled(true)
+                  })
+                }}
+                disabled={isPending}
+                style={{
+                  background: '#2DB87A', color: 'white',
+                  border: 'none', borderRadius: 6, padding: '5px 10px',
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+                  opacity: isPending ? 0.6 : 1,
+                }}
+              >
+                Enable
+              </button>
+              <button
+                onClick={() => setPromoDismissed(true)}
+                style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  fontSize: 12, color: '#64748B', flexShrink: 0,
+                }}
+              >
+                Not yet
+              </button>
             </div>
           )}
 
@@ -740,55 +732,6 @@ export function BillReviewForm({
             </div>
           )}
 
-          {/* Banners */}
-          {(() => {
-            const hasNoJob = lineItems.every(li => !li.job_id)
-            const showFindMatch = hasNoJob && !isPublished
-            if (!showFindMatch) return null
-            const isPending_ = localStatus === 'pending_job_match'
-            return (
-              <div
-                className="flex items-center justify-between"
-                style={{ background: '#EDE9FE', border: '0.5px solid #C4B5FD', borderRadius: 6, padding: '10px 12px' }}
-              >
-                <div>
-                  <p style={{ fontSize: 12, fontWeight: 500, color: '#5B21B6' }}>
-                    {isPending_ ? 'Waiting for job match' : 'No job assigned'}
-                  </p>
-                  <p style={{ fontSize: 11, color: '#6D28D9', marginTop: 2 }}>
-                    {isPending_
-                      ? 'Retry checks every 2 hours during business hours. Use Find Match to retry now.'
-                      : bill.vendor_po_reference
-                        ? 'Click Find Match to search for a matching job in QuickBooks.'
-                        : 'No reference number on this bill — add one to enable Find Match, or assign a job manually below.'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    startTransition(async () => {
-                      const res = await fetch(`/api/bills/${bill.bill_id}/find-match`, { method: 'POST' })
-                      if (res.ok) {
-                        const json = await res.json()
-                        if (json.matched) {
-                          setLocalStatus('ready')
-                        }
-                        router.refresh()
-                      }
-                    })
-                  }}
-                  disabled={isPending}
-                  style={{
-                    background: '#7C3AED', color: 'white',
-                    border: 'none', borderRadius: 6, padding: '5px 12px',
-                    fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
-                    opacity: isPending ? 0.6 : 1,
-                  }}
-                >
-                  {isPending ? 'Searching…' : 'Find Match'}
-                </button>
-              </div>
-            )
-          })()}
           {localStatus === 'sync_error' && bill.qb_sync_error && (
             <div style={{ background: '#FEE2E2', border: '0.5px solid #FCA5A5', borderRadius: 6, padding: '10px 12px', fontSize: 12, color: '#991B1B' }}>
               <strong>QuickBooks sync failed: </strong>{bill.qb_sync_error}
@@ -1166,25 +1109,54 @@ export function BillReviewForm({
                       </div>
                     )}
 
-                    {/* OCR extracted job/customer reference banner */}
-                    {!headerJobPending && (bill.job_name_extracted || bill.customer_name_extracted) && lineItems.every(li => !li.job_id) && (
-                      <div className="flex items-start gap-2 mb-2" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '8px 10px' }}>
-                        <i className="ti ti-search" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
-                        <div>
-                          <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
-                            {localMatchedCustomerId
-                              ? 'Customer matched — no job found yet'
-                              : 'Job reference on invoice — no QuickBooks match found'}
-                          </p>
-                          <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
-                            {[bill.job_name_extracted, bill.customer_name_extracted].filter(Boolean).join(' / ')}
-                          </p>
-                          <p style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
-                            {localMatchedCustomerId
-                              ? 'Tag lines to this customer directly, or select/create a job under them.'
-                              : 'Select a matching job below, or create a new one.'}
-                          </p>
+                    {/* Job match status — shown when no job assigned and there's something to report */}
+                    {!headerJobPending && (bill.job_name_extracted || bill.customer_name_extracted || localStatus === 'pending_job_match') && lineItems.every(li => !li.job_id) && !isPublished && (
+                      <div className="flex items-start justify-between gap-3 mb-2" style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '8px 10px' }}>
+                        <div className="flex items-start gap-2" style={{ flex: 1, minWidth: 0 }}>
+                          <i className="ti ti-search" style={{ fontSize: 13, color: '#D97706', marginTop: 1, flexShrink: 0 }} />
+                          <div>
+                            <p style={{ fontSize: 12, color: '#92400E', fontWeight: 500 }}>
+                              {localMatchedCustomerId
+                                ? 'Customer matched — no job found yet'
+                                : localStatus === 'pending_job_match'
+                                  ? 'Waiting for job match'
+                                  : 'Job reference on invoice — no QuickBooks match found'}
+                            </p>
+                            {(bill.job_name_extracted || bill.customer_name_extracted) && (
+                              <p style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                                {[bill.job_name_extracted, bill.customer_name_extracted].filter(Boolean).join(' / ')}
+                              </p>
+                            )}
+                            <p style={{ fontSize: 11, color: '#B45309', marginTop: 4 }}>
+                              {localMatchedCustomerId
+                                ? 'Tag lines to this customer directly, or select/create a job under them.'
+                                : localStatus === 'pending_job_match'
+                                  ? 'Retry checks run every 2 hours during business hours.'
+                                  : 'Select a matching job below, or create a new one.'}
+                            </p>
+                          </div>
                         </div>
+                        <button
+                          onClick={() => {
+                            startTransition(async () => {
+                              const res = await fetch(`/api/bills/${bill.bill_id}/find-match`, { method: 'POST' })
+                              if (res.ok) {
+                                const json = await res.json()
+                                if (json.matched) setLocalStatus('ready')
+                                router.refresh()
+                              }
+                            })
+                          }}
+                          disabled={isPending}
+                          style={{
+                            background: '#D97706', color: 'white',
+                            border: 'none', borderRadius: 6, padding: '5px 10px',
+                            fontSize: 11, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
+                            opacity: isPending ? 0.6 : 1,
+                          }}
+                        >
+                          {isPending ? 'Searching…' : 'Find Match'}
+                        </button>
                       </div>
                     )}
 
