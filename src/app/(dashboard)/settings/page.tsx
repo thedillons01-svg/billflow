@@ -569,7 +569,7 @@ export default async function SettingsPage({
               }}
             >
               <div>
-                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>Company Rules</p>
+                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>GL Account Rules</p>
                 <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                   Assign GL accounts to line items by description or amount — applies across all vendors
                 </p>

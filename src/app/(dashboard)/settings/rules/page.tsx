@@ -41,7 +41,7 @@ export default async function CompanyRulesPage() {
       </div>
 
       <h1 style={{ fontSize: 18, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 4 }}>
-        Company Rules
+        GL Account Rules
       </h1>
       <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 24, lineHeight: 1.5 }}>
         Rules that apply across all vendors. Vendor-specific rules always take priority over these.

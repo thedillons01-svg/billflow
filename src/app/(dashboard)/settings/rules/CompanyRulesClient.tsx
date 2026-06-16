@@ -66,7 +66,7 @@ export function CompanyRulesClient({
 
       {list.length === 0 && !adding && (
         <p style={{ fontSize: 12, color: 'var(--color-text-tertiary)', marginBottom: 16 }}>
-          No company rules yet. Add one below.
+          No GL account rules yet. Add one below.
         </p>
       )}
 
