@@ -8,6 +8,22 @@ export const metadata: Metadata = {
     'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks. Forward invoices and POs — Purchasomatic reads every line item and publishes automatically.',
 }
 
+const JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Purchasomatic',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
+  url: 'https://www.purchasomatic.com',
+  offers: {
+    '@type': 'Offer',
+    price: '76',
+    priceCurrency: 'USD',
+    description: '200 credits / month, starting plan',
+  },
+}
+
 export default async function LandingPage() {
   const supabase = await createClient()
   const {
@@ -16,6 +32,7 @@ export default async function LandingPage() {
 
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <Nav isLoggedIn={!!user} />
       <Hero />
       <LogoStrip />
@@ -731,6 +748,7 @@ function Footer() {
 
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           {[
+            { label: 'Blog', href: '/blog' },
             { label: 'Sign in', href: '/login' },
             { label: 'Create account', href: '/signup' },
             { label: 'Privacy Policy', href: '/privacy' },
