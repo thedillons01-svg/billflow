@@ -830,7 +830,13 @@ export function BillReviewForm({
                       setLocalVendorId(e.target.value)
                       setDirty(true)
                     }}
-                    style={selectStyle}
+                    style={{
+                      ...selectStyle,
+                      ...(localVendorId === '' && !isPublished ? {
+                        border: '0.5px solid #FCA5A5',
+                        background: '#FFF5F5',
+                      } : {}),
+                    }}
                   >
                     <option value="">
                       {bill.vendor_name_raw ? `— ${bill.vendor_name_raw} (unmatched) —` : '— Unmatched —'}
@@ -982,6 +988,7 @@ export function BillReviewForm({
                       }}
                       placeholder={lineItems.every(li => li.gl_account_id === lineItems[0].gl_account_id) ? 'GL account…' : 'Mixed — select to apply all'}
                       emptyLabel="Connect QB"
+                      highlight={missingGlCount > 0 && !isPublished}
                     />
                     {vendorGlRemember && (
                       <div className="flex items-center gap-2" style={{ marginTop: 6, padding: '6px 10px', background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6 }}>
@@ -2295,7 +2302,7 @@ function InlineInput({ initialValue, onSave, placeholder, align, currency, warn,
   return expandOnFocus ? <div style={{ position: 'relative' }}>{input}</div> : input
 }
 
-function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClosed, placeholder, emptyLabel, title }: {
+function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClosed, placeholder, emptyLabel, title, highlight }: {
   initialValue: string
   options: { value: string; label: string }[]
   closedOptions?: { value: string; label: string }[]
@@ -2304,6 +2311,7 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
   placeholder: string
   emptyLabel: string
   title?: string
+  highlight?: boolean
 }) {
   const [value, setValue] = useState(initialValue)
   const [focused, setFocused] = useState(false)
@@ -2332,7 +2340,8 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
     } catch { setValue(initialValue) }
   }
 
-  const borderColor = focused ? '#2DB87A' : hovered ? '#C3DEC9' : 'var(--color-border-secondary)'
+  const showError = highlight && !value && !focused
+  const borderColor = focused ? '#2DB87A' : showError ? '#FCA5A5' : hovered ? '#C3DEC9' : 'var(--color-border-secondary)'
 
   return (
     <select
@@ -2346,7 +2355,7 @@ function InlineSelect({ initialValue, options, closedOptions, onSave, onSaveClos
       style={{
         width: '100%', height: 28, border: `0.5px solid ${borderColor}`, borderRadius: 4,
         padding: '0 6px', fontSize: 12,
-        background: 'white',
+        background: showError ? '#FFF5F5' : 'white',
         color: 'var(--color-text-primary)', outline: 'none',
       }}
     >
