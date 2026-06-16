@@ -1774,15 +1774,15 @@ export function BillReviewForm({
       <div
         className="flex-none flex items-center justify-between"
         style={{
-          padding: '12px 16px',
+          padding: '8px 12px',
           borderTop: '0.5px solid var(--color-border-tertiary)',
           background: 'white',
           flexWrap: 'wrap',
-          gap: 8,
+          gap: 6,
         }}
       >
         {/* Left: delete + reprocess + move to POs */}
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap" style={{ gap: 6 }}>
           {!isPublished && (
             <button
               onClick={handleDelete}
@@ -1790,7 +1790,7 @@ export function BillReviewForm({
               style={{
                 background: 'white', color: '#991B1B',
                 border: '0.5px solid #FCA5A5',
-                borderRadius: 6, padding: '7px 12px',
+                borderRadius: 6, padding: '5px 8px',
                 fontSize: 12, cursor: 'pointer',
               }}
             >
@@ -1805,7 +1805,7 @@ export function BillReviewForm({
               style={{
                 background: 'white', color: isReprocessing ? '#2DB87A' : 'var(--color-text-secondary)',
                 border: `0.5px solid ${isReprocessing ? '#2DB87A' : 'var(--color-border-secondary)'}`,
-                borderRadius: 6, padding: '7px 12px',
+                borderRadius: 6, padding: '5px 8px',
                 fontSize: 12, cursor: isPending || isReprocessing ? 'not-allowed' : 'pointer',
                 opacity: isPending ? 0.6 : 1,
               }}
@@ -1823,7 +1823,7 @@ export function BillReviewForm({
               style={{
                 background: 'white', color: 'var(--color-text-secondary)',
                 border: '0.5px solid var(--color-border-secondary)',
-                borderRadius: 6, padding: '7px 12px',
+                borderRadius: 6, padding: '5px 8px',
                 fontSize: 12, cursor: isPending || isMovingToPO ? 'not-allowed' : 'pointer',
                 opacity: isPending ? 0.6 : 1,
               }}
@@ -1836,7 +1836,7 @@ export function BillReviewForm({
         </div>
 
         {/* Right: status actions */}
-        <div className="flex items-center flex-wrap gap-2">
+        <div className="flex items-center flex-wrap" style={{ gap: 6 }}>
           {savedFeedback && (
             <span style={{ fontSize: 11, color: '#065F46' }}>Saved ✓</span>
           )}
@@ -1845,8 +1845,8 @@ export function BillReviewForm({
             style={{
               background: 'white', color: 'var(--color-text-secondary)',
               border: '0.5px solid var(--color-border-secondary)',
-              borderRadius: 6, padding: '7px 16px',
-              fontSize: 13, cursor: 'pointer',
+              borderRadius: 6, padding: '5px 10px',
+              fontSize: 12, cursor: 'pointer',
             }}
           >
             Cancel
@@ -1858,8 +1858,8 @@ export function BillReviewForm({
               style={{
                 background: 'white', color: 'var(--color-text-primary)',
                 border: '0.5px solid var(--color-border-secondary)',
-                borderRadius: 6, padding: '7px 16px',
-                fontSize: 13, cursor: 'pointer',
+                borderRadius: 6, padding: '5px 10px',
+                fontSize: 12, cursor: 'pointer',
                 opacity: isPending ? 0.6 : 1,
               }}
             >
@@ -1872,8 +1872,8 @@ export function BillReviewForm({
               disabled={isPending}
               style={{
                 background: '#2DB87A', color: 'white',
-                borderRadius: 6, padding: '7px 16px',
-                fontSize: 13, fontWeight: 500,
+                borderRadius: 6, padding: '5px 10px',
+                fontSize: 12, fontWeight: 500,
                 border: 'none', cursor: 'pointer',
                 opacity: isPending ? 0.6 : 1,
               }}
