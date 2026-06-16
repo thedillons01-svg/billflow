@@ -531,6 +531,18 @@ export async function syncItems(companyId: string) {
 }
 
 export async function syncAll(companyId: string) {
+  // Clear all QB cache tables before syncing so stale data from a previously
+  // connected QB company (e.g. sandbox) doesn't persist alongside new results.
+  const supabaseClean = createServiceClient()
+  await Promise.all([
+    supabaseClean.from('qb_accounts_cache').delete().eq('company_id', companyId),
+    supabaseClean.from('qb_vendors_cache').delete().eq('company_id', companyId),
+    supabaseClean.from('qb_jobs_cache').delete().eq('company_id', companyId),
+    supabaseClean.from('qb_classes_cache').delete().eq('company_id', companyId),
+    supabaseClean.from('qb_terms_cache').delete().eq('company_id', companyId),
+    supabaseClean.from('qb_items_cache').delete().eq('company_id', companyId),
+  ])
+
   await Promise.all([
     syncAccounts(companyId),
     syncVendors(companyId),
