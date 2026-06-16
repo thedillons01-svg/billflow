@@ -26,7 +26,7 @@ export default async function ClassSetupPage() {
   ] = await Promise.all([
     supabase
       .from('companies')
-      .select('class_assignment_mode, class_tracking_enabled')
+      .select('class_assignment_mode, class_tracking_enabled, qb_connection_status')
       .eq('company_id', companyId)
       .single(),
     supabase
@@ -59,6 +59,7 @@ export default async function ClassSetupPage() {
       classes={classes ?? []}
       vendors={vendors ?? []}
       customers={customers ?? []}
+      isQBConnected={company.qb_connection_status === 'connected'}
     />
   )
 }

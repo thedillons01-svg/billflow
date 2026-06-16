@@ -15,9 +15,10 @@ type Props = {
   classes: QBClass[]
   vendors: Vendor[]
   customers: Customer[]
+  isQBConnected: boolean
 }
 
-export function ClassSetupClient({ companyId, mode: initialMode, classes, vendors, customers }: Props) {
+export function ClassSetupClient({ companyId, mode: initialMode, classes, vendors, customers, isQBConnected }: Props) {
   const router = useRouter()
   const [isSaving, startSave] = useTransition()
   const [applyPrompt, setApplyPrompt] = useState<{ customerIds: string[] } | null>(null)
@@ -194,6 +195,42 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
 
       <div style={{ padding: 20, maxWidth: 860, margin: '0 auto', width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+        {!isQBConnected && (
+          <div
+            style={{
+              background: '#EBF5EF',
+              border: '0.5px solid #C3DEC9',
+              borderRadius: 8,
+              padding: '12px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <i className="ti ti-plug" style={{ fontSize: 15, color: '#1A3D2B', flexShrink: 0 }} />
+              <p style={{ fontSize: 12, color: '#1A3D2B' }}>
+                <span style={{ fontWeight: 600 }}>QuickBooks isn&apos;t connected yet.</span>
+                {' '}Classes live in QuickBooks, so you&apos;ll need to connect it before you can import or create any here.
+              </p>
+            </div>
+            <a
+              href="/settings"
+              style={{
+                flexShrink: 0,
+                background: '#1A3D2B', color: 'white',
+                fontSize: 12, fontWeight: 600,
+                padding: '6px 14px', borderRadius: 6,
+                textDecoration: 'none',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Connect QuickBooks
+            </a>
+          </div>
+        )}
+
         {/* Mode selector */}
         <div style={{ background: 'white', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 8, padding: '14px 16px' }}>
           <p style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', marginBottom: 10 }}>Assign class by</p>
@@ -266,11 +303,12 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
               onChange={e => setNewClassName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleAddClass() }}
               placeholder="New class name…"
-              style={{ ...inputStyle, width: 220 }}
+              disabled={!isQBConnected}
+              style={{ ...inputStyle, width: 220, opacity: isQBConnected ? 1 : 0.6, cursor: isQBConnected ? 'text' : 'not-allowed' }}
             />
             <button
               onClick={handleAddClass}
-              disabled={newClassPending || !newClassName.trim()}
+              disabled={!isQBConnected || newClassPending || !newClassName.trim()}
               style={{
                 height: 34,
                 background: '#2DB87A',
@@ -280,8 +318,8 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
                 padding: '0 14px',
                 fontSize: 13,
                 fontWeight: 500,
-                cursor: newClassPending || !newClassName.trim() ? 'not-allowed' : 'pointer',
-                opacity: newClassPending || !newClassName.trim() ? 0.6 : 1,
+                cursor: !isQBConnected || newClassPending || !newClassName.trim() ? 'not-allowed' : 'pointer',
+                opacity: !isQBConnected || newClassPending || !newClassName.trim() ? 0.6 : 1,
                 whiteSpace: 'nowrap',
               }}
             >
@@ -295,7 +333,9 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
             </p>
           )}
           <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 5 }}>
-            Creates the class in QuickBooks immediately. You can then assign {entityType}s to it.
+            {isQBConnected
+              ? `Creates the class in QuickBooks immediately. You can then assign ${entityType}s to it.`
+              : 'Connect QuickBooks above before adding classes.'}
           </p>
         </div>
 
@@ -381,7 +421,9 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
             <i className="ti ti-tag" style={{ fontSize: 32, color: 'var(--color-text-tertiary)', display: 'block', marginBottom: 10 }} />
             <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)', marginBottom: 4 }}>No classes yet</p>
             <p style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>
-              Sync QuickBooks from Settings to import existing classes, or add one above.
+              {isQBConnected
+                ? 'Sync QuickBooks from Settings to import existing classes, or add one above.'
+                : 'Connect QuickBooks to import existing classes, or create new ones here.'}
             </p>
           </div>
         )}
