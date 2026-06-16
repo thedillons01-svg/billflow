@@ -129,8 +129,12 @@ export async function POST(request: NextRequest) {
     const lc = (subject + ' ' + body).toLowerCase()
     const looksLikePO = lc.includes('purchase order') || lc.includes('order confirmation') || lc.includes('p.o. #') || lc.includes('po #')
     const looksLikeInvoice = lc.includes('invoice') || lc.includes('statement') || lc.includes('billing')
+    // Only the unambiguous "purchase order" phrase rejects mail sent to the bills address.
+    // "order confirmation" / "PO #" also show up on prepaid online-order receipts that are
+    // intentionally sent to bills (no invoice will ever follow) — those must not bounce.
+    const looksLikeFormalPO = lc.includes('purchase order')
 
-    if (captureType === 'bill' && looksLikePO && !looksLikeInvoice) {
+    if (captureType === 'bill' && looksLikeFormalPO && !looksLikeInvoice) {
       // PO sent to bills address
       const supabaseEarly = createServiceClient()
       const { data: co } = await supabaseEarly.from('companies').select('company_id, capture_email_prefix').eq('capture_email_prefix', companyPrefix).single()
