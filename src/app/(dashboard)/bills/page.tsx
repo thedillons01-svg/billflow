@@ -77,7 +77,7 @@ export default async function BillsPage({
         <div>
           <h1 style={{ fontSize: 16, fontWeight: 500, color: 'var(--color-text-primary)' }}>Bills</h1>
           <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 2 }}>
-            Vendor invoices captured via email
+            Vendor invoices captured via email or uploaded
           </p>
         </div>
         <UploadButton creditBalance={creditBalance} subscriptionStatus={subscriptionStatus} />
