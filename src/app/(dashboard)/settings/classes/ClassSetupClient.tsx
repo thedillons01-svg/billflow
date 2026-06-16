@@ -1,9 +1,10 @@
 'use client'
 
-import { useTransition, useState, useCallback, useEffect } from 'react'
+import { useTransition, useState, useCallback, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { saveClassSetup, createQBClass } from './actions'
 import { applyCustomerClassToBills } from '../../vendors/[id]/actions'
+import { useDirty, useGuardedNavigate } from '@/components/unsaved-guard'
 
 type QBClass = { qb_class_id: string; name: string }
 type Vendor = { vendor_id: string; vendor_name_display: string | null; billflow_class_id: string | null }
@@ -20,6 +21,8 @@ type Props = {
 
 export function ClassSetupClient({ companyId, mode: initialMode, classes, vendors, customers, isQBConnected }: Props) {
   const router = useRouter()
+  const navigate = useGuardedNavigate()
+  const { setDirty, registerSaveFn } = useDirty()
   const [isSaving, startSave] = useTransition()
   const [applyPrompt, setApplyPrompt] = useState<{ customerIds: string[] } | null>(null)
   const [isApplying, setIsApplying] = useState(false)
@@ -45,20 +48,30 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
   const [vendorClasses, setVendorClasses] = useState<Record<string, string | null>>(initVendorClasses)
   const [customerClasses, setCustomerClasses] = useState<Record<string, string | null>>(initCustomerClasses)
 
-  // Warn on browser back/close if there are unsaved changes
-  const isDirty = useCallback(() => {
-    if (mode !== initialMode) return true
-    return vendors.some(v => (v.billflow_class_id ?? null) !== vendorClasses[v.vendor_id])
-      || customers.some(c => (c.assigned_class_id ?? null) !== customerClasses[c.qb_job_id])
-  }, [mode, initialMode, vendors, customers, vendorClasses, customerClasses])
+  // Saved baseline — what's actually persisted. Compared against (not the original props)
+  // so that dirtiness clears correctly after a save that doesn't navigate away (e.g. the
+  // apply-to-existing-bills interstitial keeps this component mounted post-save).
+  const [savedMode, setSavedMode] = useState(initialMode)
+  const [savedVendorClasses, setSavedVendorClasses] = useState<Record<string, string | null>>(initVendorClasses)
+  const [savedCustomerClasses, setSavedCustomerClasses] = useState<Record<string, string | null>>(initCustomerClasses)
 
+  const isDirty = useCallback(() => {
+    if (mode !== savedMode) return true
+    return vendors.some(v => savedVendorClasses[v.vendor_id] !== vendorClasses[v.vendor_id])
+      || customers.some(c => savedCustomerClasses[c.qb_job_id] !== customerClasses[c.qb_job_id])
+  }, [mode, savedMode, vendors, customers, savedVendorClasses, savedCustomerClasses, vendorClasses, customerClasses])
+
+  // Feed local dirtiness into the global nav guard so leaving this page (sidebar, breadcrumb,
+  // browser back/refresh) gets the same branded unsaved-changes prompt as the rest of the app.
   useEffect(() => {
-    const handler = (e: BeforeUnloadEvent) => {
-      if (isDirty()) { e.preventDefault(); e.returnValue = '' }
-    }
-    window.addEventListener('beforeunload', handler)
-    return () => window.removeEventListener('beforeunload', handler)
-  }, [isDirty])
+    setDirty(isDirty())
+  }, [isDirty, setDirty])
+
+  const performSaveRef = useRef<() => Promise<void>>(async () => {})
+  useEffect(() => {
+    registerSaveFn(() => performSaveRef.current())
+    return () => registerSaveFn(null)
+  }, [registerSaveFn])
 
   // Add class form — this still saves immediately (QB API call, can't undo)
   const [newClassName, setNewClassName] = useState('')
@@ -78,38 +91,41 @@ export function ClassSetupClient({ companyId, mode: initialMode, classes, vendor
   }
 
   function handleCancel() {
-    if (isDirty() && !window.confirm('You have unsaved changes. Leave without saving?')) return
-    setVendorClasses(initVendorClasses())
-    setCustomerClasses(initCustomerClasses())
-    setMode(initialMode)
-    router.push('/settings')
+    navigate('/settings')
   }
 
-  function handleSave() {
-    // Compute only changed entries to minimise DB writes
+  performSaveRef.current = async () => {
+    // Compute only changed entries (vs. the saved baseline) to minimise DB writes
     const vendorChanges = vendors
-      .filter(v => (v.billflow_class_id ?? null) !== vendorClasses[v.vendor_id])
+      .filter(v => savedVendorClasses[v.vendor_id] !== vendorClasses[v.vendor_id])
       .map(v => ({ vendorId: v.vendor_id, classId: vendorClasses[v.vendor_id] }))
 
     const customerChanges = customers
-      .filter(c => (c.assigned_class_id ?? null) !== customerClasses[c.qb_job_id])
+      .filter(c => savedCustomerClasses[c.qb_job_id] !== customerClasses[c.qb_job_id])
       .map(c => ({ qbJobId: c.qb_job_id, classId: customerClasses[c.qb_job_id] }))
 
-    startSave(async () => {
-      await saveClassSetup(companyId, mode, vendorChanges, customerChanges)
+    await saveClassSetup(companyId, mode, vendorChanges, customerChanges)
 
-      // After saving in customer mode, offer to apply updated class assignments to existing bills
-      const changedCustomerIds = customerChanges
-        .filter(c => c.classId !== null)
-        .map(c => c.qbJobId)
+    setSavedMode(mode)
+    setSavedVendorClasses(vendorClasses)
+    setSavedCustomerClasses(customerClasses)
+    setDirty(false)
 
-      if (mode === 'customer' && changedCustomerIds.length > 0) {
-        setApplyPrompt({ customerIds: changedCustomerIds })
-        setApplyResult(null)
-      } else {
-        router.push('/settings')
-      }
-    })
+    // After saving in customer mode, offer to apply updated class assignments to existing bills
+    const changedCustomerIds = customerChanges
+      .filter(c => c.classId !== null)
+      .map(c => c.qbJobId)
+
+    if (mode === 'customer' && changedCustomerIds.length > 0) {
+      setApplyPrompt({ customerIds: changedCustomerIds })
+      setApplyResult(null)
+    } else {
+      router.push('/settings')
+    }
+  }
+
+  function handleSave() {
+    startSave(() => performSaveRef.current())
   }
 
   async function handleAddClass() {

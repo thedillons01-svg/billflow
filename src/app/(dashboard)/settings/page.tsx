@@ -3,7 +3,8 @@ import { disconnectQuickBooks, triggerQBSync, updateNotificationSettings, update
 import { SyncButton } from './sync-button'
 import { CopyAddress } from './copy-address'
 import { ClassTrackingToggle } from './class-tracking-toggle'
-import { DirtyForm, SaveButton } from '@/components/dirty-form'
+import { DirtyForm, DirtyFormGroup, SaveButton } from '@/components/dirty-form'
+import { GuardedLink } from '@/components/guarded-link'
 
 type Company = {
   company_id: string
@@ -74,6 +75,7 @@ export default async function SettingsPage({
 
       <div className="flex-1 overflow-auto px-5 py-5">
         <div style={{ maxWidth: 700 }} className="space-y-5">
+        <DirtyFormGroup>
           {/* Status banners */}
           {qb_connected === 'true' && (
             <Banner type="success">QuickBooks connected successfully.</Banner>
@@ -540,7 +542,7 @@ export default async function SettingsPage({
           </Card>
 
           {/* ── Account & Class Visibility ────────────────────────────── */}
-          <a href="/settings/account-visibility" style={{ textDecoration: 'none', display: 'block' }}>
+          <GuardedLink href="/settings/account-visibility" style={{ display: 'block', width: '100%' }}>
             <div
               className="flex items-center justify-between"
               style={{
@@ -556,7 +558,7 @@ export default async function SettingsPage({
               </div>
               <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
             </div>
-          </a>
+          </GuardedLink>
 
           {/* ── Billing & Credits ─────────────────────────────────────── */}
           <Card title="Billing & Credits" subtitle="Your current plan and credit balance.">
@@ -578,23 +580,24 @@ export default async function SettingsPage({
                   </p>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Credits remaining</p>
                 </div>
-                <a
+                <GuardedLink
                   href="/billing"
                   style={{
+                    display: 'inline-block',
                     background: '#2DB87A', color: 'white',
                     borderRadius: 6, padding: '7px 16px',
                     fontSize: 13, fontWeight: 500,
-                    textDecoration: 'none',
                   }}
                 >
                   Purchase Credits
-                </a>
+                </GuardedLink>
               </div>
               <p style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
                 Credits never expire. Purchase bundles or upgrade to an unlimited monthly plan.
               </p>
             </div>
           </Card>
+        </DirtyFormGroup>
         </div>
       </div>
     </div>

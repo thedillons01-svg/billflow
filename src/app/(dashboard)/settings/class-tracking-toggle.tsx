@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { GuardedLink } from '@/components/guarded-link'
 
 export function ClassTrackingToggle({ defaultChecked }: { defaultChecked: boolean }) {
   const [checked, setChecked] = useState(defaultChecked)
@@ -27,18 +28,18 @@ export function ClassTrackingToggle({ defaultChecked }: { defaultChecked: boolea
         </label>
       </div>
       {checked && (
-        <a
+        <GuardedLink
           href="/settings/classes"
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            width: '100%',
             gap: 12,
             padding: '10px 14px',
             background: '#EBF5EF',
             border: '1px solid #2DB87A',
             borderRadius: 6,
-            textDecoration: 'none',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -49,7 +50,7 @@ export function ClassTrackingToggle({ defaultChecked }: { defaultChecked: boolea
             </div>
           </div>
           <i className="ti ti-arrow-right" style={{ fontSize: 14, color: '#2DB87A', flexShrink: 0 }} />
-        </a>
+        </GuardedLink>
       )}
     </>
   )
