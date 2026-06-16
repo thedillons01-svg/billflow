@@ -933,11 +933,14 @@ export function BillReviewForm({
               <Field label="Invoice Total" helper="The total amount from the invoice header. Must match the line items sum for auto-publish.">
                 <AutoSaveInput type="number" currency initialValue={bill.total != null ? String(bill.total) : ''} onSave={v => updateBill(bill.bill_id, { total: v ? parseFloat(v) : null })} align="right" placeholder="0.00" />
               </Field>
-              {qbType === 'qbd' && (
-                <Field label="Vendor PO / Reference" helper="The purchase order or reference number from the invoice. Used for job matching and copied to the QB Desktop Ref No. field.">
-                  <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} />
-                </Field>
-              )}
+              <Field
+                label="Vendor PO / Reference"
+                helper={qbType === 'qbd'
+                  ? "The purchase order or reference number from the invoice. Used for job matching and copied to the QB Desktop Ref No. field."
+                  : "The purchase order or reference number from the invoice. Used to match this bill to a QuickBooks job."}
+              >
+                <AutoSaveInput initialValue={bill.vendor_po_reference ?? ''} onSave={v => updateBill(bill.bill_id, { vendor_po_reference: v || null })} placeholder="e.g. PO-12345" />
+              </Field>
               <Field
                 label="Memo / Description"
                 helper={qbType === 'qbd'
