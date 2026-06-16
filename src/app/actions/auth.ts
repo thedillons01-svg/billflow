@@ -34,6 +34,14 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
 
   if (error) return { error: error.message }
 
+  // Supabase returns a user with no identities (instead of an error) when the
+  // email already belongs to a confirmed account, to avoid leaking which emails
+  // are registered. Surface that as a real message rather than a fake "check
+  // your email" — no email is actually sent in this case.
+  if (data.user && data.user.identities && data.user.identities.length === 0) {
+    return { error: 'An account with this email already exists. Try logging in instead.' }
+  }
+
   if (data.session) redirect('/onboarding')
 
   return { message: 'Check your email for a confirmation link to complete sign-up.' }
