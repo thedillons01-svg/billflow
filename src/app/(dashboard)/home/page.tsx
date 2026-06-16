@@ -123,36 +123,6 @@ export default async function DashboardPage() {
             </div>
           ) : null}
 
-          {!isQBConnected && (
-            <div
-              className="flex items-center gap-3 px-4 py-3"
-              style={{
-                background: '#FFFBEB', border: '0.5px solid #FCD34D',
-                borderRadius: 8, borderLeft: '3px solid #F59E0B',
-              }}
-            >
-              <i className="ti ti-plug" style={{ fontSize: 16, color: '#D97706' }} />
-              <div className="flex-1">
-                <p style={{ fontSize: 13, fontWeight: 500, color: '#92400E' }}>
-                  QuickBooks not connected
-                </p>
-                <p style={{ fontSize: 11, color: '#B45309' }}>Connect QuickBooks to push bills and sync your vendor list.</p>
-              </div>
-              <Link
-                href="/settings"
-                style={{
-                  fontSize: 12, fontWeight: 500, color: '#D97706',
-                  textDecoration: 'none',
-                  border: '0.5px solid #FCD34D',
-                  borderRadius: 6, padding: '4px 12px',
-                  background: 'white',
-                }}
-              >
-                Connect
-              </Link>
-            </div>
-          )}
-
           {/* Document type cards */}
           <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr' }}>
 

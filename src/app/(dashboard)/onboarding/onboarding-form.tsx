@@ -30,7 +30,7 @@ export function OnboardingForm({
   defaultFsm: string
   defaultJobCosting: boolean
 }) {
-  const [step, setStep] = useState(defaultName ? 2 : 1)  // 1 = company setup, 2 = email forwarding
+  const [step, setStep] = useState(defaultName ? 3 : 1)  // 1 = welcome, 2 = company setup, 3 = email forwarding
   const [name, setName] = useState(defaultName)
   const [qbType, setQbType] = useState<'qbo' | 'qbd'>(defaultQbType)
   const [fsm, setFsm] = useState(defaultFsm)
@@ -54,7 +54,7 @@ export function OnboardingForm({
       fd.set('fsm_platform', fsm)
       fd.set('job_costing_enabled', String(jobCosting))
       await saveCompanySetupStep1(fd)
-      setStep(2)
+      setStep(3)
     })
   }
 
@@ -65,7 +65,7 @@ export function OnboardingForm({
         className="flex items-center justify-center gap-2 px-6 py-4"
         style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
       >
-        {[1, 2].map(n => (
+        {[1, 2, 3].map(n => (
           <div key={n} className="flex items-center gap-2">
             <div
               style={{
@@ -78,7 +78,7 @@ export function OnboardingForm({
             >
               {n < step ? <i className="ti ti-check" style={{ fontSize: 11 }} /> : n}
             </div>
-            {n < 2 && (
+            {n < 3 && (
               <div style={{ width: 32, height: 1, background: n < step ? '#2DB87A' : 'var(--color-border-secondary)' }} />
             )}
           </div>
@@ -86,8 +86,68 @@ export function OnboardingForm({
       </div>
 
       <div style={{ padding: '24px 32px' }}>
-        {/* Step 1: Company setup — saves immediately so company exists before QB connect */}
+        {/* Step 1: Welcome — explains what Purchasomatic does before asking any questions */}
         {step === 1 && (
+          <div className="space-y-4">
+            <div>
+              <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>How Purchasomatic Works</p>
+              <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                Three steps — try it out before you connect QuickBooks.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              {[
+                { icon: 'ti-mail-forward', title: 'Forward or upload an invoice', body: 'Send it to your capture address, or upload a PDF directly — no setup required.' },
+                { icon: 'ti-scan', title: 'We extract every line item', body: 'OCR reads the vendor, items, quantities, and totals automatically. You review and correct anything before it moves on.' },
+                { icon: 'ti-plug-connected', title: 'Push to QuickBooks when ready', body: 'Connect your QuickBooks account whenever you want — it is not required to start capturing and reviewing invoices.' },
+              ].map(s => (
+                <div key={s.title} className="flex items-start gap-3">
+                  <div
+                    style={{
+                      width: 32, height: 32, borderRadius: 8, flexShrink: 0,
+                      background: '#EBF5EF', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <i className={`ti ${s.icon}`} style={{ fontSize: 16, color: '#1A3D2B' }} />
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--color-text-primary)' }}>{s.title}</p>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>{s.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div
+              style={{
+                background: '#EBF5EF',
+                border: '0.5px solid #C3DEC9',
+                borderRadius: 8, padding: '12px 16px',
+              }}
+            >
+              <p style={{ fontSize: 12, color: '#1A3D2B' }}>
+                <span style={{ fontWeight: 600 }}>No QuickBooks connection needed today.</span>
+                {' '}Set up your company, forward a real or sample invoice, and see how Purchasomatic handles it. Connect QuickBooks later, whenever you are ready to publish.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              style={{
+                width: '100%', background: '#2DB87A', color: 'white',
+                borderRadius: 8, padding: '10px', fontSize: 14, fontWeight: 600,
+                border: 'none', cursor: 'pointer',
+              }}
+            >
+              Get started
+            </button>
+          </div>
+        )}
+
+        {/* Step 2: Company setup — saves immediately so company exists before QB connect */}
+        {step === 2 && (
           <div className="space-y-4">
             <div>
               <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>Company Setup</p>
@@ -133,6 +193,9 @@ export function OnboardingForm({
                   </button>
                 ))}
               </div>
+              <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', marginTop: 6 }}>
+                This just tailors your setup — it does not connect your QuickBooks account. You will connect from Settings whenever you are ready.
+              </p>
             </div>
 
             <div>
@@ -180,8 +243,8 @@ export function OnboardingForm({
           </div>
         )}
 
-        {/* Step 2: Email forwarding */}
-        {step === 2 && (
+        {/* Step 3: Email forwarding */}
+        {step === 3 && (
           <div className="space-y-4">
             <div>
               <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--color-text-primary)' }}>Email Forwarding</p>
@@ -227,7 +290,7 @@ export function OnboardingForm({
             </div>
 
             <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'center' }}>
-              You can also upload PDFs directly. Connect QuickBooks later from Settings when you&apos;re ready to push bills.
+              You can also upload PDFs directly — no need to set up forwarding right away.
             </p>
 
             <a
@@ -240,6 +303,17 @@ export function OnboardingForm({
               }}
             >
               Start capturing invoices →
+            </a>
+
+            <a
+              href="/settings"
+              style={{
+                display: 'block', textAlign: 'center',
+                fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)',
+                textDecoration: 'none',
+              }}
+            >
+              Or connect QuickBooks now →
             </a>
           </div>
         )}
