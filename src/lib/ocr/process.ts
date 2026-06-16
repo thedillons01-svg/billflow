@@ -65,7 +65,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   // 1. Load the bill record
   const { data: bill, error: billErr } = await supabase
     .from('bills')
-    .select('bill_id, company_id, pdf_url, status')
+    .select('bill_id, company_id, pdf_url, status, reprocess_count')
     .eq('bill_id', billId)
     .single()
 
@@ -130,6 +130,16 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     ? `Duplicate — invoice ${result.invoice_number} from ${result.vendor_name_raw} already exists in your inbox`
     : null
 
+  // Credit memo detection — negative total or explicit "credit memo/note" wording on the document.
+  // Only applied on first processing (not reprocess) so a manual correction never gets clobbered.
+  const rawTextLower = result.raw_text?.toLowerCase() ?? ''
+  const looksLikeCreditNote =
+    (result.total != null && result.total < 0) ||
+    rawTextLower.includes('credit memo') ||
+    rawTextLower.includes('credit note') ||
+    rawTextLower.includes('vendor credit')
+  const isFirstPass = (bill.reprocess_count ?? 0) === 0
+
   const { error: updateErr } = await supabase
     .from('bills')
     .update({
@@ -148,6 +158,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       ocr_confidence:           result.confidence,
       autopublish_hold_reason:  holdReason,
       ...(result.raw_text != null ? { raw_text: result.raw_text } : {}),
+      ...(isFirstPass && looksLikeCreditNote ? { bill_type: 'credit_note' } : {}),
     })
     .eq('bill_id', billId)
 
