@@ -168,6 +168,9 @@ export default async function SettingsPage({
                     <span style={{ display: 'block', width: 10, height: 10, borderRadius: '50%', background: 'var(--color-border-secondary)' }} />
                     <p style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Not connected</p>
                   </div>
+                  <p style={{ fontSize: 12, color: 'var(--color-text-secondary)', maxWidth: 380 }}>
+                    Connecting QuickBooks doesn&apos;t push anything automatically. Bills only go to QuickBooks when you click Publish, or when a vendor has auto-publish enabled.
+                  </p>
                   {/* Intuit-branded Connect to QuickBooks button — required for app review */}
                   <a
                     href="/api/quickbooks/connect"
