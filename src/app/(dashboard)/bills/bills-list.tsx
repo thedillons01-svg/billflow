@@ -75,7 +75,7 @@ export function BillsList({
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
-  const anySelectedPendingJobMatch = bills.some(b => selected.has(b.bill_id) && b.status === 'pending_job_match')
+  const anySelectedWithoutJob = bills.some(b => selected.has(b.bill_id) && !(b.bill_line_items ?? []).some(li => li.job_id))
 
   function toggleAll() {
     if (allSelected) {
@@ -208,7 +208,7 @@ export function BillsList({
               <>
                 <BulkButton onClick={handleBulkReady} disabled={isPending} label="Mark Ready" />
                 <BulkButton onClick={handleBulkPublish} disabled={isPending || isPublishing} label={isPublishing ? 'Publishing…' : 'Publish to QB'} primary />
-                {anySelectedPendingJobMatch && (
+                {anySelectedWithoutJob && (
                   <BulkButton onClick={handleBulkFindJobMatch} disabled={isPending || isMatchingJobs} label={isMatchingJobs ? 'Searching…' : 'Find Job Match'} />
                 )}
               </>

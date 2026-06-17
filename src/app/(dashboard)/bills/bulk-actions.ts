@@ -102,10 +102,10 @@ export async function bulkFindJobMatch(billIds: string[]): Promise<BulkJobMatchR
 
   if (!bills || bills.length === 0) return { matched: 0, notFound: 0, skipped: billIds.length }
 
-  const pending = bills.filter(b => b.status === 'pending_job_match')
-  const skipped = billIds.length - pending.length
+  const eligible = bills.filter(b => b.status !== 'published' && b.status !== 'publishing')
+  const skipped = billIds.length - eligible.length
 
-  if (pending.length === 0) return { matched: 0, notFound: 0, skipped }
+  if (eligible.length === 0) return { matched: 0, notFound: 0, skipped }
 
   // Sync once before attempting matches so newly created QB jobs are visible
   try { await syncAll(company.company_id) } catch { /* non-fatal */ }
@@ -114,7 +114,7 @@ export async function bulkFindJobMatch(billIds: string[]): Promise<BulkJobMatchR
   let matched = 0
   let notFound = 0
 
-  for (const bill of pending) {
+  for (const bill of eligible) {
     const matchRef = (bill.vendor_po_reference as string | null) ?? (bill.job_name_extracted as string | null)
     if (!matchRef) { notFound++; continue }
 
