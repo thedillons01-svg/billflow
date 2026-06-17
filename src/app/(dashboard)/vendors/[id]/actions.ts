@@ -74,21 +74,51 @@ export async function createVendorInQB(
   return { qbVendorId, qbVendorName }
 }
 
-// Apply the vendor's current default GL account to all non-manually-set lines on unpublished bills.
-// Called after user saves a new GL account and confirms the apply prompt.
-export async function applyVendorGlToBills(vendorId: string): Promise<{ count: number }> {
+type RuleRow = {
+  match_type: string
+  conditions: Array<{ field: string; operator: string; value: string }>
+  gl_account_id: string | null
+}
+
+function evaluateRule(
+  rule: { match_type: string; conditions: Array<{ field: string; operator: string; value: string }> },
+  description: string,
+  unitPrice: number,
+): boolean {
+  const results = rule.conditions.map(cond => {
+    const haystack = cond.field === 'description' ? description.toLowerCase() : String(unitPrice)
+    const needle = cond.value.toLowerCase()
+    switch (cond.operator) {
+      case 'equal':       return haystack === needle
+      case 'contains':    return haystack.includes(needle)
+      case 'begins_with': return haystack.startsWith(needle)
+      case 'ends_with':   return haystack.endsWith(needle)
+      default:            return false
+    }
+  })
+  return rule.match_type === 'all' ? results.every(Boolean) : results.some(Boolean)
+}
+
+// Apply a vendor default field to existing unpublished bills.
+// mode='blank_only'     → only fill fields that are currently null
+// mode='all_unpublished' → overwrite everything (rules still take priority over vendor default for GL)
+export async function applyVendorDefaultToBills(
+  vendorId: string,
+  field: 'gl_account' | 'class' | 'description' | 'payment_account' | 'payment_method',
+  mode: 'blank_only' | 'all_unpublished',
+): Promise<{ count: number }> {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { count: 0 }
+
   const service = createServiceClient()
 
-  const { data: vendor } = await supabase
+  const { data: vendor } = await service
     .from('vendors')
-    .select('company_id, billflow_gl_account_id, qb_default_gl_account_id')
+    .select('company_id, billflow_gl_account_id, qb_default_gl_account_id, billflow_class_id, default_description, default_payment_account_id, default_payment_method')
     .eq('vendor_id', vendorId)
     .single()
   if (!vendor) return { count: 0 }
-
-  const glAccountId = (vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id) as string | null
-  if (!glAccountId) return { count: 0 }
 
   const { data: bills } = await service
     .from('bills')
@@ -96,53 +126,98 @@ export async function applyVendorGlToBills(vendorId: string): Promise<{ count: n
     .eq('vendor_id', vendorId)
     .is('deleted_at', null)
     .neq('status', 'published')
-    .neq('status', 'archived')
-    .neq('status', 'rejected')
+    .neq('status', 'publishing')
 
   if (!bills?.length) return { count: 0 }
-
   const billIds = (bills as Array<{ bill_id: string }>).map(b => b.bill_id)
-  await service
-    .from('bill_line_items')
-    .update({ gl_account_id: glAccountId, gl_account_source: 'vendor_default' })
-    .in('bill_id', billIds)
-    .not('gl_account_source', 'in', '(manual,rule,mapping)')
 
-  return { count: bills.length }
-}
+  // ── GL account (line-item level, rules evaluated) ────────────────────────
+  if (field === 'gl_account') {
+    const glAccountId = ((vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id) as string | null)
+    if (!glAccountId) return { count: 0 }
 
-// Apply the vendor's current default class to all unpublished bills from this vendor.
-export async function applyVendorClassToBills(vendorId: string): Promise<{ count: number }> {
-  const supabase = await createClient()
-  const service = createServiceClient()
+    const [{ data: vendorMappings }, { data: vendorRules }, { data: companyRules }] = await Promise.all([
+      service.from('vendor_line_item_mappings').select('description_text, gl_account_id').eq('vendor_id', vendorId),
+      service.from('vendor_line_item_rules').select('match_type, conditions, gl_account_id, priority').eq('vendor_id', vendorId).order('priority'),
+      service.from('company_line_item_rules').select('match_type, conditions, gl_account_id, priority').eq('company_id', vendor.company_id as string).order('priority'),
+    ])
 
-  const { data: vendor } = await supabase
-    .from('vendors')
-    .select('company_id, billflow_class_id')
-    .eq('vendor_id', vendorId)
-    .single()
-  if (!vendor?.billflow_class_id) return { count: 0 }
+    let lineQuery = service
+      .from('bill_line_items')
+      .select('line_id, description, unit_cost')
+      .in('bill_id', billIds)
+    if (mode === 'blank_only') lineQuery = lineQuery.is('gl_account_id', null)
+    const { data: lines } = await lineQuery
+    if (!lines?.length) return { count: 0 }
 
-  const classId = vendor.billflow_class_id as string
+    // Group lines by their computed (gl_account_id, source) to batch updates
+    const groups = new Map<string, string[]>()
+    for (const line of lines as Array<{ line_id: string; description: string | null; unit_cost: number | null }>) {
+      const desc = line.description ?? ''
+      const unitCost = (line.unit_cost as number) ?? 0
+      let resultGl: string | null = null
+      let resultSource = 'vendor_default'
 
-  const { data: bills } = await service
-    .from('bills')
-    .select('bill_id, matched_customer_qb_id')
-    .eq('vendor_id', vendorId)
-    .is('deleted_at', null)
-    .neq('status', 'published')
-    .neq('status', 'archived')
-    .neq('status', 'rejected')
+      // 1. Stored mapping
+      const mapping = (vendorMappings ?? []).find(m => m.description_text.toLowerCase() === desc.toLowerCase())
+      if (mapping?.gl_account_id) { resultGl = mapping.gl_account_id as string; resultSource = 'stored_mapping' }
 
-  if (!bills?.length) return { count: 0 }
+      // 2. Vendor rules override mapping
+      const vendorRule = (vendorRules as RuleRow[] ?? []).find(r => evaluateRule(r, desc, unitCost))
+      if (vendorRule?.gl_account_id) { resultGl = vendorRule.gl_account_id as string; resultSource = 'rule' }
 
-  const billIds = (bills as Array<{ bill_id: string }>).map(b => b.bill_id)
-  await service
-    .from('bill_line_items')
-    .update({ class_id: classId })
-    .in('bill_id', billIds)
+      // 3. Company rules if no vendor match yet
+      if (!resultGl) {
+        const companyRule = (companyRules as RuleRow[] ?? []).find(r => evaluateRule(r, desc, unitCost))
+        if (companyRule?.gl_account_id) { resultGl = companyRule.gl_account_id as string; resultSource = 'rule' }
+      }
 
-  return { count: bills.length }
+      // 4. Vendor default
+      if (!resultGl) { resultGl = glAccountId; resultSource = 'vendor_default' }
+
+      const key = `${resultGl}|${resultSource}`
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(line.line_id as string)
+    }
+
+    for (const [key, lineIds] of groups) {
+      const [gl, src] = key.split('|')
+      await service.from('bill_line_items')
+        .update({ gl_account_id: gl, gl_account_source: src })
+        .in('line_id', lineIds)
+    }
+    return { count: billIds.length }
+  }
+
+  // ── Class (line-item level) ───────────────────────────────────────────────
+  if (field === 'class') {
+    const classId = vendor.billflow_class_id as string | null
+    if (!classId) return { count: 0 }
+    let q = service.from('bill_line_items').update({ class_id: classId }).in('bill_id', billIds)
+    if (mode === 'blank_only') q = q.is('class_id', null)
+    await q
+    return { count: billIds.length }
+  }
+
+  // ── Bill header fields ────────────────────────────────────────────────────
+  const colMap: Record<string, string> = {
+    description:     'description',
+    payment_account: 'payment_account_id',
+    payment_method:  'payment_method',
+  }
+  const valMap: Record<string, unknown> = {
+    description:     vendor.default_description,
+    payment_account: vendor.default_payment_account_id,
+    payment_method:  vendor.default_payment_method,
+  }
+  const col = colMap[field]
+  const val = valMap[field]
+  if (!col || !val) return { count: 0 }
+
+  let q = service.from('bills').update({ [col]: val }).in('bill_id', billIds)
+  if (mode === 'blank_only') q = q.is(col, null)
+  await q
+  return { count: billIds.length }
 }
 
 // Apply customer-derived class to all unpublished bills matched to the given customers.

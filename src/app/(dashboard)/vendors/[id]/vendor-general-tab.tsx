@@ -1,13 +1,15 @@
-﻿'use client'
+'use client'
 
 import { useState, useTransition, useEffect, useRef } from 'react'
-import { updateVendor, createVendorInQB, applyVendorGlToBills, applyVendorClassToBills } from './actions'
+import { updateVendor, createVendorInQB, applyVendorDefaultToBills } from './actions'
 import { useDirty } from '@/components/unsaved-guard'
 
 type Account = { qb_account_id: string; name: string | null; account_type: string | null }
 type QBClass = { qb_class_id: string; name: string | null }
 type QBVendor = { qb_vendor_id: string; name: string | null }
 type QBTerm  = { qb_term_id: string; name: string; due_days: number | null; type: string }
+type ApplyField = 'gl_account' | 'class' | 'description' | 'payment_account' | 'payment_method'
+type PushPromptState = { state: 'visible' | 'applying' | 'done'; result: string | null }
 
 type Vendor = {
   vendor_id: string
@@ -48,9 +50,7 @@ export function VendorGeneralTab({
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [qbCreateError, setQbCreateError] = useState<string | null>(null)
-  const [applyPrompt, setApplyPrompt] = useState<{ gl: boolean; cls: boolean } | null>(null)
-  const [isApplying, setIsApplying] = useState(false)
-  const [applyResult, setApplyResult] = useState<string | null>(null)
+  const [pushPrompts, setPushPrompts] = useState<Partial<Record<ApplyField, PushPromptState>>>({})
   const { setDirty, registerSaveFn } = useDirty()
 
   const [form, setForm] = useState({
@@ -72,8 +72,6 @@ export function VendorGeneralTab({
     default_due_date: vendor.default_due_date ?? 'not_set',
   })
 
-  // saveFnRef always closes over the latest form values — registered once on mount
-  // so the unsaved-changes dialog can save without requiring the user to cancel first.
   const saveFnRef = useRef<() => Promise<void>>(async () => {})
   useEffect(() => {
     registerSaveFn(() => saveFnRef.current())
@@ -81,10 +79,6 @@ export function VendorGeneralTab({
   }, [registerSaveFn])
 
   saveFnRef.current = async () => {
-    // Capture original values before save to detect changes
-    const prevGlId = vendor.billflow_gl_account_id || null
-    const prevClassId = vendor.billflow_class_id || null
-
     const selectedQbVendor = qbVendors.find(v => v.qb_vendor_id === form.qb_vendor_id)
     await updateVendor(vendor.vendor_id, {
       vendor_name_extracted:      form.vendor_name_extracted || null,
@@ -110,12 +104,17 @@ export function VendorGeneralTab({
     })
     setDirty(false)
 
-    const glChanged = (form.billflow_gl_account_id || null) !== prevGlId
-    const classChanged = (form.billflow_class_id || null) !== prevClassId
+    const changed: ApplyField[] = []
+    if ((form.billflow_gl_account_id || null) !== (vendor.billflow_gl_account_id || null)) changed.push('gl_account')
+    if ((form.billflow_class_id || null) !== (vendor.billflow_class_id || null)) changed.push('class')
+    if ((form.default_description || null) !== (vendor.default_description || null)) changed.push('description')
+    if ((form.default_payment_account_id || null) !== (vendor.default_payment_account_id || null)) changed.push('payment_account')
+    if ((form.default_payment_method || null) !== (vendor.default_payment_method || null)) changed.push('payment_method')
 
-    if (glChanged || classChanged) {
-      setApplyPrompt({ gl: glChanged, cls: classChanged })
-      setApplyResult(null)
+    if (changed.length > 0) {
+      const prompts: Partial<Record<ApplyField, PushPromptState>> = {}
+      changed.forEach(f => { prompts[f] = { state: 'visible', result: null } })
+      setPushPrompts(prompts)
     } else {
       setSaved(true)
       setTimeout(() => setSaved(false), 2000)
@@ -131,6 +130,21 @@ export function VendorGeneralTab({
     setDirty(true)
   }
 
+  async function handleApplyPush(field: ApplyField, mode: 'blank_only' | 'all_unpublished') {
+    setPushPrompts(prev => ({ ...prev, [field]: { state: 'applying', result: null } }))
+    const r = await applyVendorDefaultToBills(vendor.vendor_id, field, mode)
+    const result = r.count === 0
+      ? 'No unpublished bills to update.'
+      : `Updated ${r.count} bill${r.count !== 1 ? 's' : ''}.`
+    setPushPrompts(prev => ({ ...prev, [field]: { state: 'done', result } }))
+  }
+
+  function dismissPush(field: ApplyField) {
+    setPushPrompts(prev => { const n = { ...prev }; delete n[field]; return n })
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
   const showAutoPublishPromo   = vendor.invoices_processed >= 5 && (vendor.confidence_display === 'high' || vendor.confidence_display === 'medium') && !form.auto_publish_enabled
   const showAutoPublishPoPromo = vendor.pos_processed >= 3 && !form.auto_publish_po_enabled
 
@@ -141,31 +155,19 @@ export function VendorGeneralTab({
       {showAutoPublishPromo && (
         <div
           className="flex items-start gap-3 px-4 py-3"
-          style={{
-            background: '#EBF5EF',
-            border: '1.5px solid #2DB87A',
-            borderRadius: 8,
-          }}
+          style={{ background: '#EBF5EF', border: '1.5px solid #2DB87A', borderRadius: 8 }}
         >
           <i className="ti ti-rocket" style={{ fontSize: 20, color: '#2DB87A', marginTop: 1, flexShrink: 0 }} />
           <div className="flex-1">
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>
-              Ready for auto-publish
-            </p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>Ready for auto-publish</p>
             <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 3, lineHeight: 1.5 }}>
               {vendor.invoices_processed} invoices from this vendor have been processed and recent ones are arriving with all required fields.
               Enable auto-publish and future invoices will flow directly into QuickBooks — no review needed.
             </p>
           </div>
           <button
-            onClick={() => {
-              set('auto_publish_enabled', true)
-            }}
-            style={{
-              background: '#2DB87A', color: 'white',
-              border: 'none', borderRadius: 6, padding: '6px 14px',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
-            }}
+            onClick={() => set('auto_publish_enabled', true)}
+            style={{ background: '#2DB87A', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
           >
             Enable
           </button>
@@ -176,17 +178,11 @@ export function VendorGeneralTab({
       {showAutoPublishPoPromo && (
         <div
           className="flex items-start gap-3 px-4 py-3"
-          style={{
-            background: '#EBF5EF',
-            border: '1.5px solid #2DB87A',
-            borderRadius: 8,
-          }}
+          style={{ background: '#EBF5EF', border: '1.5px solid #2DB87A', borderRadius: 8 }}
         >
           <i className="ti ti-rocket" style={{ fontSize: 20, color: '#2DB87A', marginTop: 1, flexShrink: 0 }} />
           <div className="flex-1">
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>
-              Ready for PO auto-publish
-            </p>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#1A3D2B' }}>Ready for PO auto-publish</p>
             <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 3, lineHeight: 1.5 }}>
               {vendor.pos_processed} purchase orders from this vendor have been processed.
               Enable PO auto-publish and confirmed orders will flow directly into QuickBooks without review.
@@ -194,11 +190,7 @@ export function VendorGeneralTab({
           </div>
           <button
             onClick={() => set('auto_publish_po_enabled', true)}
-            style={{
-              background: '#2DB87A', color: 'white',
-              border: 'none', borderRadius: 6, padding: '6px 14px',
-              fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0,
-            }}
+            style={{ background: '#2DB87A', color: 'white', border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 500, cursor: 'pointer', flexShrink: 0 }}
           >
             Enable
           </button>
@@ -233,11 +225,7 @@ export function VendorGeneralTab({
               value={form.qb_vendor_id}
               onChange={e => {
                 const selected = qbVendors.find(v => v.qb_vendor_id === e.target.value)
-                setForm(f => ({
-                  ...f,
-                  qb_vendor_id: e.target.value,
-                  vendor_name_display: selected?.name ?? '',
-                }))
+                setForm(f => ({ ...f, qb_vendor_id: e.target.value, vendor_name_display: selected?.name ?? '' }))
                 setDirty(true)
               }}
               style={inputStyle}
@@ -264,11 +252,7 @@ export function VendorGeneralTab({
                     }
                   })
                 }}
-                style={{
-                  background: 'none', border: 'none', padding: 0, cursor: 'pointer',
-                  fontSize: 12, color: '#2DB87A', display: 'flex', alignItems: 'center', gap: 4,
-                  opacity: isPending ? 0.6 : 1,
-                }}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: 12, color: '#2DB87A', display: 'flex', alignItems: 'center', gap: 4, opacity: isPending ? 0.6 : 1 }}
               >
                 <i className="ti ti-brand-quickbooks" style={{ fontSize: 13 }} />
                 {isPending ? 'Creating in QuickBooks…' : `Create "${form.vendor_name_display || vendor.vendor_name_extracted}" in QuickBooks`}
@@ -291,6 +275,13 @@ export function VendorGeneralTab({
             if (vendor.qb_default_gl_account_id) return `QB vendor default account ID: ${vendor.qb_default_gl_account_id} (not in synced accounts). Select an account below to override.`
             return 'No default expense account is set on this vendor in QuickBooks. Select an account here so line items have a GL account when invoices are processed.'
           })()}
+          footer={pushPrompts.gl_account && (
+            <PushPrompt
+              prompt={pushPrompts.gl_account}
+              onApply={mode => handleApplyPush('gl_account', mode)}
+              onSkip={() => dismissPush('gl_account')}
+            />
+          )}
         >
           <select value={form.billflow_gl_account_id} onChange={e => set('billflow_gl_account_id', e.target.value)} style={inputStyle}>
             <option value="">— Use QB vendor default —</option>
@@ -305,10 +296,18 @@ export function VendorGeneralTab({
             </p>
           )}
         </Field>
+
         {classTrackingEnabled && (
           <Field
             label="Default class"
             helper="When set, all line items from this vendor default to this QuickBooks class. Only visible when class tracking is enabled in Settings."
+            footer={pushPrompts.class && (
+              <PushPrompt
+                prompt={pushPrompts.class}
+                onApply={mode => handleApplyPush('class', mode)}
+                onSkip={() => dismissPush('class')}
+              />
+            )}
           >
             <select value={form.billflow_class_id} onChange={e => set('billflow_class_id', e.target.value)} style={inputStyle}>
               <option value="">— No default class —</option>
@@ -318,6 +317,7 @@ export function VendorGeneralTab({
             </select>
           </Field>
         )}
+
         <Field
           label="Payment terms"
           helper={vendor.qb_payment_terms
@@ -326,27 +326,29 @@ export function VendorGeneralTab({
               ? 'No default terms set on this vendor in QuickBooks. Select terms to enable automatic due date calculation.'
               : 'No payment terms synced from QuickBooks yet. Run Sync Now in Settings to load your terms list.'}
         >
-          <select
-            value={form.billflow_payment_terms}
-            onChange={e => set('billflow_payment_terms', e.target.value)}
-            style={inputStyle}
-          >
+          <select value={form.billflow_payment_terms} onChange={e => set('billflow_payment_terms', e.target.value)} style={inputStyle}>
             <option value="">
               {vendor.qb_payment_terms ? `— Use QB default (${vendor.qb_payment_terms}) —` : '— No default terms —'}
             </option>
             {qbTerms.filter(t => t.type === 'STANDARD' && t.due_days !== null).map(t => (
-              <option key={t.qb_term_id} value={t.name}>
-                {t.name}{t.due_days != null ? ` (${t.due_days} days)` : ''}
-              </option>
+              <option key={t.qb_term_id} value={t.name}>{t.name}{t.due_days != null ? ` (${t.due_days} days)` : ''}</option>
             ))}
             {qbTerms.filter(t => t.type !== 'STANDARD').map(t => (
               <option key={t.qb_term_id} value={t.name}>{t.name}</option>
             ))}
           </select>
         </Field>
+
         <Field
           label="Default memo / description"
           helper="Pre-populates the QB bill memo field for all invoices from this vendor. Useful for adding job cost codes or notes automatically."
+          footer={pushPrompts.description && (
+            <PushPrompt
+              prompt={pushPrompts.description}
+              onApply={mode => handleApplyPush('description', mode)}
+              onSkip={() => dismissPush('description')}
+            />
+          )}
         >
           <input
             value={form.default_description}
@@ -409,6 +411,13 @@ export function VendorGeneralTab({
             <Field
               label="Default payment account"
               helper="The bank or credit card account the bill payment is posted against in QuickBooks."
+              footer={pushPrompts.payment_account && (
+                <PushPrompt
+                  prompt={pushPrompts.payment_account}
+                  onApply={mode => handleApplyPush('payment_account', mode)}
+                  onSkip={() => dismissPush('payment_account')}
+                />
+              )}
             >
               <select value={form.default_payment_account_id} onChange={e => set('default_payment_account_id', e.target.value)} style={inputStyle}>
                 <option value="">— Select payment account —</option>
@@ -417,7 +426,17 @@ export function VendorGeneralTab({
                 ))}
               </select>
             </Field>
-            <Field label="Default payment method" helper="Used to set the payment type on the QB bill payment record.">
+            <Field
+              label="Default payment method"
+              helper="Used to set the payment type on the QB bill payment record."
+              footer={pushPrompts.payment_method && (
+                <PushPrompt
+                  prompt={pushPrompts.payment_method}
+                  onApply={mode => handleApplyPush('payment_method', mode)}
+                  onSkip={() => dismissPush('payment_method')}
+                />
+              )}
+            >
               <select value={form.default_payment_method} onChange={e => set('default_payment_method', e.target.value)} style={inputStyle}>
                 <option value="">— Select —</option>
                 <option value="check">Check</option>
@@ -449,67 +468,23 @@ export function VendorGeneralTab({
       </Section>
 
       {/* Save */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={isPending}
-            style={{
-              background: '#2DB87A', color: 'white',
-              borderRadius: 6, padding: '7px 16px',
-              fontSize: 13, fontWeight: 500,
-              border: 'none', cursor: 'pointer',
-              opacity: isPending ? 0.6 : 1,
-            }}
-          >
-            {isPending ? 'Saving…' : 'Save Changes'}
-          </button>
-          {saved && <span style={{ fontSize: 12, color: '#065F46' }}>Saved ✓</span>}
-        </div>
-
-        {applyPrompt && !applyResult && (
-          <div style={{ background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 6, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <p style={{ fontSize: 12, fontWeight: 500, color: '#92400E', margin: 0 }}>
-              Apply {[applyPrompt.gl && 'new default GL account', applyPrompt.cls && 'new class'].filter(Boolean).join(' and ')} to existing unpublished bills from this vendor?
-            </p>
-            <p style={{ fontSize: 11, color: '#B45309', margin: 0 }}>Only lines that weren&apos;t manually set will be updated.</p>
-            <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-              <button
-                type="button"
-                disabled={isApplying}
-                onClick={async () => {
-                  setIsApplying(true)
-                  let total = 0
-                  if (applyPrompt.gl) {
-                    const r = await applyVendorGlToBills(vendor.vendor_id)
-                    total = Math.max(total, r.count)
-                  }
-                  if (applyPrompt.cls) {
-                    const r = await applyVendorClassToBills(vendor.vendor_id)
-                    total = Math.max(total, r.count)
-                  }
-                  setIsApplying(false)
-                  setApplyPrompt(null)
-                  setApplyResult(total === 0 ? 'No unpublished bills to update.' : `Updated ${total} unpublished bill${total !== 1 ? 's' : ''}.`)
-                }}
-                style={{ fontSize: 12, fontWeight: 600, color: 'white', background: '#D97706', border: 'none', borderRadius: 5, padding: '4px 10px', cursor: 'pointer', opacity: isApplying ? 0.6 : 1 }}
-              >
-                {isApplying ? 'Applying…' : 'Yes, apply'}
-              </button>
-              <button
-                type="button"
-                onClick={() => { setApplyPrompt(null); setSaved(true); setTimeout(() => setSaved(false), 2000) }}
-                style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}
-              >
-                Skip
-              </button>
-            </div>
-          </div>
-        )}
-        {applyResult && (
-          <span style={{ fontSize: 12, color: '#065F46' }}>{applyResult}</span>
-        )}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={handleSave}
+          disabled={isPending}
+          style={{
+            background: '#2DB87A', color: 'white',
+            borderRadius: 6, padding: '7px 16px',
+            fontSize: 13, fontWeight: 500,
+            border: 'none', cursor: 'pointer',
+            opacity: isPending ? 0.6 : 1,
+          }}
+        >
+          {isPending ? 'Saving…' : 'Save Changes'}
+        </button>
+        {saved && <span style={{ fontSize: 12, color: '#065F46' }}>Saved ✓</span>}
       </div>
+
     </div>
   )
 }
@@ -533,12 +508,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function Field({ label, helper, children }: { label: string; helper: string; children: React.ReactNode }) {
+function Field({ label, helper, children, footer }: { label: string; helper: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <div>
       <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>{label}</label>
       {children}
       <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>{helper}</p>
+      {footer}
     </div>
   )
 }
@@ -567,6 +543,56 @@ function ToggleField({ label, helper, checked, onChange }: { label: string; help
           transition: 'left 0.2s',
         }} />
       </button>
+    </div>
+  )
+}
+
+function PushPrompt({
+  prompt,
+  onApply,
+  onSkip,
+}: {
+  prompt: PushPromptState
+  onApply: (mode: 'blank_only' | 'all_unpublished') => void
+  onSkip: () => void
+}) {
+  if (prompt.state === 'done') {
+    return <p style={{ fontSize: 11, color: '#065F46', marginTop: 5 }}>{prompt.result}</p>
+  }
+  const applying = prompt.state === 'applying'
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap',
+      background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 5,
+      padding: '5px 8px', marginTop: 6,
+    }}>
+      <span style={{ fontSize: 11, color: '#92400E' }}>
+        {applying ? 'Applying…' : 'Apply to existing unpublished bills?'}
+      </span>
+      {!applying && (
+        <>
+          <button
+            onClick={() => onApply('blank_only')}
+            title="Fill only bills where this field is currently blank"
+            style={{ fontSize: 11, fontWeight: 500, color: '#92400E', background: 'white', border: '0.5px solid #FCD34D', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
+          >
+            Blank fields only
+          </button>
+          <button
+            onClick={() => onApply('all_unpublished')}
+            title="Overwrite all unpublished bills — GL account rules still take priority over vendor default"
+            style={{ fontSize: 11, fontWeight: 500, color: 'white', background: '#D97706', border: 'none', borderRadius: 4, padding: '2px 8px', cursor: 'pointer' }}
+          >
+            All unpublished
+          </button>
+          <button
+            onClick={onSkip}
+            style={{ fontSize: 11, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 0' }}
+          >
+            Skip
+          </button>
+        </>
+      )}
     </div>
   )
 }
