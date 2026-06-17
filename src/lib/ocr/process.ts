@@ -280,11 +280,9 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
           .eq('vendor_id', vendorId)
           .single()
         const newCount = (vCurrent?.invoices_processed ?? 0) + 1
-        const confidenceDisplay = newCount >= 20 ? 'high' : newCount >= 5 ? 'medium' : 'low'
         await supabase.from('vendors').update({
-          invoices_processed:  newCount,
-          confidence_display:  confidenceDisplay,
-          last_invoice_date:   result.invoice_date ?? undefined,
+          invoices_processed: newCount,
+          last_invoice_date:  result.invoice_date ?? undefined,
         }).eq('vendor_id', vendorId)
       }
 
@@ -448,6 +446,43 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     const { error: lineErr } = await supabase.from('bill_line_items').insert(lineItemRows)
     if (lineErr) {
       console.error(`[ocr] Line items insert failed (${billId}):`, lineErr.message)
+    }
+
+    // 5.1 Assess vendor-side field completeness — did OCR + vendor setup supply
+    // everything needed for auto-publish at the vendor level?
+    // Job/customer matching is intentionally excluded: a missing job is a customer-side
+    // issue, not a signal that this vendor's invoices extract poorly.
+    const allLinesHaveGL = lineItemRows.every(li => !!li.gl_account_id)
+    const vendorFieldsComplete = !!(
+      result.invoice_number &&
+      result.invoice_date &&
+      result.total &&
+      result.total > 0 &&
+      allLinesHaveGL
+    )
+    await supabase.from('bills')
+      .update({ vendor_fields_complete: vendorFieldsComplete })
+      .eq('bill_id', billId)
+
+    // 5.2 Recompute vendor confidence from recent bill completion ratio
+    if (vendorId) {
+      const { data: recentBills } = await supabase
+        .from('bills')
+        .select('vendor_fields_complete')
+        .eq('vendor_id', vendorId)
+        .not('status', 'in', '("duplicate","rejected")')
+        .not('vendor_fields_complete', 'is', null)
+        .order('created_at', { ascending: false })
+        .limit(20)
+
+      if (recentBills && recentBills.length >= 3) {
+        const completeCount = recentBills.filter(b => b.vendor_fields_complete).length
+        const ratio = completeCount / recentBills.length
+        const confidenceDisplay = ratio >= 0.9 ? 'high' : ratio >= 0.6 ? 'medium' : 'low'
+        await supabase.from('vendors')
+          .update({ confidence_display: confidenceDisplay })
+          .eq('vendor_id', vendorId)
+      }
     }
   }
 
