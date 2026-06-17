@@ -279,9 +279,12 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
           .select('invoices_processed')
           .eq('vendor_id', vendorId)
           .single()
+        const newCount = (vCurrent?.invoices_processed ?? 0) + 1
+        const confidenceDisplay = newCount >= 20 ? 'high' : newCount >= 5 ? 'medium' : 'low'
         await supabase.from('vendors').update({
-          invoices_processed: (vCurrent?.invoices_processed ?? 0) + 1,
-          last_invoice_date: result.invoice_date ?? undefined,
+          invoices_processed:  newCount,
+          confidence_display:  confidenceDisplay,
+          last_invoice_date:   result.invoice_date ?? undefined,
         }).eq('vendor_id', vendorId)
       }
 
