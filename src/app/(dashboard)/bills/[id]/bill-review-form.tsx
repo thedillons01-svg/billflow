@@ -113,7 +113,7 @@ export function BillReviewForm({
 }) {
   const router = useRouter()
   const navigate = useGuardedNavigate()
-  const { setDirty, registerSaveFn } = useDirty()
+  const { isDirty, setDirty, registerSaveFn } = useDirty()
   const [stablePdfUrl] = useState(pdfSignedUrl)
   const [liveJobs, setLiveJobs] = useState<Job[]>(jobs)
   const [liveClosedJobs, setLiveClosedJobs] = useState<Job[]>(closedJobs)
@@ -312,6 +312,7 @@ export function BillReviewForm({
   const handlePublish = () => {
     setPublishError(null)
     startTransition(async () => {
+      if (isDirty) await saveFnRef.current()
       const res = await fetch('/api/quickbooks/push', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
