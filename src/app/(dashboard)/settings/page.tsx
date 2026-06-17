@@ -560,6 +560,24 @@ export default async function SettingsPage({
             </div>
           </GuardedLink>
 
+          <GuardedLink href="/settings/vendor-gl" style={{ display: 'block', width: '100%' }}>
+            <div
+              className="flex items-center justify-between"
+              style={{
+                background: 'white', border: '0.5px solid var(--color-border-tertiary)',
+                borderRadius: 8, padding: '16px 20px', cursor: 'pointer',
+              }}
+            >
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 500, color: 'var(--color-text-primary)' }}>Vendor Default GL Accounts</p>
+                <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
+                  View QB defaults and set Purchasomatic overrides for each vendor
+                </p>
+              </div>
+              <i className="ti ti-chevron-right" style={{ fontSize: 16, color: 'var(--color-text-tertiary)', flexShrink: 0 }} />
+            </div>
+          </GuardedLink>
+
           <GuardedLink href="/settings/rules" style={{ display: 'block', width: '100%' }}>
             <div
               className="flex items-center justify-between"

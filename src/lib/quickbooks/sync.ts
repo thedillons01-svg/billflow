@@ -410,9 +410,10 @@ export async function syncJobsIfStale(companyId: string, maxAgeMinutes = 5): Pro
 
     const { data: existing } = await supabase
       .from('qb_jobs_cache')
-      .select('qb_job_id, status')
+      .select('qb_job_id, status, assigned_class_id')
       .eq('company_id', companyId)
     const statusMap = new Map((existing ?? []).map(r => [r.qb_job_id, r.status as string]))
+    const classMap  = new Map((existing ?? []).map(r => [r.qb_job_id, r.assigned_class_id as string | null]))
 
     const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap, classMap))
     await supabase.from('qb_jobs_cache').upsert(rows, {
