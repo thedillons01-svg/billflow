@@ -1,10 +1,10 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 
-const CONFIDENCE_BADGE: Record<string, { bg: string; color: string; label: string }> = {
-  high:   { bg: '#D1FAE5', color: '#065F46', label: 'High' },
-  medium: { bg: '#FEF3C7', color: '#92400E', label: 'Medium' },
-  low:    { bg: '#FEE2E2', color: '#991B1B', label: 'Low' },
+const CONFIDENCE_BADGE: Record<string, { bg: string; color: string; label: string; tooltip: string }> = {
+  high:   { bg: '#D1FAE5', color: '#065F46', label: 'High',   tooltip: 'High confidence — Purchasomatic has processed many invoices from this vendor and extraction accuracy is well-established.' },
+  medium: { bg: '#FEF3C7', color: '#92400E', label: 'Medium', tooltip: 'Medium confidence — extraction accuracy is improving. Review a few more invoices and confidence will increase automatically.' },
+  low:    { bg: '#FEF9C3', color: '#854D0E', label: 'Low',    tooltip: 'Low confidence — Purchasomatic has processed fewer than 5 invoices from this vendor and is still learning the format. This is normal for new vendors. Click to open the vendor record.' },
 }
 
 export default async function VendorsPage() {
@@ -59,7 +59,11 @@ export default async function VendorsPage() {
               }}
             >
               {['Vendor', 'Invoices', 'Confidence', 'Auto-Publish', 'Hold for Job', 'Last Invoice'].map(h => (
-                <span key={h} style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)' }}>
+                <span
+                  key={h}
+                  title={h === 'Confidence' ? 'How well Purchasomatic knows this vendor\'s invoice format. Improves automatically as more invoices are processed.' : undefined}
+                  style={{ fontSize: 10, fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--color-text-secondary)', cursor: h === 'Confidence' ? 'help' : undefined }}
+                >
                   {h}
                 </span>
               ))}
@@ -98,11 +102,12 @@ export default async function VendorsPage() {
                   </span>
                   {confBadge ? (
                     <span
+                      title={confBadge.tooltip}
                       style={{
                         display: 'inline-block',
                         background: confBadge.bg, color: confBadge.color,
                         borderRadius: 4, padding: '3px 8px',
-                        fontSize: 10, fontWeight: 500,
+                        fontSize: 10, fontWeight: 500, cursor: 'help',
                       }}
                     >
                       {confBadge.label}
