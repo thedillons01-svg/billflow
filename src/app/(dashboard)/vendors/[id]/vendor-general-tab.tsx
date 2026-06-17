@@ -131,7 +131,7 @@ export function VendorGeneralTab({
     setDirty(true)
   }
 
-  const showAutoPublishPromo   = vendor.invoices_processed >= 5 && !form.auto_publish_enabled
+  const showAutoPublishPromo   = vendor.invoices_processed >= 5 && vendor.confidence_display !== 'low' && !form.auto_publish_enabled
   const showAutoPublishPoPromo = vendor.pos_processed >= 3 && !form.auto_publish_po_enabled
 
   return (
