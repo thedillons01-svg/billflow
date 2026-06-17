@@ -240,7 +240,12 @@ export async function syncSingleVendorFromQB(companyId: string, qbVendorId: stri
 }
 
 // Build a cache row from a QB customer. Works for both top-level customers and sub-customers.
-function buildJobRow(companyId: string, c: QBCustomer, statusMap: Map<string, string>): Record<string, unknown> {
+function buildJobRow(
+  companyId: string,
+  c: QBCustomer,
+  statusMap: Map<string, string>,
+  classMap: Map<string, string | null>,
+): Record<string, unknown> {
   const isCustomer = !c.ParentRef
   const parts = c.FullyQualifiedName.split(':')
   // For top-level customers: job_name = their own name, customer_name = ''
@@ -249,19 +254,20 @@ function buildJobRow(companyId: string, c: QBCustomer, statusMap: Map<string, st
   const customerName = parts.length > 1 ? parts.slice(0, -1).join(':') : ''
   const jobNumberMatch = jobName.match(/\b(\d+)\b/)
   return {
-    company_id:    companyId,
-    qb_job_id:     c.Id,
-    job_name:      jobName,
-    job_number:    jobNumberMatch?.[1] ?? null,
-    customer_name: customerName,
-    customer_id:   c.ParentRef?.value ?? null,
-    parent_id:     c.ParentRef?.value ?? null,
-    is_customer:   isCustomer,
-    // Preserve user-set status; new entries default to 'active'
-    status:        statusMap.get(c.Id) ?? 'active',
-    qb_created_at: c.MetaData?.CreateTime ?? null,
-    qb_updated_at: c.MetaData?.LastUpdatedTime ?? null,
-    cached_at:     new Date().toISOString(),
+    company_id:        companyId,
+    qb_job_id:         c.Id,
+    job_name:          jobName,
+    job_number:        jobNumberMatch?.[1] ?? null,
+    customer_name:     customerName,
+    customer_id:       c.ParentRef?.value ?? null,
+    parent_id:         c.ParentRef?.value ?? null,
+    is_customer:       isCustomer,
+    // Preserve user-set fields; new entries get defaults
+    status:            statusMap.get(c.Id) ?? 'active',
+    assigned_class_id: classMap.get(c.Id) ?? null,
+    qb_created_at:     c.MetaData?.CreateTime ?? null,
+    qb_updated_at:     c.MetaData?.LastUpdatedTime ?? null,
+    cached_at:         new Date().toISOString(),
   }
 }
 
@@ -275,14 +281,15 @@ export async function syncJobs(companyId: string) {
   )
   if (allCustomers.length === 0) return
 
-  // Preserve user-set status values before upserting
+  // Preserve user-set fields (status, assigned_class_id) before upserting
   const { data: existing } = await supabase
     .from('qb_jobs_cache')
-    .select('qb_job_id, status')
+    .select('qb_job_id, status, assigned_class_id')
     .eq('company_id', companyId)
   const statusMap = new Map((existing ?? []).map(r => [r.qb_job_id, r.status as string]))
+  const classMap  = new Map((existing ?? []).map(r => [r.qb_job_id, r.assigned_class_id as string | null]))
 
-  const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap))
+  const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap, classMap))
 
   const { error } = await supabase.from('qb_jobs_cache').upsert(rows, {
     onConflict: 'company_id,qb_job_id',
@@ -407,7 +414,7 @@ export async function syncJobsIfStale(companyId: string, maxAgeMinutes = 5): Pro
       .eq('company_id', companyId)
     const statusMap = new Map((existing ?? []).map(r => [r.qb_job_id, r.status as string]))
 
-    const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap))
+    const rows = allCustomers.map(c => buildJobRow(companyId, c, statusMap, classMap))
     await supabase.from('qb_jobs_cache').upsert(rows, {
       onConflict: 'company_id,qb_job_id',
       ignoreDuplicates: false,
@@ -537,7 +544,9 @@ export async function syncAll(companyId: string) {
   await Promise.all([
     supabaseClean.from('qb_accounts_cache').delete().eq('company_id', companyId),
     supabaseClean.from('qb_vendors_cache').delete().eq('company_id', companyId),
-    supabaseClean.from('qb_jobs_cache').delete().eq('company_id', companyId),
+    // qb_jobs_cache intentionally excluded — it stores user data (status, assigned_class_id)
+    // that syncJobs preserves via explicit read-before-upsert. Stale job entries from a
+    // previous QB connection are harmless and get closed by closeInactiveJobs.
     supabaseClean.from('qb_classes_cache').delete().eq('company_id', companyId),
     supabaseClean.from('qb_terms_cache').delete().eq('company_id', companyId),
     supabaseClean.from('qb_items_cache').delete().eq('company_id', companyId),
