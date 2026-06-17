@@ -568,4 +568,222 @@ export async function syncAll(companyId: string) {
     .from('companies')
     .update({ qb_last_sync: new Date().toISOString() })
     .eq('company_id', companyId)
+
+  // Re-match unmatched vendors and pending job matches now that the cache is fresh.
+  await rematchAfterSync(companyId).catch(err => console.error('[sync] rematch failed:', err))
+}
+
+// ─── Post-sync matching ───────────────────────────────────────────────────────
+// These functions avoid importing from process.ts to prevent a circular
+// dependency (process.ts imports syncJobsIfStale / syncSingleVendorFromQB from here).
+
+type SB = ReturnType<typeof createServiceClient>
+
+type VendorMin = {
+  vendor_id: string
+  billflow_gl_account_id: string | null
+  qb_default_gl_account_id: string | null
+}
+
+function vendorNameVariants(name: string): string[] {
+  const variants = new Set<string>([name])
+  const noComma = name.replace(/,/g, '')
+  variants.add(noComma)
+  variants.add(noComma.replace(/\./g, '').replace(/\s+/g, ' ').trim())
+  return [...variants].filter(Boolean)
+}
+
+async function applyVendorGlToBlankLines(supabase: SB, billId: string, vendor: VendorMin): Promise<void> {
+  const glId = vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id
+  if (!glId) return
+  await supabase.from('bill_line_items')
+    .update({ gl_account_id: glId, gl_account_source: 'vendor_default' })
+    .eq('bill_id', billId)
+    .is('gl_account_id', null)
+}
+
+// Re-match bills that have vendor_name_raw but no vendor_id.
+// These were processed before QB was connected so the cache was empty.
+async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise<void> {
+  const { data: bills } = await supabase
+    .from('bills')
+    .select('bill_id, vendor_name_raw')
+    .eq('company_id', companyId)
+    .is('vendor_id', null)
+    .not('vendor_name_raw', 'is', null)
+    .is('deleted_at', null)
+    .not('status', 'in', '("published","publishing")')
+
+  for (const bill of (bills ?? []) as Array<{ bill_id: string; vendor_name_raw: string }>) {
+    const rawName = bill.vendor_name_raw
+    if (!rawName) continue
+
+    const vcols = 'vendor_id, billflow_gl_account_id, qb_default_gl_account_id'
+    let vendor: VendorMin | null = null
+
+    // Tier 0: alias table
+    const { data: alias } = await supabase
+      .from('vendor_name_aliases')
+      .select('vendor_id')
+      .eq('company_id', companyId)
+      .ilike('alias_name', rawName)
+      .limit(1)
+      .maybeSingle()
+    if (alias?.vendor_id) {
+      const { data: v } = await supabase.from('vendors').select(vcols).eq('vendor_id', alias.vendor_id).maybeSingle()
+      if (v) vendor = v as VendorMin
+    }
+
+    // Tier 1: comma-free name variants (OR query)
+    if (!vendor) {
+      const variants = vendorNameVariants(rawName).filter(v => !v.includes(','))
+      if (variants.length > 0) {
+        const orCond = variants
+          .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
+          .join(',')
+        const { data: v } = await supabase.from('vendors').select(vcols).eq('company_id', companyId).or(orCond).limit(1).maybeSingle()
+        if (v) vendor = v as VendorMin
+      }
+    }
+
+    // Tier 2: direct ilike (handles names with commas)
+    if (!vendor) {
+      const [{ data: byE }, { data: byD }] = await Promise.all([
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_extracted', rawName).limit(1).maybeSingle(),
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_display', rawName).limit(1).maybeSingle(),
+      ])
+      vendor = (byE ?? byD ?? null) as VendorMin | null
+    }
+
+    // Tier 2.5: contains search
+    if (!vendor && rawName.length >= 5) {
+      const [{ data: byE }, { data: byD }] = await Promise.all([
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_extracted', `%${rawName}%`).limit(1).maybeSingle(),
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_display', `%${rawName}%`).limit(1).maybeSingle(),
+      ])
+      vendor = (byE ?? byD ?? null) as VendorMin | null
+    }
+
+    if (vendor) {
+      await supabase.from('bills').update({ vendor_id: vendor.vendor_id }).eq('bill_id', bill.bill_id)
+      await applyVendorGlToBlankLines(supabase, bill.bill_id, vendor)
+      continue
+    }
+
+    // Try QB vendors cache — create a new vendor record if found
+    const { data: qbMatch } = await supabase
+      .from('qb_vendors_cache')
+      .select('qb_vendor_id, name, default_expense_account_id, payment_terms')
+      .eq('company_id', companyId)
+      .ilike('name', `%${rawName}%`)
+      .limit(1)
+      .maybeSingle()
+
+    if (qbMatch) {
+      const { data: created } = await supabase
+        .from('vendors')
+        .insert({
+          company_id:               companyId,
+          vendor_name_extracted:    rawName,
+          vendor_name_display:      qbMatch.name,
+          qb_vendor_id:             qbMatch.qb_vendor_id,
+          qb_vendor_name:           qbMatch.name,
+          qb_default_gl_account_id: qbMatch.default_expense_account_id ?? null,
+          gl_account_source:        qbMatch.default_expense_account_id ? 'qb_default' : 'not_set',
+          qb_payment_terms:         qbMatch.payment_terms ?? null,
+          payment_terms_source:     qbMatch.payment_terms ? 'qb_default' : 'not_set',
+          copy_po_to_qb_reference:  true,
+          is_visible:               true,
+          auto_publish_enabled:     false,
+          hold_for_job_match:       false,
+          invoices_processed:       0,
+        })
+        .select(vcols)
+        .single()
+
+      if (created) {
+        await supabase.from('bills').update({ vendor_id: created.vendor_id }).eq('bill_id', bill.bill_id)
+        await applyVendorGlToBlankLines(supabase, bill.bill_id, created as VendorMin)
+      }
+    }
+  }
+}
+
+type CacheJobRow = { qb_job_id: string; job_number: string | null; job_name: string | null; is_customer: boolean }
+
+function extractJobCandidatesForSync(ref: string): string[] {
+  const raw = ref.trim().toLowerCase()
+  const candidates = new Set<string>([raw])
+  const stripped = raw
+    .replace(/^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|#\s*)/, '')
+    .trim()
+  if (stripped && stripped !== raw) candidates.add(stripped)
+  for (const n of raw.match(/\b\d{4,}\b/g) ?? []) {
+    const num = parseInt(n, 10)
+    if (num >= 2000 && num <= 2099) continue
+    candidates.add(n)
+  }
+  return [...candidates].filter(Boolean)
+}
+
+function jobMatchesForSync(job: CacheJobRow, candidates: string[]): boolean {
+  const num = job.job_number?.trim().toLowerCase()
+  const name = job.job_name?.trim().toLowerCase()
+  const numInt = num ? parseInt(num, 10) : NaN
+  const numIsYear = !isNaN(numInt) && numInt >= 2000 && numInt <= 2099
+  for (const c of candidates) {
+    if (num === c || name === c) return true
+    if (num && !numIsYear && num.length >= 4 && c.includes(num)) return true
+    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
+  }
+  return false
+}
+
+// Retry job matching for pending_job_match bills using the freshly-synced job cache.
+// Loads jobs once and iterates — avoids N×syncJobsIfStale calls that the cron would make.
+async function rematchPendingJobMatch(companyId: string, supabase: SB): Promise<void> {
+  const { data: bills } = await supabase
+    .from('bills')
+    .select('bill_id, vendor_po_reference, job_name_extracted, customer_name_extracted')
+    .eq('company_id', companyId)
+    .eq('status', 'pending_job_match')
+    .is('deleted_at', null)
+
+  if (!bills?.length) return
+
+  const { data: jobRows } = await supabase
+    .from('qb_jobs_cache')
+    .select('qb_job_id, job_number, job_name, is_customer')
+    .eq('company_id', companyId)
+
+  const subCustomers = ((jobRows ?? []) as CacheJobRow[]).filter(r => !r.is_customer)
+  if (subCustomers.length === 0) return
+
+  type PendingBill = { bill_id: string; vendor_po_reference: string | null; job_name_extracted: string | null; customer_name_extracted: string | null }
+  for (const bill of bills as PendingBill[]) {
+    const primaryRef = bill.job_name_extracted ?? bill.vendor_po_reference
+    if (!primaryRef) continue
+
+    const candidates = [
+      ...extractJobCandidatesForSync(primaryRef),
+      ...(bill.customer_name_extracted ? extractJobCandidatesForSync(bill.customer_name_extracted) : []),
+    ]
+
+    const match = subCustomers.find(j => jobMatchesForSync(j, candidates))
+    if (!match) continue
+
+    await supabase.from('bill_line_items').update({ job_id: match.qb_job_id }).eq('bill_id', bill.bill_id)
+    await supabase.from('bills')
+      .update({ status: 'ready', autopublish_hold_reason: null })
+      .eq('bill_id', bill.bill_id)
+    console.log(`[sync] Bill ${bill.bill_id} job-matched to ${match.qb_job_id} during post-sync rematch`)
+  }
+}
+
+async function rematchAfterSync(companyId: string): Promise<void> {
+  const supabase = createServiceClient()
+  await Promise.all([
+    rematchUnmatchedVendors(companyId, supabase),
+    rematchPendingJobMatch(companyId, supabase),
+  ])
 }
