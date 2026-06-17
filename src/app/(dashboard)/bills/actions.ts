@@ -29,6 +29,33 @@ export async function refreshBillStatus(billId: string) {
   revalidatePath(`/bills/${billId}`)
 }
 
+// Recomputes draft ↔ ready for all non-terminal bills in the company.
+// One-time fix for bills that were set to 'ready' before this check was in processBill.
+export async function recomputeAllBillStatuses() {
+  const supabase = await createClient()
+  const { data: bills } = await supabase
+    .from('bills')
+    .select('bill_id, status, vendor_id, total, bill_line_items(gl_account_id, extended_cost)')
+    .in('status', ['ready', 'draft'])
+    .is('deleted_at', null)
+  if (!bills) return { fixed: 0 }
+  let fixed = 0
+  for (const bill of bills as Array<{ bill_id: string; status: string; vendor_id: string | null; total: number | null; bill_line_items: { gl_account_id: string | null; extended_cost: number | null }[] }>) {
+    const lines = bill.bill_line_items ?? []
+    const hasVendor = bill.vendor_id != null
+    const allLinesHaveGL = lines.length > 0 && lines.every(l => l.gl_account_id != null)
+    const lineSum = lines.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
+    const totalsMatch = bill.total == null || Math.abs(lineSum - bill.total) <= 0.01
+    const correct = hasVendor && allLinesHaveGL && totalsMatch ? 'ready' : 'draft'
+    if (correct !== bill.status) {
+      await supabase.from('bills').update({ status: correct }).eq('bill_id', bill.bill_id)
+      fixed++
+    }
+  }
+  revalidatePath('/bills')
+  return { fixed }
+}
+
 export async function updateBill(
   billId: string,
   updates: Record<string, string | number | boolean | null>

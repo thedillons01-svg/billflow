@@ -636,6 +636,28 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     }
   }
 
+  // 9.5 Recompute status — the 'ready' written at step 1 is optimistic.
+  // If vendor was unmatched or any line is missing a GL account, downgrade to 'draft'.
+  // Only recomputes for bills still in ready/draft (pending_job_match etc. are left alone).
+  if (!isDuplicate) {
+    const { data: finalBill } = await supabase
+      .from('bills')
+      .select('status, vendor_id, total, bill_line_items(gl_account_id, extended_cost)')
+      .eq('bill_id', billId)
+      .single()
+    if (finalBill && ['ready', 'draft'].includes(finalBill.status)) {
+      const lines = (finalBill.bill_line_items ?? []) as { gl_account_id: string | null; extended_cost: number | null }[]
+      const hasVendor = finalBill.vendor_id != null
+      const allLinesHaveGL = lines.length > 0 && lines.every(l => l.gl_account_id != null)
+      const lineSum = lines.reduce((s, l) => s + ((l.extended_cost as number) ?? 0), 0)
+      const totalsMatch = finalBill.total == null || Math.abs(lineSum - (finalBill.total as number)) <= 0.01
+      const correctStatus = hasVendor && allLinesHaveGL && totalsMatch ? 'ready' : 'draft'
+      if (correctStatus !== finalBill.status) {
+        await supabase.from('bills').update({ status: correctStatus }).eq('bill_id', billId)
+      }
+    }
+  }
+
   // 10. Immediately attempt auto-publish for this company — eligible bills publish without waiting for cron
   if (!isDuplicate) {
     try {
