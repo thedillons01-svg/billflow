@@ -670,41 +670,30 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
       continue
     }
 
-    // Try QB vendors cache — create a new vendor record if found
+    // Name search missed — try QB cache to find the qb_vendor_id, then look for the
+    // vendors row that syncVendors already created for it. Never create a new record here.
     const { data: qbMatch } = await supabase
       .from('qb_vendors_cache')
-      .select('qb_vendor_id, name, default_expense_account_id, payment_terms')
+      .select('qb_vendor_id')
       .eq('company_id', companyId)
       .ilike('name', `%${rawName}%`)
       .limit(1)
       .maybeSingle()
 
-    if (qbMatch) {
-      const { data: created } = await supabase
+    if (qbMatch?.qb_vendor_id) {
+      const { data: existing } = await supabase
         .from('vendors')
-        .insert({
-          company_id:               companyId,
-          vendor_name_extracted:    rawName,
-          vendor_name_display:      qbMatch.name,
-          qb_vendor_id:             qbMatch.qb_vendor_id,
-          qb_vendor_name:           qbMatch.name,
-          qb_default_gl_account_id: qbMatch.default_expense_account_id ?? null,
-          gl_account_source:        qbMatch.default_expense_account_id ? 'qb_default' : 'not_set',
-          qb_payment_terms:         qbMatch.payment_terms ?? null,
-          payment_terms_source:     qbMatch.payment_terms ? 'qb_default' : 'not_set',
-          copy_po_to_qb_reference:  true,
-          is_visible:               true,
-          auto_publish_enabled:     false,
-          hold_for_job_match:       false,
-          invoices_processed:       0,
-        })
         .select(vcols)
-        .single()
+        .eq('company_id', companyId)
+        .eq('qb_vendor_id', qbMatch.qb_vendor_id)
+        .limit(1)
+        .maybeSingle()
 
-      if (created) {
-        await supabase.from('bills').update({ vendor_id: created.vendor_id }).eq('bill_id', bill.bill_id)
-        await applyVendorGlToBlankLines(supabase, bill.bill_id, created as VendorMin)
+      if (existing) {
+        await supabase.from('bills').update({ vendor_id: existing.vendor_id }).eq('bill_id', bill.bill_id)
+        await applyVendorGlToBlankLines(supabase, bill.bill_id, existing as VendorMin)
       }
+      // If no vendors row exists for this QB vendor ID, leave the bill unmatched for manual assignment
     }
   }
 }
