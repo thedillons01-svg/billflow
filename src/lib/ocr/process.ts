@@ -189,11 +189,22 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
   // Ensures newly created vendors and updated GL defaults are available for matching.
   await syncVendorsIfStale(bill.company_id)
 
+  // 5.0 Load company defaults used throughout processing
+  const { data: companyCfg } = await supabase
+    .from('companies')
+    .select('class_assignment_mode, default_gl_account_id, require_job_match, auto_create_vendors')
+    .eq('company_id', bill.company_id)
+    .single()
+  const classAssignmentMode    = companyCfg?.class_assignment_mode ?? 'vendor'
+  const companyDefaultGlId     = (companyCfg?.default_gl_account_id as string | null) ?? null
+  const companyRequireJobMatch = (companyCfg?.require_job_match as boolean) ?? false
+  const companyAutoCreate      = (companyCfg?.auto_create_vendors as boolean) ?? false
+
   // 5a. Vendor matching — find vendor by extracted name, link to bill
   let vendorId: string | null = null
   let vendorDefaultGlAccountId: string | null = null
   let vendorDefaultClassId: string | null = null
-  let vendorHoldForJobMatch = false
+  let vendorHoldForJobMatch: boolean | null = null
   let vendorEffectiveTerms: string | null = null
   let vendorDefaultDueDateSetting: string | null = null
   if (result.vendor_name_raw) {
@@ -268,7 +279,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       vendorDefaultGlAccountId =
         vendor.billflow_gl_account_id ?? vendor.qb_default_gl_account_id ?? null
       vendorDefaultClassId = vendor.billflow_class_id ?? null
-      vendorHoldForJobMatch = vendor.hold_for_job_match ?? false
+      vendorHoldForJobMatch = (vendor.hold_for_job_match as boolean | null) ?? null
       vendorEffectiveTerms = (vendor.billflow_payment_terms ?? vendor.qb_payment_terms) as string | null
       vendorDefaultDueDateSetting = vendor.default_due_date as string | null
 
@@ -314,7 +325,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
             copy_po_to_qb_reference:  true,
             is_visible:               true,
             auto_publish_enabled:     false,
-            hold_for_job_match:       false,
+            hold_for_job_match:       null,
             invoices_processed:       isDuplicate ? 0 : 1,
             last_invoice_date:        result.invoice_date ?? null,
           })
@@ -325,11 +336,61 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
           vendorId = created.vendor_id
           vendorDefaultGlAccountId = created.billflow_gl_account_id ?? created.qb_default_gl_account_id ?? null
           vendorDefaultClassId = created.billflow_class_id ?? null
-          vendorHoldForJobMatch = created.hold_for_job_match ?? false
+          vendorHoldForJobMatch = (created.hold_for_job_match as boolean | null) ?? null
           await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
         }
+      } else if (companyAutoCreate) {
+        // No QB cache match — auto-create a stub vendor if the company setting is on.
+        // First try key-word matching to avoid creating a duplicate of an existing vendor
+        // (e.g. "Gensco Supply" on the invoice vs "Gensco Inc." already in the system).
+        const GENERIC_WORDS = new Set(['supply', 'supplies', 'services', 'service', 'company',
+          'enterprises', 'enterprise', 'industries', 'industry', 'group', 'solutions',
+          'products', 'distribution', 'distributors', 'wholesale', 'equipment'])
+        const keywords = (result.vendor_name_raw ?? '')
+          .toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+          .filter(w => w.length >= 5 && !GENERIC_WORDS.has(w))
+
+        let kwVendorId: string | null = null
+        if (keywords.length > 0) {
+          const { data: kwMatches } = await supabase
+            .from('vendors').select('vendor_id')
+            .eq('company_id', bill.company_id)
+            .ilike('vendor_name_display', `%${keywords[0]}%`)
+            .limit(3)
+          if (kwMatches?.length === 1) {
+            kwVendorId = kwMatches[0].vendor_id as string
+          }
+        }
+
+        if (kwVendorId) {
+          vendorId = kwVendorId
+          await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+        } else {
+          // Truly unknown vendor — create a stub (no QB link, user must map it later)
+          const { data: stub } = await supabase
+            .from('vendors')
+            .insert({
+              company_id:            bill.company_id,
+              vendor_name_extracted: result.vendor_name_raw,
+              vendor_name_display:   result.vendor_name_raw,
+              gl_account_source:     'not_set',
+              payment_terms_source:  'not_set',
+              copy_po_to_qb_reference: true,
+              is_visible:            true,
+              auto_publish_enabled:  false,
+              hold_for_job_match:    null,
+              invoices_processed:    isDuplicate ? 0 : 1,
+              last_invoice_date:     result.invoice_date ?? null,
+            })
+            .select('vendor_id')
+            .single()
+          if (stub) {
+            vendorId = stub.vendor_id as string
+            await supabase.from('bills').update({ vendor_id: vendorId }).eq('bill_id', billId)
+            console.log(`[ocr] Auto-created stub vendor for "${result.vendor_name_raw}" (${billId})`)
+          }
+        }
       } else {
-        // No QB cache match — leave bill unmatched so user creates vendor manually via the bill screen
         console.log(`[ocr] No QB cache match for "${result.vendor_name_raw}" (${billId}) — leaving unmatched for manual vendor creation`)
       }
     }
@@ -397,7 +458,7 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     const lineItemRows = sourceLines.map((li) => {
       const desc = li.description ?? ''
       let glAccountId: string | null = null
-      let glSource: 'stored_mapping' | 'rule' | 'qb_default' | 'not_set' = 'not_set'
+      let glSource: 'stored_mapping' | 'rule' | 'qb_default' | 'vendor_default' | 'company_default' | 'not_set' = 'not_set'
 
       // 1. Check stored mappings (exact description match, vendor-specific)
       const mapping = mappings.find(m => m.description_text.toLowerCase() === desc.toLowerCase())
@@ -425,7 +486,13 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
       // 4. Fall back to vendor default GL
       if (!glAccountId && vendorDefaultGlAccountId) {
         glAccountId = vendorDefaultGlAccountId
-        glSource = 'qb_default'
+        glSource = 'vendor_default'
+      }
+
+      // 5. Fall back to company default GL
+      if (!glAccountId && companyDefaultGlId) {
+        glAccountId = companyDefaultGlId
+        glSource = 'company_default'
       }
 
       return {
@@ -530,20 +597,14 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
     await tryMatchPO(supabase, billId, bill.company_id, result.vendor_po_reference, result.total ?? 0)
   }
 
-  // 6.1 Fetch class assignment mode — used below to apply customer-level class after job match
-  const { data: companyCfg } = await supabase
-    .from('companies')
-    .select('class_assignment_mode')
-    .eq('company_id', bill.company_id)
-    .single()
-  const classAssignmentMode = companyCfg?.class_assignment_mode ?? 'vendor'
-
   // 6.2 Job matching — try vendor_po_reference first, then job_name_extracted as fallback.
   // skipJobMatch is set by the reprocess route when a job was already manually assigned.
+  // Effective hold: vendor setting overrides company (null = inherit from company).
+  const effectiveHoldForJobMatch = vendorHoldForJobMatch ?? companyRequireJobMatch
   const jobMatchRef = result.vendor_po_reference ?? result.job_name_extracted
   if (!isDuplicate && jobMatchRef && !opts?.skipJobMatch) {
     const jobMatched = await tryMatchJob(supabase, billId, bill.company_id, jobMatchRef, result.job_name_extracted ?? undefined, result.customer_name_extracted ?? undefined)
-    if (!jobMatched && vendorHoldForJobMatch) {
+    if (!jobMatched && effectiveHoldForJobMatch) {
       await supabase.from('bills')
         .update({ status: 'pending_job_match', autopublish_hold_reason: `Waiting for job match — reference: ${jobMatchRef}` })
         .eq('bill_id', billId)

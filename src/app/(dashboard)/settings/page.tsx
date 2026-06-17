@@ -32,6 +32,9 @@ type Company = {
   plan_name: string | null
   credit_balance: number | null
   stripe_customer_id: string | null
+  default_gl_account_id: string | null
+  require_job_match: boolean | null
+  auto_create_vendors: boolean | null
 }
 
 export default async function SettingsPage({
@@ -42,15 +45,21 @@ export default async function SettingsPage({
   const { qb_connected, qb_error, section } = await searchParams
   const supabase = await createClient()
 
-  const [{ data }, { data: qbdHeartbeat }] = await Promise.all([
+  const [{ data }, { data: qbdHeartbeat }, { data: glAccounts }] = await Promise.all([
     supabase
       .from('companies')
-      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, show_field_tips, push_pdf_to_qb, plan_name, credit_balance, stripe_customer_id')
+      .select('company_id, name, qb_connection_status, qb_realm_id, qb_type, qb_last_sync, capture_email_prefix, use_items_table, job_costing_enabled, class_tracking_enabled, push_pos_to_qb, fsm_platform, notification_emails, success_notifications, daily_digest, notify_uploader, qb_ref_source, default_due_date, job_tagging_level, auto_close_jobs_days, show_field_tips, push_pdf_to_qb, plan_name, credit_balance, stripe_customer_id, default_gl_account_id, require_job_match, auto_create_vendors')
       .single(),
     supabase
       .from('qbd_heartbeats')
       .select('last_heartbeat_at, connector_status')
       .single(),
+    supabase
+      .from('qb_accounts_cache')
+      .select('qb_account_id, name')
+      .eq('is_hidden', false)
+      .in('account_type', ['Expense', 'Cost of Goods Sold', 'Other Expense'])
+      .order('name'),
   ])
 
   const company = data as Company | null
@@ -464,6 +473,58 @@ export default async function SettingsPage({
                     Helps Purchasomatic match job names from your work orders when job costing is enabled.
                   </p>
                 </div>
+                <div className="flex justify-end">
+                  <SaveButton>Save</SaveButton>
+                </div>
+              </div>
+            </DirtyForm>
+          </Card>
+
+          {/* ── Vendor Defaults ───────────────────────────────────────── */}
+          <Card title="Vendor Defaults" subtitle="Company-wide defaults applied when vendor-level settings are not set.">
+            <DirtyForm action={async (fd: FormData) => {
+              'use server'
+              if (!company) return
+              const glVal = fd.get('default_gl_account_id') as string
+              await updateCompanySettings(company.company_id, {
+                default_gl_account_id: glVal || null,
+                require_job_match: fd.get('require_job_match') === 'on',
+                auto_create_vendors: fd.get('auto_create_vendors') === 'on',
+              })
+            }}>
+              <div className="space-y-4">
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--color-text-secondary)', display: 'block', marginBottom: 4 }}>
+                    Default GL account (company-wide fallback)
+                  </label>
+                  <select
+                    name="default_gl_account_id"
+                    defaultValue={company?.default_gl_account_id ?? ''}
+                    style={{ width: '100%', height: 36, border: '0.5px solid var(--color-border-secondary)', borderRadius: 6, padding: '0 10px', fontSize: 13, color: 'var(--color-text-primary)', background: 'white' }}
+                  >
+                    <option value="">— None (leave blank if not assigned) —</option>
+                    {(glAccounts ?? []).map((a: { qb_account_id: string; name: string | null }) => (
+                      <option key={a.qb_account_id} value={a.qb_account_id}>{a.name}</option>
+                    ))}
+                  </select>
+                  <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>
+                    This is the last fallback in GL account assignment. Order: stored line-item mapping → GL rule → vendor default → <strong>company default</strong>.
+                    If left blank, line items with no match remain unassigned and the bill stays in Draft.
+                    If filled in, every unassigned line item gets this account automatically — useful if most of your vendors code to the same account.
+                  </p>
+                </div>
+                <Toggle
+                  name="require_job_match"
+                  defaultChecked={company?.require_job_match ?? false}
+                  label="Require job match for all vendors"
+                  helper="When on, bills stay in 'Pending Job Match' until a QuickBooks job is assigned. Vendor-level setting overrides this: a vendor set to 'Always require' stays on even if you turn this off; a vendor set to 'Never require' skips job matching even if this is on. Useful if you job-cost everything — turn it off for specific overhead vendors like office supply stores."
+                />
+                <Toggle
+                  name="auto_create_vendors"
+                  defaultChecked={company?.auto_create_vendors ?? false}
+                  label="Auto-create vendor records for new senders"
+                  helper="When on, invoices from unrecognized senders automatically create a new vendor record in Purchasomatic. Close name variations (e.g. 'Gensco Supply' vs 'Gensco Inc') are matched to existing vendors before creating a new one. When off, unrecognized invoices stay in Draft with a 'Vendor not matched' flag until you assign the vendor manually."
+                />
                 <div className="flex justify-end">
                   <SaveButton>Save</SaveButton>
                 </div>

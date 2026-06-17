@@ -605,6 +605,13 @@ async function applyVendorGlToBlankLines(supabase: SB, billId: string, vendor: V
 // Re-match bills that have vendor_name_raw but no vendor_id.
 // These were processed before QB was connected so the cache was empty.
 async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise<void> {
+  const { data: companyCfg } = await supabase
+    .from('companies')
+    .select('auto_create_vendors')
+    .eq('company_id', companyId)
+    .single()
+  const companyAutoCreate = companyCfg?.auto_create_vendors ?? false
+
   const { data: bills } = await supabase
     .from('bills')
     .select('bill_id, vendor_name_raw')
@@ -670,8 +677,29 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
       continue
     }
 
-    // Name search missed — try QB cache to find the qb_vendor_id, then look for the
-    // vendors row that syncVendors already created for it. Never create a new record here.
+    // Name search missed — try key-word matching first (catches "Gensco Supply" → "Gensco Inc.")
+    const GENERIC_WORDS = new Set(['supply', 'supplies', 'services', 'service', 'company',
+      'enterprises', 'enterprise', 'industries', 'industry', 'group', 'solutions',
+      'products', 'distribution', 'distributors', 'wholesale', 'equipment'])
+    const keywords = rawName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+      .filter(w => w.length >= 5 && !GENERIC_WORDS.has(w))
+
+    if (keywords.length > 0 && !vendor) {
+      const { data: kwMatches } = await supabase
+        .from('vendors').select(vcols)
+        .eq('company_id', companyId)
+        .ilike('vendor_name_display', `%${keywords[0]}%`)
+        .limit(3)
+      if (kwMatches?.length === 1) vendor = kwMatches[0] as VendorMin
+    }
+
+    if (vendor) {
+      await supabase.from('bills').update({ vendor_id: vendor.vendor_id }).eq('bill_id', bill.bill_id)
+      await applyVendorGlToBlankLines(supabase, bill.bill_id, vendor)
+      continue
+    }
+
+    // Try QB cache to find the vendors row syncVendors already created for it
     const { data: qbMatch } = await supabase
       .from('qb_vendors_cache')
       .select('qb_vendor_id')
@@ -682,18 +710,38 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
 
     if (qbMatch?.qb_vendor_id) {
       const { data: existing } = await supabase
-        .from('vendors')
-        .select(vcols)
+        .from('vendors').select(vcols)
         .eq('company_id', companyId)
         .eq('qb_vendor_id', qbMatch.qb_vendor_id)
-        .limit(1)
-        .maybeSingle()
-
+        .limit(1).maybeSingle()
       if (existing) {
         await supabase.from('bills').update({ vendor_id: existing.vendor_id }).eq('bill_id', bill.bill_id)
         await applyVendorGlToBlankLines(supabase, bill.bill_id, existing as VendorMin)
+        continue
       }
-      // If no vendors row exists for this QB vendor ID, leave the bill unmatched for manual assignment
+    }
+
+    // Auto-create stub if company setting is on
+    if (companyAutoCreate) {
+      const { data: stub } = await supabase
+        .from('vendors')
+        .insert({
+          company_id:            companyId,
+          vendor_name_extracted: rawName,
+          vendor_name_display:   rawName,
+          gl_account_source:     'not_set',
+          payment_terms_source:  'not_set',
+          copy_po_to_qb_reference: true,
+          is_visible:            true,
+          auto_publish_enabled:  false,
+          hold_for_job_match:    null,
+          invoices_processed:    0,
+        })
+        .select('vendor_id')
+        .single()
+      if (stub) {
+        await supabase.from('bills').update({ vendor_id: stub.vendor_id }).eq('bill_id', bill.bill_id)
+      }
     }
   }
 }

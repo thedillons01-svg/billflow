@@ -20,7 +20,7 @@ type Vendor = {
   is_visible: boolean
   auto_publish_enabled: boolean
   auto_publish_po_enabled: boolean
-  hold_for_job_match: boolean
+  hold_for_job_match: boolean | null
   mark_as_paid_default: boolean
   default_description: string | null
   default_payment_account_id: string | null
@@ -64,7 +64,7 @@ export function VendorGeneralTab({
     is_visible:            vendor.is_visible,
     auto_publish_enabled:    vendor.auto_publish_enabled,
     auto_publish_po_enabled: vendor.auto_publish_po_enabled,
-    hold_for_job_match:      vendor.hold_for_job_match,
+    hold_for_job_match:      vendor.hold_for_job_match ?? null,
     mark_as_paid_default:  vendor.mark_as_paid_default,
     default_description:   vendor.default_description ?? '',
     default_payment_account_id: vendor.default_payment_account_id ?? '',
@@ -157,7 +157,7 @@ export function VendorGeneralTab({
     })
   }
 
-  const set = (k: string, v: string | boolean) => {
+  const set = (k: string, v: string | boolean | null) => {
     setForm(f => ({ ...f, [k]: v }))
     setDirty(true)
     setPendingClose(false)
@@ -421,12 +421,23 @@ export function VendorGeneralTab({
           checked={form.auto_publish_po_enabled}
           onChange={v => set('auto_publish_po_enabled', v)}
         />
-        <ToggleField
-          label="Hold for job match"
-          helper="When on, bills from this vendor wait in the Pending Job Match queue until a matching job is found in QuickBooks. Only relevant when job costing is enabled."
-          checked={form.hold_for_job_match}
-          onChange={v => set('hold_for_job_match', v)}
-        />
+        <Field
+          label="Require job match"
+          helper="Controls whether bills from this vendor must be matched to a QuickBooks job before publishing. 'Use company default' follows the setting in Settings → Vendor Defaults. 'Always require' keeps this vendor in Pending Job Match regardless of the company default. 'Never require' skips job matching for this vendor even if the company default requires it — useful for overhead vendors like office supply stores."
+        >
+          <select
+            value={form.hold_for_job_match === null ? 'inherit' : form.hold_for_job_match ? 'true' : 'false'}
+            onChange={e => {
+              const raw = e.target.value
+              set('hold_for_job_match', raw === 'inherit' ? null : raw === 'true')
+            }}
+            style={inputStyle}
+          >
+            <option value="inherit">Use company default</option>
+            <option value="true">Always require job match</option>
+            <option value="false">Never require job match</option>
+          </select>
+        </Field>
         <ToggleField
           label="Copy PO number to QB reference field"
           helper="When on, the vendor PO / reference number from the invoice is copied to the QuickBooks Ref No field on the bill. Default: on."

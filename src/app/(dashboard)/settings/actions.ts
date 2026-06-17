@@ -138,6 +138,9 @@ export async function updateCompanySettings(
     auto_close_jobs_days?: number | null
     show_field_tips?: boolean
     push_pdf_to_qb?: boolean
+    default_gl_account_id?: string | null
+    require_job_match?: boolean
+    auto_create_vendors?: boolean
   }
 ) {
   const supabase = await createClient()
