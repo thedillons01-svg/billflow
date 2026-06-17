@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { updateVendor, createVendorInQB, applyVendorDefaultToBills } from './actions'
 import { useDirty } from '@/components/unsaved-guard'
 
@@ -38,7 +39,7 @@ type Vendor = {
 }
 
 export function VendorGeneralTab({
-  vendor, accounts, classes, classTrackingEnabled, qbVendors, qbTerms = [],
+  vendor, accounts, classes, classTrackingEnabled, qbVendors, qbTerms = [], backHref = '/vendors',
 }: {
   vendor: Vendor
   accounts: Account[]
@@ -46,12 +47,15 @@ export function VendorGeneralTab({
   classTrackingEnabled: boolean
   qbVendors: QBVendor[]
   qbTerms?: QBTerm[]
+  backHref?: string
 }) {
   const [isPending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
   const [qbCreateError, setQbCreateError] = useState<string | null>(null)
   const [pushPrompts, setPushPrompts] = useState<Partial<Record<ApplyField, PushPromptState>>>({})
+  const [pendingClose, setPendingClose] = useState(false)
   const { setDirty, registerSaveFn } = useDirty()
+  const router = useRouter()
 
   const [form, setForm] = useState({
     vendor_name_extracted: vendor.vendor_name_extracted,
@@ -72,13 +76,9 @@ export function VendorGeneralTab({
     default_due_date: vendor.default_due_date ?? 'not_set',
   })
 
-  const saveFnRef = useRef<() => Promise<void>>(async () => {})
-  useEffect(() => {
-    registerSaveFn(() => saveFnRef.current())
-    return () => registerSaveFn(null)
-  }, [registerSaveFn])
-
-  saveFnRef.current = async () => {
+  // Core DB update — shared by both save paths
+  const coreUpdateRef = useRef<() => Promise<ApplyField[]>>(async () => [])
+  coreUpdateRef.current = async (): Promise<ApplyField[]> => {
     const selectedQbVendor = qbVendors.find(v => v.qb_vendor_id === form.qb_vendor_id)
     await updateVendor(vendor.vendor_id, {
       vendor_name_extracted:      form.vendor_name_extracted || null,
@@ -110,7 +110,26 @@ export function VendorGeneralTab({
     if ((form.default_description || null) !== (vendor.default_description || null)) changed.push('description')
     if ((form.default_payment_account_id || null) !== (vendor.default_payment_account_id || null)) changed.push('payment_account')
     if ((form.default_payment_method || null) !== (vendor.default_payment_method || null)) changed.push('payment_method')
+    return changed
+  }
 
+  // Silent save — registered with the unsaved guard (user is navigating away; skip push prompts)
+  const silentSaveRef = useRef<() => Promise<void>>(async () => {})
+  silentSaveRef.current = async () => {
+    await coreUpdateRef.current()
+    setSaved(true)
+    setTimeout(() => setSaved(false), 2000)
+  }
+
+  useEffect(() => {
+    registerSaveFn(() => silentSaveRef.current())
+    return () => registerSaveFn(null)
+  }, [registerSaveFn])
+
+  // Full save — shows push prompts when applicable
+  const fullSaveRef = useRef<() => Promise<void>>(async () => {})
+  fullSaveRef.current = async () => {
+    const changed = await coreUpdateRef.current()
     if (changed.length > 0) {
       const prompts: Partial<Record<ApplyField, PushPromptState>> = {}
       changed.forEach(f => { prompts[f] = { state: 'visible', result: null } })
@@ -121,13 +140,27 @@ export function VendorGeneralTab({
     }
   }
 
+  // Navigate away once all push prompts are resolved (Save and Close flow)
+  useEffect(() => {
+    if (!pendingClose || isPending || Object.keys(pushPrompts).length > 0) return
+    router.push(backHref)
+  }, [pendingClose, isPending, pushPrompts, router, backHref])
+
   const handleSave = () => {
-    startTransition(() => saveFnRef.current())
+    startTransition(() => fullSaveRef.current())
+  }
+
+  const handleSaveAndClose = () => {
+    startTransition(async () => {
+      await fullSaveRef.current()
+      setPendingClose(true)
+    })
   }
 
   const set = (k: string, v: string | boolean) => {
     setForm(f => ({ ...f, [k]: v }))
     setDirty(true)
+    setPendingClose(false)
   }
 
   async function handleApplyPush(field: ApplyField, mode: 'blank_only' | 'all_unpublished') {
@@ -137,6 +170,10 @@ export function VendorGeneralTab({
       ? 'No unpublished bills to update.'
       : `Updated ${r.count} bill${r.count !== 1 ? 's' : ''}.`
     setPushPrompts(prev => ({ ...prev, [field]: { state: 'done', result } }))
+    // Auto-dismiss after showing result so the Save and Close flow can complete
+    setTimeout(() => {
+      setPushPrompts(prev => { const n = { ...prev }; delete n[field]; return n })
+    }, 1800)
   }
 
   function dismissPush(field: ApplyField) {
@@ -481,6 +518,19 @@ export function VendorGeneralTab({
           }}
         >
           {isPending ? 'Saving…' : 'Save Changes'}
+        </button>
+        <button
+          onClick={handleSaveAndClose}
+          disabled={isPending}
+          style={{
+            background: 'white', color: '#1A3D2B',
+            borderRadius: 6, padding: '7px 16px',
+            fontSize: 13, fontWeight: 500,
+            border: '0.5px solid #2DB87A', cursor: 'pointer',
+            opacity: isPending ? 0.6 : 1,
+          }}
+        >
+          Save and Close
         </button>
         {saved && <span style={{ fontSize: 12, color: '#065F46' }}>Saved ✓</span>}
       </div>

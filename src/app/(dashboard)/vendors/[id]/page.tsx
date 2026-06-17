@@ -16,6 +16,7 @@ export default async function VendorDetailPage({
 }) {
   const { id } = await params
   const { tab = 'general', from } = await searchParams
+  const backHref = from === 'bills' ? '/bills' : from?.startsWith('/') ? from : '/vendors'
 
   const supabase = await createClient()
 
@@ -119,6 +120,7 @@ export default async function VendorDetailPage({
           classTrackingEnabled={companyCfg?.class_tracking_enabled ?? false}
           qbVendors={qbVendors ?? []}
           qbTerms={(qbTerms ?? []) as { qb_term_id: string; name: string; due_days: number | null; type: string }[]}
+          backHref={backHref}
         />
       )}
       {tab === 'line-items' && (

@@ -1,7 +1,9 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import { useRouter } from 'next/navigation'
 import { saveVendorGLAccounts } from './actions'
+import { applyVendorDefaultToBills } from '@/app/(dashboard)/vendors/[id]/actions'
 import { useGuardedNavigate } from '@/components/unsaved-guard'
 import { useDirty } from '@/components/unsaved-guard'
 import { useEffect } from 'react'
@@ -15,6 +17,12 @@ type Vendor = {
 
 type Account = { qb_account_id: string; name: string | null }
 
+type PushPrompt = {
+  vendorIds: string[]
+  state: 'visible' | 'applying' | 'done'
+  result: string | null
+}
+
 export function VendorGLClient({
   vendors,
   accounts,
@@ -23,9 +31,11 @@ export function VendorGLClient({
   accounts: Account[]
 }) {
   const navigate = useGuardedNavigate()
+  const router = useRouter()
   const { setDirty } = useDirty()
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
+  const [pushPrompt, setPushPrompt] = useState<PushPrompt | null>(null)
 
   const accountById = new Map(accounts.map(a => [a.qb_account_id, a.name ?? a.qb_account_id]))
 
@@ -54,12 +64,33 @@ export function VendorGLClient({
         hasQbDefault: !!v.qb_default_gl_account_id,
       }))
 
+    const changedVendorIds = changes.map(c => c.vendorId)
+
     startTransition(async () => {
       await saveVendorGLAccounts(changes)
       setSaved({ ...overrides })
       setDirty(false)
-      navigate('/settings')
+      if (changedVendorIds.length > 0) {
+        setPushPrompt({ vendorIds: changedVendorIds, state: 'visible', result: null })
+      } else {
+        router.push('/settings')
+      }
     })
+  }
+
+  async function handleApplyPush(mode: 'blank_only' | 'all_unpublished') {
+    if (!pushPrompt) return
+    setPushPrompt(p => p ? { ...p, state: 'applying' } : null)
+    let total = 0
+    for (const vendorId of pushPrompt.vendorIds) {
+      const r = await applyVendorDefaultToBills(vendorId, 'gl_account', mode)
+      total += r.count
+    }
+    const result = total === 0
+      ? 'No unpublished bills to update.'
+      : `Applied to ${total} bill${total !== 1 ? 's' : ''}.`
+    setPushPrompt(p => p ? { ...p, state: 'done', result } : null)
+    setTimeout(() => router.push('/settings'), 1500)
   }
 
   const cellStyle: React.CSSProperties = {
@@ -169,6 +200,52 @@ export function VendorGLClient({
           )
         })}
       </div>
+
+      {/* Push prompt — shown after save if GL accounts changed */}
+      {pushPrompt && (
+        <div style={{
+          background: '#FFFBEB', border: '0.5px solid #FDE68A', borderRadius: 8,
+          padding: '14px 16px', marginBottom: 16,
+        }}>
+          {pushPrompt.state === 'done' ? (
+            <p style={{ fontSize: 13, color: '#065F46', fontWeight: 500 }}>
+              <i className="ti ti-circle-check" style={{ marginRight: 6 }} />
+              {pushPrompt.result} Returning to settings…
+            </p>
+          ) : pushPrompt.state === 'applying' ? (
+            <p style={{ fontSize: 13, color: '#92400E' }}>Applying to existing bills…</p>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, fontWeight: 500, color: '#92400E', marginBottom: 8 }}>
+                GL accounts saved. Apply these defaults to existing unpublished bills?
+              </p>
+              <p style={{ fontSize: 12, color: '#92400E', marginBottom: 12, lineHeight: 1.5 }}>
+                This will update bills for {pushPrompt.vendorIds.length} vendor{pushPrompt.vendorIds.length !== 1 ? 's' : ''}. GL account rules always take priority over vendor defaults.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleApplyPush('blank_only')}
+                  style={{ fontSize: 12, fontWeight: 500, color: '#92400E', background: 'white', border: '0.5px solid #FCD34D', borderRadius: 5, padding: '6px 14px', cursor: 'pointer' }}
+                >
+                  Blank fields only
+                </button>
+                <button
+                  onClick={() => handleApplyPush('all_unpublished')}
+                  style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#D97706', border: 'none', borderRadius: 5, padding: '6px 14px', cursor: 'pointer' }}
+                >
+                  All unpublished bills
+                </button>
+                <button
+                  onClick={() => router.push('/settings')}
+                  style={{ fontSize: 12, color: '#B45309', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 4px' }}
+                >
+                  Skip
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       <div className="flex gap-2">
         <button
