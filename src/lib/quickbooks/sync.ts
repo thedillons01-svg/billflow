@@ -602,6 +602,24 @@ async function applyVendorGlToBlankLines(supabase: SB, billId: string, vendor: V
     .is('gl_account_id', null)
 }
 
+async function recomputeBillStatus(supabase: SB, billId: string): Promise<void> {
+  const { data: bill } = await supabase
+    .from('bills')
+    .select('status, vendor_id, total, bill_line_items(gl_account_id, extended_cost)')
+    .eq('bill_id', billId)
+    .single()
+  if (!bill || !['draft', 'ready'].includes(bill.status)) return
+  const lines = (bill.bill_line_items ?? []) as { gl_account_id: string | null; extended_cost: number | null }[]
+  const hasVendor = bill.vendor_id != null
+  const allLinesHaveGL = lines.length > 0 && lines.every(l => l.gl_account_id != null)
+  const lineSum = lines.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
+  const totalsMatch = bill.total == null || Math.abs(lineSum - (bill.total as number)) <= 0.01
+  const correct = hasVendor && allLinesHaveGL && totalsMatch ? 'ready' : 'draft'
+  if (correct !== bill.status) {
+    await supabase.from('bills').update({ status: correct }).eq('bill_id', billId)
+  }
+}
+
 // Re-match bills that have vendor_name_raw but no vendor_id.
 // These were processed before QB was connected so the cache was empty.
 async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise<void> {
@@ -674,6 +692,7 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
     if (vendor) {
       await supabase.from('bills').update({ vendor_id: vendor.vendor_id }).eq('bill_id', bill.bill_id)
       await applyVendorGlToBlankLines(supabase, bill.bill_id, vendor)
+      await recomputeBillStatus(supabase, bill.bill_id)
       continue
     }
 
@@ -696,6 +715,7 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
     if (vendor) {
       await supabase.from('bills').update({ vendor_id: vendor.vendor_id }).eq('bill_id', bill.bill_id)
       await applyVendorGlToBlankLines(supabase, bill.bill_id, vendor)
+      await recomputeBillStatus(supabase, bill.bill_id)
       continue
     }
 
@@ -717,6 +737,7 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
       if (existing) {
         await supabase.from('bills').update({ vendor_id: existing.vendor_id }).eq('bill_id', bill.bill_id)
         await applyVendorGlToBlankLines(supabase, bill.bill_id, existing as VendorMin)
+        await recomputeBillStatus(supabase, bill.bill_id)
         continue
       }
     }
@@ -741,6 +762,7 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
         .single()
       if (stub) {
         await supabase.from('bills').update({ vendor_id: stub.vendor_id }).eq('bill_id', bill.bill_id)
+        await recomputeBillStatus(supabase, bill.bill_id)
       }
     }
   }
