@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { softDeleteBill, setBillStatus, updateBill } from './actions'
-import { bulkPublish } from './bulk-actions'
+import { bulkPublish, bulkFindJobMatch } from './bulk-actions'
 import { formatDateOnly } from '@/lib/utils/date'
 
 type Bill = {
@@ -66,6 +66,7 @@ export function BillsList({
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [bulkErrors, setBulkErrors] = useState<{ billId: string; invoiceNumber: string | null; reason: string }[]>([])
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isMatchingJobs, setIsMatchingJobs] = useState(false)
 
   // Bills with no vendor_name_raw yet are still mid-OCR; ones with data are held duplicates
   const processingBills = bills.filter(b => b.status === 'draft' && b.vendor_name_raw === null)
@@ -74,6 +75,7 @@ export function BillsList({
 
   const allSelected = bills.length > 0 && selected.size === bills.length
   const someSelected = selected.size > 0
+  const anySelectedPendingJobMatch = bills.some(b => selected.has(b.bill_id) && b.status === 'pending_job_match')
 
   function toggleAll() {
     if (allSelected) {
@@ -139,6 +141,27 @@ export function BillsList({
     }
   }
 
+  async function handleBulkFindJobMatch() {
+    const ids = Array.from(selected)
+    setIsMatchingJobs(true)
+    setSelected(new Set())
+    setBulkMessage('Searching for job matches…')
+    setBulkErrors([])
+    try {
+      const result = await bulkFindJobMatch(ids)
+      const parts: string[] = []
+      if (result.matched > 0) parts.push(`${result.matched} bill${result.matched !== 1 ? 's' : ''} matched`)
+      if (result.notFound > 0) parts.push(`${result.notFound} not found`)
+      if (result.skipped > 0) parts.push(`${result.skipped} skipped (not pending)`)
+      setBulkMessage(parts.join(', ') + '.')
+      router.refresh()
+    } catch {
+      setBulkMessage('Job match failed — please try again.')
+    } finally {
+      setIsMatchingJobs(false)
+    }
+  }
+
   function startVendorEdit(bill: Bill, e: React.MouseEvent) {
     e.preventDefault()
     e.stopPropagation()
@@ -185,6 +208,9 @@ export function BillsList({
               <>
                 <BulkButton onClick={handleBulkReady} disabled={isPending} label="Mark Ready" />
                 <BulkButton onClick={handleBulkPublish} disabled={isPending || isPublishing} label={isPublishing ? 'Publishing…' : 'Publish to QB'} primary />
+                {anySelectedPendingJobMatch && (
+                  <BulkButton onClick={handleBulkFindJobMatch} disabled={isPending || isMatchingJobs} label={isMatchingJobs ? 'Searching…' : 'Find Job Match'} />
+                )}
               </>
             )}
             <BulkButton onClick={handleBulkDelete} disabled={isPending} label="Delete" danger />

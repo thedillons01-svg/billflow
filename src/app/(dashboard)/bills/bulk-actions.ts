@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
 import { pushBillToQBO } from '@/lib/quickbooks/push'
+import { syncAll } from '@/lib/quickbooks/sync'
+import { tryMatchJob, applyCustomerClassToLines } from '@/lib/ocr/process'
 
 type BulkPublishResult = {
   success: number
@@ -73,4 +75,76 @@ export async function bulkPublish(billIds: string[]): Promise<BulkPublishResult>
   }
 
   return { success, failed: errors.length, errors }
+}
+
+type BulkJobMatchResult = {
+  matched: number
+  notFound: number
+  skipped: number
+}
+
+export async function bulkFindJobMatch(billIds: string[]): Promise<BulkJobMatchResult> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { matched: 0, notFound: 0, skipped: billIds.length }
+
+  const { data: company } = await supabase
+    .from('companies')
+    .select('company_id, class_assignment_mode')
+    .single()
+  if (!company) return { matched: 0, notFound: 0, skipped: billIds.length }
+
+  const { data: bills } = await supabase
+    .from('bills')
+    .select('bill_id, company_id, vendor_po_reference, job_name_extracted, customer_name_extracted, status')
+    .in('bill_id', billIds)
+    .eq('company_id', company.company_id)
+
+  if (!bills || bills.length === 0) return { matched: 0, notFound: 0, skipped: billIds.length }
+
+  const pending = bills.filter(b => b.status === 'pending_job_match')
+  const skipped = billIds.length - pending.length
+
+  if (pending.length === 0) return { matched: 0, notFound: 0, skipped }
+
+  // Sync once before attempting matches so newly created QB jobs are visible
+  try { await syncAll(company.company_id) } catch { /* non-fatal */ }
+
+  const service = createServiceClient()
+  let matched = 0
+  let notFound = 0
+
+  for (const bill of pending) {
+    const matchRef = (bill.vendor_po_reference as string | null) ?? (bill.job_name_extracted as string | null)
+    if (!matchRef) { notFound++; continue }
+
+    const didMatch = await tryMatchJob(
+      service,
+      bill.bill_id as string,
+      bill.company_id as string,
+      matchRef,
+      (bill.job_name_extracted as string | null) ?? undefined,
+      (bill.customer_name_extracted as string | null) ?? undefined,
+    )
+
+    if (didMatch) {
+      matched++
+      if (company.class_assignment_mode === 'customer') {
+        const { data: lineWithJob } = await service
+          .from('bill_line_items')
+          .select('job_id')
+          .eq('bill_id', bill.bill_id as string)
+          .not('job_id', 'is', null)
+          .limit(1)
+          .maybeSingle()
+        if (lineWithJob?.job_id) {
+          await applyCustomerClassToLines(service, bill.bill_id as string, bill.company_id as string, lineWithJob.job_id as string)
+        }
+      }
+    } else {
+      notFound++
+    }
+  }
+
+  return { matched, notFound, skipped }
 }
