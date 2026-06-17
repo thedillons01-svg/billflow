@@ -131,7 +131,7 @@ export function VendorGeneralTab({
     setDirty(true)
   }
 
-  const showAutoPublishPromo   = vendor.invoices_processed >= 5 && vendor.confidence_display !== 'low' && !form.auto_publish_enabled
+  const showAutoPublishPromo   = vendor.invoices_processed >= 5 && (vendor.confidence_display === 'high' || vendor.confidence_display === 'medium') && !form.auto_publish_enabled
   const showAutoPublishPoPromo = vendor.pos_processed >= 3 && !form.auto_publish_po_enabled
 
   return (
@@ -153,7 +153,7 @@ export function VendorGeneralTab({
               Ready for auto-publish
             </p>
             <p style={{ fontSize: 12, color: '#2D6A4F', marginTop: 3, lineHeight: 1.5 }}>
-              {vendor.invoices_processed} invoices from this vendor have been processed without errors.
+              {vendor.invoices_processed} invoices from this vendor have been processed and recent ones are arriving with all required fields.
               Enable auto-publish and future invoices will flow directly into QuickBooks — no review needed.
             </p>
           </div>
