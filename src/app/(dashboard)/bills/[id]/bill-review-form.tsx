@@ -145,6 +145,8 @@ export function BillReviewForm({
   const [isPending, startTransition] = useTransition()
   const [isReprocessing, setIsReprocessing] = useState(false)
   const [isMovingToPO, setIsMovingToPO] = useState(false)
+  const [showMoveToPOConfirm, setShowMoveToPOConfirm] = useState(false)
+  const [moveToPOError, setMoveToPOError] = useState<string | null>(null)
   const reprocessCount = bill.reprocess_count ?? 0
   const nextTier = reprocessCount === 0 ? 2 : 3
   const tierLabel = nextTier === 2
@@ -364,7 +366,12 @@ export function BillReviewForm({
   }
 
   const handleMoveToPO = () => {
-    if (!confirm('Move this to Purchase Orders? It will be removed from Bills and re-processed as a PO. No additional credit will be charged.')) return
+    setMoveToPOError(null)
+    setShowMoveToPOConfirm(true)
+  }
+
+  const confirmMoveToPO = () => {
+    setShowMoveToPOConfirm(false)
     setIsMovingToPO(true)
     startTransition(async () => {
       try {
@@ -372,7 +379,7 @@ export function BillReviewForm({
         router.push(`/purchase-orders/${poId}`)
       } catch (err) {
         setIsMovingToPO(false)
-        alert(err instanceof Error ? err.message : 'Failed to move to Purchase Orders')
+        setMoveToPOError(err instanceof Error ? err.message : 'Failed to move to Purchase Orders')
       }
     })
   }
@@ -1754,6 +1761,52 @@ export function BillReviewForm({
           gap: 6,
         }}
       >
+        {/* Move to POs inline confirmation */}
+        {(showMoveToPOConfirm || moveToPOError) && (
+          <div style={{
+            width: '100%',
+            background: moveToPOError ? '#FEF2F2' : '#FFFBEB',
+            border: `0.5px solid ${moveToPOError ? '#FCA5A5' : '#FDE68A'}`,
+            borderRadius: 6, padding: '10px 14px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap',
+          }}>
+            {moveToPOError ? (
+              <>
+                <p style={{ fontSize: 12, color: '#991B1B', flex: 1 }}>
+                  <i className="ti ti-alert-circle" style={{ marginRight: 6 }} />
+                  {moveToPOError}
+                </p>
+                <button
+                  onClick={() => setMoveToPOError(null)}
+                  style={{ fontSize: 12, color: '#991B1B', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Dismiss
+                </button>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: 12, color: '#92400E', flex: 1 }}>
+                  Move to Purchase Orders? This document will be removed from Bills and re-processed as a PO. No additional credit will be charged.
+                </p>
+                <div className="flex items-center" style={{ gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={confirmMoveToPO}
+                    style={{ fontSize: 12, fontWeight: 500, color: 'white', background: '#D97706', border: 'none', borderRadius: 5, padding: '5px 14px', cursor: 'pointer' }}
+                  >
+                    Yes, move it
+                  </button>
+                  <button
+                    onClick={() => setShowMoveToPOConfirm(false)}
+                    style={{ fontSize: 12, color: '#92400E', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {/* Left: delete + reprocess + move to POs */}
         <div className="flex items-center flex-wrap" style={{ gap: 6 }}>
           {!isPublished && (
