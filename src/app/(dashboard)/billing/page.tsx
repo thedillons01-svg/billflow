@@ -294,6 +294,11 @@ export default async function BillingPage({
                     {' '}to purchase credits manually.
                   </p>
                 )}
+                <p style={{ fontSize: 11, color: 'var(--color-text-tertiary)', textAlign: 'center', paddingTop: 4 }}>
+                  <a href="/pricing" target="_blank" rel="noreferrer" style={{ color: '#2DB87A', textDecoration: 'none' }}>
+                    View full pricing details →
+                  </a>
+                </p>
               </div>
             </div>
           )}

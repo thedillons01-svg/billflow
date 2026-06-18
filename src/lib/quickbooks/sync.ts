@@ -839,10 +839,142 @@ async function rematchPendingJobMatch(companyId: string, supabase: SB): Promise<
   }
 }
 
+async function rematchUnmatchedPOVendors(companyId: string, supabase: SB): Promise<void> {
+  const { data: companyCfg } = await supabase
+    .from('companies')
+    .select('auto_create_vendors')
+    .eq('company_id', companyId)
+    .single()
+  const companyAutoCreate = companyCfg?.auto_create_vendors ?? false
+
+  const { data: pos } = await supabase
+    .from('purchase_orders')
+    .select('po_id, vendor_name_raw')
+    .eq('company_id', companyId)
+    .is('vendor_id', null)
+    .not('vendor_name_raw', 'is', null)
+    .is('deleted_at', null)
+    .not('status', 'in', '("cancelled","closed")')
+
+  const vcols = 'vendor_id'
+
+  for (const po of (pos ?? []) as Array<{ po_id: string; vendor_name_raw: string }>) {
+    const rawName = po.vendor_name_raw
+    if (!rawName) continue
+
+    let matchedVendorId: string | null = null
+
+    // Tier 0: alias table
+    const { data: alias } = await supabase
+      .from('vendor_name_aliases')
+      .select('vendor_id')
+      .eq('company_id', companyId)
+      .ilike('alias_name', rawName)
+      .limit(1)
+      .maybeSingle()
+    if (alias?.vendor_id) matchedVendorId = alias.vendor_id
+
+    // Tier 1: comma-free name variants (OR query)
+    if (!matchedVendorId) {
+      const variants = vendorNameVariants(rawName).filter(v => !v.includes(','))
+      if (variants.length > 0) {
+        const orCond = variants
+          .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
+          .join(',')
+        const { data: v } = await supabase.from('vendors').select(vcols).eq('company_id', companyId).or(orCond).limit(1).maybeSingle()
+        if (v) matchedVendorId = v.vendor_id
+      }
+    }
+
+    // Tier 2: direct ilike
+    if (!matchedVendorId) {
+      const [{ data: byE }, { data: byD }] = await Promise.all([
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_extracted', rawName).limit(1).maybeSingle(),
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_display', rawName).limit(1).maybeSingle(),
+      ])
+      matchedVendorId = byE?.vendor_id ?? byD?.vendor_id ?? null
+    }
+
+    // Tier 2.5: contains search
+    if (!matchedVendorId && rawName.length >= 5) {
+      const [{ data: byE }, { data: byD }] = await Promise.all([
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_extracted', `%${rawName}%`).limit(1).maybeSingle(),
+        supabase.from('vendors').select(vcols).eq('company_id', companyId).ilike('vendor_name_display', `%${rawName}%`).limit(1).maybeSingle(),
+      ])
+      matchedVendorId = byE?.vendor_id ?? byD?.vendor_id ?? null
+    }
+
+    // Tier 3: keyword matching
+    if (!matchedVendorId) {
+      const GENERIC_WORDS = new Set(['supply', 'supplies', 'services', 'service', 'company',
+        'enterprises', 'enterprise', 'industries', 'industry', 'group', 'solutions',
+        'products', 'distribution', 'distributors', 'wholesale', 'equipment'])
+      const keywords = rawName.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/)
+        .filter(w => w.length >= 5 && !GENERIC_WORDS.has(w))
+      if (keywords.length > 0) {
+        const { data: kwMatches } = await supabase
+          .from('vendors').select(vcols)
+          .eq('company_id', companyId)
+          .ilike('vendor_name_display', `%${keywords[0]}%`)
+          .limit(3)
+        if (kwMatches?.length === 1) matchedVendorId = kwMatches[0].vendor_id
+      }
+    }
+
+    // Tier 4: QB cache
+    if (!matchedVendorId) {
+      const { data: qbMatch } = await supabase
+        .from('qb_vendors_cache')
+        .select('qb_vendor_id')
+        .eq('company_id', companyId)
+        .ilike('name', `%${rawName}%`)
+        .limit(1)
+        .maybeSingle()
+      if (qbMatch?.qb_vendor_id) {
+        const { data: existing } = await supabase
+          .from('vendors').select(vcols)
+          .eq('company_id', companyId)
+          .eq('qb_vendor_id', qbMatch.qb_vendor_id)
+          .limit(1).maybeSingle()
+        if (existing) matchedVendorId = existing.vendor_id
+      }
+    }
+
+    if (matchedVendorId) {
+      await supabase.from('purchase_orders').update({ vendor_id: matchedVendorId }).eq('po_id', po.po_id)
+      continue
+    }
+
+    // Auto-create stub if company setting is on
+    if (companyAutoCreate) {
+      const { data: stub } = await supabase
+        .from('vendors')
+        .insert({
+          company_id:            companyId,
+          vendor_name_extracted: rawName,
+          vendor_name_display:   rawName,
+          gl_account_source:     'not_set',
+          payment_terms_source:  'not_set',
+          copy_po_to_qb_reference: true,
+          is_visible:            true,
+          auto_publish_enabled:  false,
+          hold_for_job_match:    null,
+          invoices_processed:    0,
+        })
+        .select('vendor_id')
+        .single()
+      if (stub) {
+        await supabase.from('purchase_orders').update({ vendor_id: stub.vendor_id }).eq('po_id', po.po_id)
+      }
+    }
+  }
+}
+
 async function rematchAfterSync(companyId: string): Promise<void> {
   const supabase = createServiceClient()
   await Promise.all([
     rematchUnmatchedVendors(companyId, supabase),
+    rematchUnmatchedPOVendors(companyId, supabase),
     rematchPendingJobMatch(companyId, supabase),
   ])
 }

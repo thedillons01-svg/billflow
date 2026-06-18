@@ -81,6 +81,12 @@ function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
 
         {/* Nav links */}
         <nav style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Link href="/pricing" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 14px' }}>
+            Pricing
+          </Link>
+          <Link href="/help" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 14px' }}>
+            Help
+          </Link>
           {isLoggedIn ? (
             <Link
               href="/home"
@@ -748,7 +754,8 @@ function Footer() {
 
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           {[
-            { label: 'Blog', href: '/blog' },
+            { label: 'Pricing', href: '/pricing' },
+            { label: 'Help', href: '/help' },
             { label: 'Sign in', href: '/login' },
             { label: 'Create account', href: '/signup' },
             { label: 'Privacy Policy', href: '/privacy' },

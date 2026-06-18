@@ -78,11 +78,13 @@ export function SidebarNav({
           />
         </div>
         <a
-          href="mailto:support@purchasomatic.com"
+          href="/help"
+          target="_blank"
+          rel="noreferrer"
           style={{ display: 'block', fontSize: 11, color: '#9CA3AF', textDecoration: 'none', marginBottom: 6 }}
         >
           <i className="ti ti-help-circle" style={{ fontSize: 11, marginRight: 4 }} />
-          support@purchasomatic.com
+          Help &amp; support
         </a>
         <form action={signout}>
           <button
