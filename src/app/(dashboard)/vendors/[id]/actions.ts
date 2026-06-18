@@ -186,6 +186,26 @@ export async function applyVendorDefaultToBills(
         .update({ gl_account_id: gl, gl_account_source: src })
         .in('line_id', lineIds)
     }
+
+    // Recompute draft ↔ ready for each affected bill now that GL accounts are filled
+    for (const billId of billIds) {
+      const { data: b } = await service
+        .from('bills')
+        .select('status, vendor_id, total, bill_line_items(gl_account_id, extended_cost)')
+        .eq('bill_id', billId)
+        .single()
+      if (!b || !['draft', 'ready'].includes(b.status as string)) continue
+      const ls = (b.bill_line_items ?? []) as { gl_account_id: string | null; extended_cost: number | null }[]
+      const hasVendor = b.vendor_id != null
+      const allGL = ls.length > 0 && ls.every(l => l.gl_account_id != null)
+      const lineSum = ls.reduce((s, l) => s + (l.extended_cost ?? 0), 0)
+      const totalsMatch = b.total == null || Math.abs(lineSum - (b.total as number)) <= 0.01
+      const correct = hasVendor && allGL && totalsMatch ? 'ready' : 'draft'
+      if (correct !== b.status) {
+        await service.from('bills').update({ status: correct }).eq('bill_id', billId)
+      }
+    }
+
     return { count: billIds.length }
   }
 
