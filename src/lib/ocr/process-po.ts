@@ -29,7 +29,7 @@ const STORAGE_BUCKET = 'bill-pdfs'
 
 type SupabaseClient = ReturnType<typeof getServiceClient>
 
-export async function processPO(poId: string, opts?: { skipCredits?: boolean }): Promise<void> {
+export async function processPO(poId: string, opts?: { skipCredits?: boolean; preserveLineItems?: boolean }): Promise<void> {
   const supabase = getServiceClient()
 
   const { data: po } = await supabase
@@ -138,29 +138,42 @@ export async function processPO(poId: string, opts?: { skipCredits?: boolean }):
         .single()
 
       if (qbMatch) {
-        const { data: created } = await supabase
+        // Check if a vendors row already exists for this QB vendor (created by syncVendors)
+        const { data: existingVendor } = await supabase
           .from('vendors')
-          .insert({
-            company_id:               po.company_id,
-            vendor_name_extracted:    result.vendor_name_raw,
-            vendor_name_display:      qbMatch.name,
-            qb_vendor_id:             qbMatch.qb_vendor_id,
-            qb_vendor_name:           qbMatch.name,
-            qb_default_gl_account_id: qbMatch.default_expense_account_id ?? null,
-            gl_account_source:        qbMatch.default_expense_account_id ? 'qb_default' : 'not_set',
-            qb_payment_terms:         qbMatch.payment_terms ?? null,
-            payment_terms_source:     qbMatch.payment_terms ? 'qb_default' : 'not_set',
-            copy_po_to_qb_reference:  true,
-            is_visible:               true,
-            auto_publish_enabled:     false,
-            hold_for_job_match:       false,
-            invoices_processed:       0,
-          })
           .select('vendor_id')
-          .single()
+          .eq('company_id', po.company_id)
+          .eq('qb_vendor_id', qbMatch.qb_vendor_id)
+          .maybeSingle()
 
-        if (created) {
-          await supabase.from('purchase_orders').update({ vendor_id: created.vendor_id }).eq('po_id', poId)
+        let vendorId: string | null = existingVendor?.vendor_id ?? null
+
+        if (!vendorId) {
+          const { data: created } = await supabase
+            .from('vendors')
+            .insert({
+              company_id:               po.company_id,
+              vendor_name_extracted:    result.vendor_name_raw,
+              vendor_name_display:      qbMatch.name,
+              qb_vendor_id:             qbMatch.qb_vendor_id,
+              qb_vendor_name:           qbMatch.name,
+              qb_default_gl_account_id: qbMatch.default_expense_account_id ?? null,
+              gl_account_source:        qbMatch.default_expense_account_id ? 'qb_default' : 'not_set',
+              qb_payment_terms:         qbMatch.payment_terms ?? null,
+              payment_terms_source:     qbMatch.payment_terms ? 'qb_default' : 'not_set',
+              copy_po_to_qb_reference:  true,
+              is_visible:               true,
+              auto_publish_enabled:     false,
+              hold_for_job_match:       null,
+              invoices_processed:       0,
+            })
+            .select('vendor_id')
+            .single()
+          vendorId = created?.vendor_id ?? null
+        }
+
+        if (vendorId) {
+          await supabase.from('purchase_orders').update({ vendor_id: vendorId }).eq('po_id', poId)
         }
       } else {
         console.log(`[ocr-po] No QB cache match for "${result.vendor_name_raw}" (${poId}) — leaving unmatched`)
@@ -176,8 +189,10 @@ export async function processPO(poId: string, opts?: { skipCredits?: boolean }):
     customerName:     result.customer_name_extracted,
   })
 
-  // Insert PO line items, propagating the matched job to every line
-  await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount, matchedJobId)
+  // Insert PO line items — skipped when moveBillToPO already copied validated lines
+  if (!opts?.preserveLineItems) {
+    await insertPOLineItems(supabase, poId, po.company_id, result.line_items, result.tax_amount, matchedJobId)
+  }
 
   // Deduct 1 credit and increment pos_processed on the vendor (skipped on reprocess / reclassify — already charged once)
   if (!opts?.skipCredits) {

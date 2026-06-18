@@ -119,7 +119,7 @@ export async function moveBillToPO(billId: string): Promise<{ poId: string }> {
   const supabase = await createClient()
   const { data: bill, error } = await supabase
     .from('bills')
-    .select('company_id, pdf_url, capture_source, file_fingerprint')
+    .select('company_id, pdf_url, capture_source, file_fingerprint, vendor_name_raw, vendor_id, invoice_number, invoice_date, bill_line_items(description, quantity, unit_cost, extended_cost, sort_order, is_tax_line)')
     .eq('bill_id', billId)
     .single()
   if (error || !bill) throw new Error('Bill not found')
@@ -132,8 +132,32 @@ export async function moveBillToPO(billId: string): Promise<{ poId: string }> {
     capture_source:   bill.capture_source,
     pdf_url:          bill.pdf_url,
     file_fingerprint: bill.file_fingerprint,
+    vendor_name_raw:  bill.vendor_name_raw,
+    vendor_id:        bill.vendor_id,
+    po_number:        bill.invoice_number,
+    order_date:       bill.invoice_date,
   })
   if (insertErr) throw new Error(insertErr.message)
+
+  // Copy bill line items to PO so re-running OCR can't lose validated data
+  const lines = (bill.bill_line_items ?? []) as Array<{
+    description: string | null; quantity: number | null; unit_cost: number | null
+    extended_cost: number | null; sort_order: number; is_tax_line: boolean | null
+  }>
+  if (lines.length > 0) {
+    await supabase.from('po_line_items').insert(
+      lines.map(l => ({
+        po_id:            poId,
+        company_id:       bill.company_id,
+        description:      l.description,
+        quantity_ordered: l.quantity,
+        unit_cost:        l.unit_cost,
+        extended_cost:    l.extended_cost,
+        sort_order:       l.sort_order,
+        is_tax_line:      l.is_tax_line ?? false,
+      }))
+    )
+  }
 
   await supabase.from('bills').update({ deleted_at: new Date().toISOString() }).eq('bill_id', billId)
 
@@ -146,7 +170,8 @@ export async function moveBillToPO(billId: string): Promise<{ poId: string }> {
   })
 
   const { processPO } = await import('@/lib/ocr/process-po')
-  processPO(poId, { skipCredits: true }).catch(console.error)
+  // preserveLineItems: true — skip OCR line item insertion since we copied them above
+  processPO(poId, { skipCredits: true, preserveLineItems: true }).catch(console.error)
 
   revalidatePath('/bills')
   revalidatePath('/purchase-orders')
@@ -274,29 +299,43 @@ export async function createVendorFromBill(
     }
   }
 
-  const { data: vendor, error: vendorError } = await supabase
+  // If syncVendors already created a row for this QB vendor, link to it instead of inserting
+  const { data: existingVendor } = await supabase
     .from('vendors')
-    .insert({
-      company_id: companyId,
-      vendor_name_extracted: vendorNameExtracted,
-      vendor_name_display: qbVendorName,
-      qb_vendor_id: qbVendorId,
-      qb_vendor_name: qbVendorName,
-      is_visible: true,
-      auto_publish_enabled: false,
-      hold_for_job_match: false,
-      invoices_processed: 0,
-      gl_account_source: 'not_set',
-      payment_terms_source: 'not_set',
-      copy_po_to_qb_reference: true,
-    })
     .select('vendor_id')
-    .single()
-  if (vendorError) return { error: vendorError.message }
+    .eq('company_id', companyId)
+    .eq('qb_vendor_id', qbVendorId)
+    .maybeSingle()
+
+  let vendorRowId: string
+  if (existingVendor) {
+    vendorRowId = existingVendor.vendor_id
+  } else {
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .insert({
+        company_id: companyId,
+        vendor_name_extracted: vendorNameExtracted,
+        vendor_name_display: qbVendorName,
+        qb_vendor_id: qbVendorId,
+        qb_vendor_name: qbVendorName,
+        is_visible: true,
+        auto_publish_enabled: false,
+        hold_for_job_match: null,
+        invoices_processed: 0,
+        gl_account_source: 'not_set',
+        payment_terms_source: 'not_set',
+        copy_po_to_qb_reference: true,
+      })
+      .select('vendor_id')
+      .single()
+    if (vendorError) return { error: vendorError.message }
+    vendorRowId = vendor.vendor_id
+  }
 
   const { error: billError } = await supabase
     .from('bills')
-    .update({ vendor_id: vendor.vendor_id, autopublish_hold_reason: null })
+    .update({ vendor_id: vendorRowId, autopublish_hold_reason: null })
     .eq('bill_id', billId)
   if (billError) return { error: billError.message }
   await refreshBillStatus(billId)
@@ -310,7 +349,7 @@ export async function createVendorFromBill(
   revalidatePath('/bills')
   revalidatePath(`/bills/${billId}`)
   revalidatePath('/vendors')
-  return { vendorId: vendor.vendor_id }
+  return { vendorId: vendorRowId }
 }
 
 export async function addVendorToQB(

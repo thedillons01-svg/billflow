@@ -196,29 +196,43 @@ export async function createVendorFromPO(
     }
   }
 
-  const { data: vendor, error: vendorError } = await supabase
+  // If syncVendors already created a row for this QB vendor, link to it instead of inserting
+  const { data: existingVendor } = await supabase
     .from('vendors')
-    .insert({
-      company_id: companyId,
-      vendor_name_extracted: vendorNameExtracted,
-      vendor_name_display: qbVendorName,
-      qb_vendor_id: qbVendorId,
-      qb_vendor_name: qbVendorName,
-      is_visible: true,
-      auto_publish_enabled: false,
-      hold_for_job_match: false,
-      invoices_processed: 0,
-      gl_account_source: 'not_set',
-      payment_terms_source: 'not_set',
-      copy_po_to_qb_reference: true,
-    })
     .select('vendor_id')
-    .single()
-  if (vendorError) return { error: vendorError.message }
+    .eq('company_id', companyId)
+    .eq('qb_vendor_id', qbVendorId)
+    .maybeSingle()
+
+  let vendorRowId: string
+  if (existingVendor) {
+    vendorRowId = existingVendor.vendor_id
+  } else {
+    const { data: vendor, error: vendorError } = await supabase
+      .from('vendors')
+      .insert({
+        company_id: companyId,
+        vendor_name_extracted: vendorNameExtracted,
+        vendor_name_display: qbVendorName,
+        qb_vendor_id: qbVendorId,
+        qb_vendor_name: qbVendorName,
+        is_visible: true,
+        auto_publish_enabled: false,
+        hold_for_job_match: null,
+        invoices_processed: 0,
+        gl_account_source: 'not_set',
+        payment_terms_source: 'not_set',
+        copy_po_to_qb_reference: true,
+      })
+      .select('vendor_id')
+      .single()
+    if (vendorError) return { error: vendorError.message }
+    vendorRowId = vendor.vendor_id
+  }
 
   await supabase
     .from('purchase_orders')
-    .update({ vendor_id: vendor.vendor_id })
+    .update({ vendor_id: vendorRowId })
     .eq('po_id', poId)
 
   await supabase.from('qb_vendors_cache').upsert(
@@ -228,7 +242,7 @@ export async function createVendorFromPO(
 
   revalidatePath(`/purchase-orders/${poId}`)
   revalidatePath('/vendors')
-  return { vendorId: vendor.vendor_id }
+  return { vendorId: vendorRowId }
 }
 
 export async function addVendorToQBFromPO(
