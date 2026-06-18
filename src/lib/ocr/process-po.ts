@@ -56,8 +56,9 @@ export async function processPO(poId: string, opts?: { skipCredits?: boolean; pr
     .single()
   const companyName = companyRow?.name ?? undefined
 
-  // Backstop credit check — primary gate is in the upload route and email webhook
-  if ((companyRow?.credit_balance ?? 0) <= 0 && companyRow?.subscription_status !== 'active') {
+  // Backstop credit check — primary gate is in the upload route and email webhook.
+  // Bypassed when skipCredits is set (reprocess / reclassify — already charged once).
+  if (!opts?.skipCredits && (companyRow?.credit_balance ?? 0) <= 0 && companyRow?.subscription_status !== 'active') {
     console.warn(`[ocr-po] Skipping PO ${poId} — company ${po.company_id} has 0 credits and no active subscription`)
     return
   }
