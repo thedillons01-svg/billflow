@@ -962,14 +962,14 @@ export function PODetail({
                   if (!res.ok) {
                     setReprocessResult(`Reprocess failed: ${json.error ?? 'unknown error'}`)
                   } else {
-                    setReprocessResult(
-                      json.matchedJobId
-                        ? 'Reprocessed — job matched and applied to all lines.'
-                        : json.matchedCustomerId
-                          ? 'Reprocessed — customer identified. No existing job matched; use "Create new job" below.'
-                          : 'Reprocessed — no job or customer match found. Check the PDF for a job reference and assign manually.'
-                    )
-                    router.refresh()
+                    const msg = json.matchedJobId
+                      ? 'Reprocessed — job matched and applied to all lines.'
+                      : json.matchedCustomerId
+                        ? 'Reprocessed — customer identified. No existing job matched; use "Create new job" below.'
+                        : 'Reprocessed — no job or customer match found. Check the PDF for a job reference and assign manually.'
+                    setReprocessResult(msg)
+                    // Full reload so line items and vendor re-initialize from fresh server data
+                    window.location.reload()
                   }
                 } finally {
                   setReprocessing(false)

@@ -92,20 +92,53 @@ export async function POST(
   // Vendor matching (only if not already matched)
   if (!po.vendor_id && result.vendor_name_raw) {
     await syncVendorsIfStale(po.company_id)
-    const variants = uniqueNameVariants(result.vendor_name_raw)
-      .filter(v => !v.includes(',')) // commas are OR-condition separators in Supabase
-    const orCondition = variants
-      .flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`])
-      .join(',')
-    const { data: vendor } = await service
-      .from('vendors')
+    const rawName = result.vendor_name_raw
+    let matchedVendorId: string | null = null
+
+    // Tier 0: alias table
+    const { data: alias } = await service
+      .from('vendor_name_aliases')
       .select('vendor_id')
       .eq('company_id', po.company_id)
-      .or(orCondition)
-      .limit(1)
-      .single()
-    if (vendor) {
-      await service.from('purchase_orders').update({ vendor_id: vendor.vendor_id }).eq('po_id', poId)
+      .ilike('alias_name', rawName)
+      .limit(1).maybeSingle()
+    if (alias?.vendor_id) matchedVendorId = alias.vendor_id
+
+    // Tier 1: name variants OR query
+    if (!matchedVendorId) {
+      const variants = uniqueNameVariants(rawName).filter(v => !v.includes(','))
+      if (variants.length) {
+        const orCond = variants.flatMap(v => [`vendor_name_extracted.ilike.${v}`, `vendor_name_display.ilike.${v}`]).join(',')
+        const { data: v } = await service.from('vendors').select('vendor_id').eq('company_id', po.company_id).or(orCond).limit(1).maybeSingle()
+        if (v) matchedVendorId = v.vendor_id
+      }
+    }
+
+    // Tier 2: contains search
+    if (!matchedVendorId && rawName.length >= 5) {
+      const [r1, r2] = await Promise.all([
+        service.from('vendors').select('vendor_id').eq('company_id', po.company_id).ilike('vendor_name_extracted', `%${rawName}%`).limit(1).maybeSingle(),
+        service.from('vendors').select('vendor_id').eq('company_id', po.company_id).ilike('vendor_name_display', `%${rawName}%`).limit(1).maybeSingle(),
+      ])
+      matchedVendorId = r1.data?.vendor_id ?? r2.data?.vendor_id ?? null
+    }
+
+    // Tier 3: QB cache — find the vendors row syncVendors already created
+    if (!matchedVendorId) {
+      const { data: qbMatch } = await service
+        .from('qb_vendors_cache').select('qb_vendor_id')
+        .eq('company_id', po.company_id).ilike('name', `%${rawName}%`)
+        .limit(1).maybeSingle()
+      if (qbMatch?.qb_vendor_id) {
+        const { data: existing } = await service.from('vendors').select('vendor_id')
+          .eq('company_id', po.company_id).eq('qb_vendor_id', qbMatch.qb_vendor_id)
+          .limit(1).maybeSingle()
+        if (existing) matchedVendorId = existing.vendor_id
+      }
+    }
+
+    if (matchedVendorId) {
+      await service.from('purchase_orders').update({ vendor_id: matchedVendorId }).eq('po_id', poId)
     }
   }
 
