@@ -28,6 +28,7 @@ type PO = {
   job_name_extracted: string | null
   customer_name_extracted: string | null
   matched_customer_qb_id: string | null
+  notify_technician_id: string | null
 }
 
 type LineItem = {
@@ -81,6 +82,7 @@ export function PODetail({
   vendors = [],
   jobCostingEnabled = false,
   pushPosToQb = true,
+  technicians = [],
 }: {
   po: PO
   lineItems: LineItem[]
@@ -91,6 +93,7 @@ export function PODetail({
   vendors?: Vendor[]
   jobCostingEnabled?: boolean
   pushPosToQb?: boolean
+  technicians?: { technician_id: string; name: string; phone: string | null }[]
 }) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -114,7 +117,7 @@ export function PODetail({
   const [showCustomerCreate, setShowCustomerCreate] = useState(false)
   const [newCustomerName, setNewCustomerName] = useState('')
   const [customerCreateError, setCustomerCreateError] = useState<string | null>(null)
-  const [form, setForm] = useState<{ po_number: string; order_date: string | null; expected_delivery_date: string | null }>({ po_number: po.po_number ?? '', order_date: po.order_date ?? '', expected_delivery_date: po.expected_delivery_date ?? '' })
+  const [form, setForm] = useState<{ po_number: string; order_date: string | null; expected_delivery_date: string | null; notify_technician_id: string | null }>({ po_number: po.po_number ?? '', order_date: po.order_date ?? '', expected_delivery_date: po.expected_delivery_date ?? '', notify_technician_id: po.notify_technician_id ?? null })
   const [savedFeedback, setSavedFeedback] = useState(false)
 
   const { setDirty, registerSaveFn } = useDirty()
@@ -202,6 +205,7 @@ export function PODetail({
       po_number: form.po_number || null,
       order_date: form.order_date || null,
       expected_delivery_date: form.expected_delivery_date || null,
+      notify_technician_id: form.notify_technician_id || null,
     })
     await Promise.all(lineItems.map(li =>
       updatePOLineItem(li.line_id, po.po_id, {
@@ -495,6 +499,30 @@ export function PODetail({
                 />
                 {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>Estimated date the vendor will deliver the items. Set by the vendor on the PO confirmation.</p>}
               </div>
+
+              {technicians.length > 0 && (
+                <>
+                  <span style={labelStyle}>
+                    Notify when received
+                    {!showTips && <Tip text="The technician to notify when these parts arrive at the office." />}
+                  </span>
+                  <div>
+                    <select
+                      value={form.notify_technician_id ?? ''}
+                      onChange={e => { setForm(f => ({ ...f, notify_technician_id: e.target.value || null })); setDirty(true) }}
+                      style={{ fontSize: 12, padding: '5px 8px', border: '0.5px solid var(--color-border-tertiary)', borderRadius: 6, color: 'var(--color-text-primary)', background: 'white', width: '100%' }}
+                    >
+                      <option value="">— none —</option>
+                      {technicians.map(t => (
+                        <option key={t.technician_id} value={t.technician_id}>
+                          {t.name}{t.phone ? ` · ${t.phone}` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {showTips && <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3, lineHeight: 1.5 }}>The technician to notify when these parts arrive at the office.</p>}
+                  </div>
+                </>
+              )}
 
               {po.notes && (
                 <>

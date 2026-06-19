@@ -16,6 +16,7 @@ export async function updatePO(
     order_date: string | null
     expected_delivery_date: string | null
     notes: string | null
+    notify_technician_id: string | null
   }>
 ) {
   const supabase = await createClient()

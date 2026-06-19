@@ -17,7 +17,7 @@ export default async function PODetailPage({
     .select(`
       po_id, company_id, vendor_name_raw, po_number, order_date, expected_delivery_date,
       job_id, status, qb_po_id, qb_sync_error, pdf_url, notes, created_at, deleted_at,
-      vendor_id, job_name_extracted, customer_name_extracted, matched_customer_qb_id,
+      vendor_id, job_name_extracted, customer_name_extracted, matched_customer_qb_id, notify_technician_id,
       vendors(vendor_name_display, qb_vendor_id),
       po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, extended_cost, job_id, sort_order)
     `)
@@ -27,7 +27,7 @@ export default async function PODetailPage({
   if (!po || po.deleted_at) notFound()
 
   // Matched bills, company settings, jobs, vendors — all in parallel
-  const [{ data: matchedBills }, { data: companySettings }, { data: jobRows }, { data: vendorRows }] = await Promise.all([
+  const [{ data: matchedBills }, { data: companySettings }, { data: jobRows }, { data: vendorRows }, { data: techRows }] = await Promise.all([
     supabase
       .from('bills')
       .select('bill_id, invoice_number, total, status, vendor_name_raw, bill_line_items(job_id)')
@@ -49,6 +49,12 @@ export default async function PODetailPage({
       .eq('company_id', po.company_id)
       .eq('is_visible', true)
       .order('vendor_name_display', { ascending: true }),
+    supabase
+      .from('technicians')
+      .select('technician_id, name, phone')
+      .eq('company_id', po.company_id)
+      .eq('is_active', true)
+      .order('name'),
   ])
 
   // Filter jobs by tagging level setting
@@ -115,6 +121,7 @@ export default async function PODetailPage({
             job_name_extracted: po.job_name_extracted ?? null,
             customer_name_extracted: po.customer_name_extracted ?? null,
             matched_customer_qb_id: po.matched_customer_qb_id ?? null,
+            notify_technician_id: po.notify_technician_id ?? null,
           }}
           lineItems={lineItems}
           matchedBills={(matchedBills ?? []) as {
@@ -131,6 +138,7 @@ export default async function PODetailPage({
           vendors={(vendorRows ?? []) as { vendor_id: string; vendor_name_display: string | null; vendor_name_extracted: string | null; qb_vendor_id: string | null }[]}
           jobCostingEnabled={companySettings?.job_costing_enabled ?? false}
           pushPosToQb={companySettings?.push_pos_to_qb ?? true}
+          technicians={(techRows ?? []) as { technician_id: string; name: string; phone: string | null }[]}
         />
       }
       right={
