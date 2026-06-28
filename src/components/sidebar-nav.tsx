@@ -56,9 +56,6 @@ export function SidebarNav({
         <NavItem href="/receiving" active={isActive('/receiving')} icon="ti-package">Receiving</NavItem>
         <NavItem href="/vendors" active={isActive('/vendors')} icon="ti-users">Vendors</NavItem>
         {jobCostingEnabled && (
-          <NavItem href="/jobs" active={isActive('/jobs')} icon="ti-chart-bar">Job Profitability</NavItem>
-        )}
-        {jobCostingEnabled && (
           <NavItem href="/exports" active={isActive('/exports')} icon="ti-download">Export</NavItem>
         )}
         <div className="mx-3 my-2" style={{ height: '1px', background: '#E8ECF0' }} />

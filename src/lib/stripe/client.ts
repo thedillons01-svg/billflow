@@ -62,9 +62,8 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, {
 
 // One-time top-up bundles
 export const TOPUP_BUNDLES: Record<number, { credits: number; amountCents: number; label: string }> = {
-  100:  { credits: 100,  amountCents: 3800,  label: '100 extra credits — $38'  },
-  250:  { credits: 250,  amountCents: 9500,  label: '250 extra credits — $95'  },
-  500:  { credits: 500,  amountCents: 18000, label: '500 extra credits — $180' },
+  50:  { credits: 50,  amountCents: 2000, label: '50 extra credits — $20' },
+  100: { credits: 100, amountCents: 4000, label: '100 extra credits — $40' },
 }
 
 export const TRIAL_CREDITS = 25

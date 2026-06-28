@@ -54,6 +54,9 @@ export async function POST(request: NextRequest) {
         })
         .eq('company_id', companyId)
 
+      await addCredits(supabase, companyId, planCredits,
+        `Subscription activated: ${planCredits.toLocaleString()} credits added`)
+
       console.log(`[stripe-webhook] Subscription activated — company ${companyId}, ${planCredits} credits/month`)
     }
 
