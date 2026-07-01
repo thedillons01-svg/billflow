@@ -65,7 +65,7 @@ async function handleAuthenticate(body: string, supabase: ReturnType<typeof crea
     .eq('qbd_service_key', username)
     .single()
 
-  if (!company || password !== process.env.QBD_WEBHOOK_SECRET) {
+  if (!company || password !== company.qbd_service_key) {
     return xmlResponse(soapResponseMulti('authenticate', {
       string_0: '',
       string_1: 'nvu',  // not a valid user

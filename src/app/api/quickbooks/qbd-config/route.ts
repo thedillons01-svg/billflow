@@ -34,6 +34,7 @@ export async function GET() {
   <AppDescription>Purchasomatic — Automated vendor invoice capture for ${company.name}</AppDescription>
   <AppSupport>${appUrl}/settings</AppSupport>
   <UserName>${serviceKey}</UserName>
+  <Password>${serviceKey}</Password>
   <OwnerID>{${company.company_id.toUpperCase()}}</OwnerID>
   <FileID>{${randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5').toUpperCase()}}</FileID>
   <QBType>QBFS</QBType>
