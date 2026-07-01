@@ -248,6 +248,26 @@ export default async function SettingsPage({
                     Download .QWC
                   </a>
                 </div>
+                {(qbdHeartbeat as { connector_status: string | null } | null)?.connector_status !== 'running' && (
+                  <div style={{ background: 'var(--color-bg-subtle)', borderRadius: 8, padding: '14px 16px' }}>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-text-primary)', marginBottom: 10 }}>How to connect</p>
+                    <ol style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {[
+                        'Open QuickBooks Desktop and log in as Admin.',
+                        'Click Download .QWC above to save the configuration file.',
+                        'Open Intuit Web Connector (search "Web Connector" in the Start menu).',
+                        'Click Add an Application and select the .QWC file you downloaded.',
+                        'When QuickBooks asks to authorize, click Yes, always allow access.',
+                        'Check the Auto-Run checkbox next to Purchasomatic, then click Update Selected.',
+                      ].map((step, i) => (
+                        <li key={i} style={{ fontSize: 12, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>{step}</li>
+                      ))}
+                    </ol>
+                    <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 10 }}>
+                      QuickBooks Desktop must be open and your company file loaded for syncing to work.
+                    </p>
+                  </div>
+                )}
               </div>
             </Card>
           )}
