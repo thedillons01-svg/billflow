@@ -68,7 +68,7 @@ export default async function AdminPage() {
         </tbody>
       </table>
       <p style={{ marginTop: 16, fontSize: 12, color: '#9ca3af' }}>
-        "Login as" copies a magic link to your clipboard — paste it into an incognito window.
+        "Login as" opens a new tab and logs you in as that user.
       </p>
     </div>
   )

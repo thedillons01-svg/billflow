@@ -32,7 +32,7 @@ export default async function BillsPage({
 
   let query = supabase
     .from('bills')
-    .select('bill_id, vendor_id, vendor_name_raw, invoice_number, invoice_date, total, status, autopublish_hold_reason, mark_as_paid, published_at, bill_line_items(gl_account_id, job_id), vendors!bills_vendor_id_fkey(vendor_name_display)')
+    .select('bill_id, vendor_id, vendor_name_raw, invoice_number, invoice_date, total, status, ocr_tier, autopublish_hold_reason, mark_as_paid, published_at, bill_line_items(gl_account_id, job_id), vendors!bills_vendor_id_fkey(vendor_name_display)')
     .in('status', statuses)
     .is('deleted_at', null)
     .order('created_at', { ascending: activeTab === 'archive' })

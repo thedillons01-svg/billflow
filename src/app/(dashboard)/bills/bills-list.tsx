@@ -16,6 +16,7 @@ type Bill = {
   invoice_date: string | null
   total: number | null
   status: string
+  ocr_tier: number | null
   autopublish_hold_reason: string | null
   mark_as_paid: boolean | null
   published_at?: string | null
@@ -68,8 +69,8 @@ export function BillsList({
   const [isPublishing, setIsPublishing] = useState(false)
   const [isMatchingJobs, setIsMatchingJobs] = useState(false)
 
-  // Bills with no vendor_name_raw yet are still mid-OCR; ones with data are held duplicates
-  const processingBills = bills.filter(b => b.status === 'draft' && b.vendor_name_raw === null)
+  // Bills with no ocr_tier yet are still mid-OCR (tier is set when processing completes, success or failure)
+  const processingBills = bills.filter(b => b.status === 'draft' && b.ocr_tier === null)
   const processingCount = processingBills.length
 
 
@@ -309,7 +310,7 @@ export function BillsList({
 
       {/* Rows */}
       {bills.map((bill, i) => {
-        const isProcessing = bill.status === 'draft' && bill.vendor_name_raw === null
+        const isProcessing = bill.status === 'draft' && bill.ocr_tier === null
         const badgeKey = isProcessing ? 'draft_processing' : bill.status
         const badge = STATUS_BADGE[badgeKey] ?? STATUS_BADGE.draft
         const isEditingVendorHere = editingVendor === bill.bill_id
