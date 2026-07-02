@@ -16,17 +16,15 @@ export async function GET(request: NextRequest) {
   if (!email) return NextResponse.json({ error: 'Missing email' }, { status: 400 })
 
   const admin = createServiceClient()
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.purchasomatic.com'
 
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email,
-    options: { redirectTo: `${appUrl}/api/auth/callback?next=/bills` },
   })
 
-  if (error || !data?.properties?.action_link) {
-    return NextResponse.json({ error: error?.message ?? 'Failed to generate link' }, { status: 500 })
+  if (error || !data?.properties?.email_otp) {
+    return NextResponse.json({ error: error?.message ?? 'Failed to generate OTP' }, { status: 500 })
   }
 
-  return NextResponse.json({ link: data.properties.action_link })
+  return NextResponse.json({ email, otp: data.properties.email_otp })
 }
