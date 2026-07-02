@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import Link from 'next/link'
+import { ImpersonateButton } from './ImpersonateButton'
 
 export default async function AdminPage() {
   const supabase = createServiceClient()
@@ -60,21 +61,14 @@ export default async function AdminPage() {
                 {new Date(c.created_at).toLocaleDateString()}
               </td>
               <td style={{ padding: '10px 12px' }}>
-                <a
-                  href={`/api/admin/impersonate?email=${encodeURIComponent(c.email)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: '#6b7280', border: '1px solid #e5e7eb', padding: '4px 10px', borderRadius: 4, textDecoration: 'none', whiteSpace: 'nowrap' }}
-                >
-                  Login as ↗
-                </a>
+                <ImpersonateButton email={c.email} />
               </td>
             </tr>
           ))}
         </tbody>
       </table>
       <p style={{ marginTop: 16, fontSize: 12, color: '#9ca3af' }}>
-        "Login as" opens a magic link — use incognito so you don't lose your own session.
+        "Login as" copies a magic link to your clipboard — paste it into an incognito window.
       </p>
     </div>
   )

@@ -28,5 +28,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: error?.message ?? 'Failed to generate link' }, { status: 500 })
   }
 
-  return NextResponse.redirect(data.properties.action_link)
+  return NextResponse.json({ link: data.properties.action_link })
 }
