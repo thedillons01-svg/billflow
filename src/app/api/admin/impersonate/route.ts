@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   const { data, error } = await admin.auth.admin.generateLink({
     type: 'magiclink',
     email,
-    options: { redirectTo: `${appUrl}/home` },
+    options: { redirectTo: `${appUrl}/api/auth/callback?next=/bills` },
   })
 
   if (error || !data?.properties?.action_link) {
