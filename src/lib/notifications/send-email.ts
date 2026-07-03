@@ -116,6 +116,49 @@ export async function sendNotification({
   }
 }
 
+export async function notifyAdminSignup({
+  companyName,
+  userEmail,
+  qbType,
+  fsmPlatform,
+}: {
+  companyName: string
+  userEmail: string
+  qbType: string | null
+  fsmPlatform: string
+}): Promise<void> {
+  const resend = getResend()
+  if (!resend) return
+
+  const adminEmail = process.env.ADMIN_EMAIL ?? 'thedillons01@gmail.com'
+
+  try {
+    await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: adminEmail,
+      subject: `New signup: ${companyName}`,
+      html: `
+        <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
+          <div style="background: #1A3D2B; padding: 16px 20px; border-radius: 8px 8px 0 0;">
+            <span style="color: white; font-size: 15px; font-weight: 600;">New Purchasomatic Signup</span>
+          </div>
+          <div style="background: white; border: 1px solid #E5E7EB; border-top: none; border-radius: 0 0 8px 8px; padding: 24px;">
+            <table style="font-size: 14px; color: #111827; border-collapse: collapse; width: 100%;">
+              <tr><td style="padding: 4px 0; color: #6B7280; width: 120px;">Company</td><td style="padding: 4px 0; font-weight: 500;">${companyName}</td></tr>
+              <tr><td style="padding: 4px 0; color: #6B7280;">Email</td><td style="padding: 4px 0;">${userEmail}</td></tr>
+              <tr><td style="padding: 4px 0; color: #6B7280;">QB type</td><td style="padding: 4px 0;">${qbType ?? 'not set'}</td></tr>
+              <tr><td style="padding: 4px 0; color: #6B7280;">FSM</td><td style="padding: 4px 0;">${fsmPlatform}</td></tr>
+            </table>
+            <a href="https://www.purchasomatic.com/admin" style="display: inline-block; margin-top: 16px; background: #2DB87A; color: white; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: 500; text-decoration: none;">View in Admin</a>
+          </div>
+        </div>
+      `,
+    })
+  } catch (err) {
+    console.error('[notifications] Admin signup notify failed:', err)
+  }
+}
+
 async function insertInAppNotification(
   supabase: ReturnType<typeof getServiceClient>,
   companyId: string,

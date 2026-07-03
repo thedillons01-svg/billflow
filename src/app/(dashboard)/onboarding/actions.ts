@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { createServiceClient } from '@/lib/supabase/service'
+import { notifyAdminSignup } from '@/lib/notifications/send-email'
 import { redirect } from 'next/navigation'
 
 type ServiceClient = ReturnType<typeof createServiceClient>
@@ -87,6 +88,8 @@ export async function saveCompanySetup(formData: FormData) {
       amount:      25,
       description: 'Free trial — 25 credits',
     })
+
+    notifyAdminSignup({ companyName: name.trim(), userEmail: user.email ?? '', qbType, fsmPlatform }).catch(() => {})
   }
 
   redirect('/bills')
@@ -150,6 +153,8 @@ export async function saveCompanySetupStep1(formData: FormData) {
       amount:      25,
       description: 'Free trial — 25 credits',
     })
+
+    notifyAdminSignup({ companyName: name.trim(), userEmail: user.email ?? '', qbType, fsmPlatform }).catch(() => {})
   }
   // No redirect — caller advances the step in client state
 }
