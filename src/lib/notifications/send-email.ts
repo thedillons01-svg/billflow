@@ -135,7 +135,7 @@ export async function notifyAdminSignup({
   try {
     await resend.emails.send({
       from: FROM_ADDRESS,
-      to: adminEmail,
+      to: [adminEmail, 'heather@purchasomatic.com'],
       subject: `New signup: ${companyName}`,
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px;">
