@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data: company } = await supabase
     .from('companies')
-    .select('company_id, name, qbd_service_key')
+    .select('company_id, name, qbd_service_key, qbd_file_id')
     .single()
 
   if (!company) return NextResponse.json({ error: 'No company' }, { status: 404 })
@@ -20,6 +20,17 @@ export async function GET() {
     serviceKey = randomBytes(8).toString('hex')
     await supabase.from('companies')
       .update({ qbd_service_key: serviceKey })
+      .eq('company_id', company.company_id)
+  }
+
+  // FileID must stay stable across re-downloads of the .QWC file — QuickBooks Desktop
+  // remembers the OwnerID/FileID pair it first saw, and handing it a new FileID for the
+  // same OwnerID on a later reconnect triggers QBWC1039 (Unique OwnerID/FileID pair required).
+  let fileId = company.qbd_file_id
+  if (!fileId) {
+    fileId = `{${randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5').toUpperCase()}}`
+    await supabase.from('companies')
+      .update({ qbd_file_id: fileId })
       .eq('company_id', company.company_id)
   }
 
@@ -36,7 +47,7 @@ export async function GET() {
   <UserName>${serviceKey}</UserName>
   <Password>${serviceKey}</Password>
   <OwnerID>{${company.company_id.toUpperCase()}}</OwnerID>
-  <FileID>{${randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5').toUpperCase()}}</FileID>
+  <FileID>${fileId}</FileID>
   <QBType>QBFS</QBType>
   <Scheduler>
     <RunEveryNMinutes>30</RunEveryNMinutes>
