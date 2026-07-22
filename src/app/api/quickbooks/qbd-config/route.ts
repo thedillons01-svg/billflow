@@ -9,7 +9,7 @@ export async function GET() {
 
   const { data: company } = await supabase
     .from('companies')
-    .select('company_id, name, qbd_service_key, qbd_file_id')
+    .select('company_id, name, qbd_service_key, qbd_file_id, qbd_owner_id')
     .single()
 
   if (!company) return NextResponse.json({ error: 'No company' }, { status: 404 })
@@ -23,14 +23,30 @@ export async function GET() {
       .eq('company_id', company.company_id)
   }
 
+  const newGuid = () =>
+    `{${randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5').toUpperCase()}}`
+
   // FileID must stay stable across re-downloads of the .QWC file — QuickBooks Desktop
   // remembers the OwnerID/FileID pair it first saw, and handing it a new FileID for the
   // same OwnerID on a later reconnect triggers QBWC1039 (Unique OwnerID/FileID pair required).
   let fileId = company.qbd_file_id
   if (!fileId) {
-    fileId = `{${randomBytes(16).toString('hex').replace(/(.{8})(.{4})(.{4})(.{4})(.{12})/, '$1-$2-$3-$4-$5').toUpperCase()}}`
+    fileId = newGuid()
     await supabase.from('companies')
       .update({ qbd_file_id: fileId })
+      .eq('company_id', company.company_id)
+  }
+
+  // OwnerID must also stay stable, but be rotatable: if a customer's QuickBooks file
+  // already latched onto a mismatched OwnerID/FileID pair (e.g. from before FileID was
+  // stable), no amount of re-adding the app can clear it on the QB side. Support can
+  // null out both qbd_owner_id and qbd_file_id for that company to issue a fresh pair
+  // QuickBooks has never seen before.
+  let ownerId = company.qbd_owner_id
+  if (!ownerId) {
+    ownerId = newGuid()
+    await supabase.from('companies')
+      .update({ qbd_owner_id: ownerId })
       .eq('company_id', company.company_id)
   }
 
@@ -46,7 +62,7 @@ export async function GET() {
   <AppSupport>${appUrl}/settings</AppSupport>
   <UserName>${serviceKey}</UserName>
   <Password>${serviceKey}</Password>
-  <OwnerID>{${company.company_id.toUpperCase()}}</OwnerID>
+  <OwnerID>${ownerId}</OwnerID>
   <FileID>${fileId}</FileID>
   <QBType>QBFS</QBType>
   <Scheduler>
