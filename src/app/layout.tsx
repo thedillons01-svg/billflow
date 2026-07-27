@@ -19,6 +19,9 @@ export const metadata: Metadata = {
     template: '%s | Purchasomatic',
   },
   description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
+  verification: {
+    google: 'FEUF-HMzREY1Akg2JOZkBVGW7GqRsMa9We1dnadNEMo',
+  },
 };
 
 export default function RootLayout({
