@@ -88,12 +88,21 @@ async function generateInvoicePdf(bill: Bill): Promise<Uint8Array> {
 }
 
 async function main() {
+  const companyId = process.argv[2]
+  if (!companyId) {
+    console.error('Usage: tsx scripts/seed-bill-pdfs.ts <company_id>')
+    console.error('Only fills in bills that are missing a pdf_url — never overwrites existing PDFs.')
+    process.exit(1)
+  }
+
   const { data: bills, error } = await supabase
     .from('bills')
     .select(`
       bill_id, company_id, vendor_name_raw, invoice_number, invoice_date, total,
       bill_line_items ( description, quantity, unit_cost, extended_cost, sort_order )
     `)
+    .eq('company_id', companyId)
+    .is('pdf_url', null)
 
   if (error || !bills) {
     console.error('Failed to fetch bills:', error)
