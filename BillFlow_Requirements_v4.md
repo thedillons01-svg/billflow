@@ -56,6 +56,14 @@ Purchasomatic uses per-transaction credit pricing, roughly equivalent to AutoEnt
 - Wrong document type rejected: no charge
 - Credit balance visible on dashboard and in settings at all times
 
+### 1.7.1 Out-of-Credits Handling
+When a company's credit balance hits zero, incoming invoices and POs are **held uncharged in a processing queue** — never rejected, never bounced back requiring the sender to resend. Same pattern as duplicate detection: captured, parked, no credit deducted.
+- Held documents show a distinct "Held — Out of Credits" status in the inbox
+- An always-on error notification fires when the hold starts, then re-fires at most once per day for as long as new documents keep arriving while still held — not per document (avoid spam), but not a single silent notification either while the queue keeps growing
+- No repeat notification on a day with no new held documents — nothing new to report
+- Queue auto-drains and processes normally, in received order, the moment credits become available again (top-up purchase or next monthly renewal)
+- No accumulating overage charges, no per-transaction billing beyond the plan — avoids the billing-anxiety problem credit pricing already has to manage
+
 ### 1.8 UX Design Principle — Inline Explanations Everywhere
 Every field, toggle, and setting in Purchasomatic must have inline helper text explaining what it does, what happens when it's on vs off, and any consequences worth knowing. Users should never need to open a help article to understand a setting. This is a standing design requirement, not optional polish. It directly reduces support volume and builds user confidence.
 
@@ -435,12 +443,13 @@ QB connection status visible on dashboard. Credit balance visible on dashboard. 
 
 | Area | Contains |
 |------|----------|
-| Inbox | Unprocessed only: Needs Review, Pending Job Match, Sync Error, Processing. Should be empty or near-empty most days. |
+| Inbox | Unprocessed only: Needs Review, Pending Job Match, Held — Out of Credits, Sync Error, Processing. Should be empty or near-empty most days. |
 | Archive | All published bills. Searchable, filterable by date/vendor/job/status. Bills auto-move here on confirmed publish. |
 
 ### 10.3 Inbox Views
 - Needs Review (default): New bills, auto-publish failures with specific reason, Sync Error bills
 - Pending Job Match: Bills waiting for QB job to appear. Retry every 2 hours during business hours.
+- Held — Out of Credits: Bills/POs captured but not yet charged, waiting on a credit top-up or plan renewal (see 1.7.1). Auto-processes and clears once credits are available.
 - All Inbox: All unarchived bills
 
 ### 10.4 Inbox List View
@@ -468,7 +477,7 @@ Deleted bills go to Trash with 30-day recovery window. Bills can be restored to 
 | Daily digest | Optional, off by default |
 | In-app notification bell | Shows unread error count. |
 
-Error notifications (always on, never silenceable): document sent to wrong capture address, unrecognized sender, PDF unreadable, duplicate detected and held, job match failed after retry exhausted, auto-publish disabled due to error, QB sync error, QBD heartbeat lost.
+Error notifications (always on, never silenceable): document sent to wrong capture address, unrecognized sender, PDF unreadable, duplicate detected and held, job match failed after retry exhausted, auto-publish disabled due to error, QB sync error, QBD heartbeat lost, credit balance exhausted (see 1.7.1 — fires when the hold starts, then re-fires at most daily while new documents keep arriving held).
 
 Success notifications (on by default, can be disabled): bill successfully processed, bill auto-published, PO processed, PO matched to incoming bill.
 
