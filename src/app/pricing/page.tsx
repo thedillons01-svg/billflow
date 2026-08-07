@@ -1,30 +1,30 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { MarketingNav } from '@/components/marketing-nav'
+import { SUBSCRIPTION_PLANS } from '@/lib/stripe/client'
 
 export const metadata: Metadata = {
   title: 'Pricing — Purchasomatic',
   description: 'Simple per-transaction pricing. Start with 25 free credits — no credit card required. Subscribe when you\'re ready.',
 }
 
-const PACKAGES = [
-  {
-    name: 'Starter',
-    price: 76,
-    credits: 200,
-    rate: '$0.38',
-    popular: false,
-    description: 'For smaller contractors or teams getting started with automated invoice capture.',
-  },
-  {
-    name: 'Professional',
-    price: 180,
-    credits: 500,
-    rate: '$0.36',
-    popular: true,
-    description: 'For active contractors processing invoices and POs from multiple vendors every month.',
-  },
-]
+const PLAN_DESCRIPTIONS: Record<string, string> = {
+  Starter: 'For occasional invoice volume — a few vendors, a few jobs a month.',
+  Basic: 'For steady month-to-month invoice and PO volume.',
+  Professional: 'For active contractors processing invoices and POs from multiple vendors every month.',
+  Business: 'For high-volume shops running invoices and POs across many jobs and vendors.',
+}
+
+const PACKAGES = Object.values(SUBSCRIPTION_PLANS)
+  .sort((a, b) => a.credits - b.credits)
+  .map(plan => ({
+    name: plan.name,
+    price: plan.monthlyUsd,
+    credits: plan.credits,
+    rateNote: plan.rateNote,
+    popular: plan.popular,
+    description: PLAN_DESCRIPTIONS[plan.name] ?? '',
+  }))
 
 const CREDIT_RULES = [
   { icon: 'ti-file-invoice',    label: 'Vendor invoice',      cost: '1 credit',  note: 'Line item extraction always included' },
@@ -88,8 +88,8 @@ export default function PricingPage() {
 
       {/* Plans */}
       <section style={{ padding: '72px 24px', background: 'white' }}>
-        <div style={{ maxWidth: 640, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 20 }}>
+        <div style={{ maxWidth: 1040, margin: '0 auto' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 20 }}>
             {PACKAGES.map(pkg => (
               <div
                 key={pkg.name}
@@ -122,7 +122,7 @@ export default function PricingPage() {
                   {pkg.credits} credits / month
                 </div>
                 <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
-                  {pkg.rate} per transaction
+                  {pkg.rateNote}
                 </div>
                 <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.55, marginBottom: 24 }}>
                   {pkg.description}

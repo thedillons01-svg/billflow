@@ -67,8 +67,7 @@ src/
 
 ### Pricing
 - Per-transaction credit model mirroring AutoEntry at slightly lower rates
-- Bills: 2 credits per invoice (line item extraction always included)
-- POs: 1 credit per PO
+- 1 credit per transaction (bill or PO) — line item extraction always included, no separate header-only tier
 - Reprocessing: no charge
 - Duplicates/wrong document type rejected: no charge
 - Flat monthly subscription option also available

@@ -49,8 +49,8 @@ Job costing is entirely optional. Company-level setting: job_costing_enabled (bo
 ### 1.7 Pricing Model
 Purchasomatic uses per-transaction credit pricing, roughly equivalent to AutoEntry (~$0.40/transaction).
 - 1 credit per transaction (bill or PO) — line item extraction always included, no separate tier
-- Credits purchased in bundles; flat monthly subscription option also available
-- Bundle pricing: 50 credits $20 · 100 credits $40 · 500 credits $190 · 1,000 credits $360
+- Sold as monthly subscription plans, credits roll over month to month
+- Plan pricing: 50 credits $20 ($0.40/txn) · 100 credits $40 ($0.40/txn) · 200 credits $76 ($0.38/txn) · 500 credits $180 ($0.36/txn)
 - Reprocessing: no charge — same document, user asking for better extraction or re-applying defaults
 - Duplicate detected and rejected: no charge
 - Wrong document type rejected: no charge

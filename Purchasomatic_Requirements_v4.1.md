@@ -176,13 +176,13 @@ All capture addresses use the Purchasomatic domain:
 - `[prefix]-pos@purchasomatic.com`
 
 ### 7.2 Pricing Tiers (Stripe)
-Credit bundles currently configured in Stripe (test mode):
-- Starter: 50 credits / $20 per month
-- Basic: 100 credits / $40 per month
-- Professional: 500 credits / $190 per month
-- Business: 200 credits / $76 per month
+Confirmed monthly subscription plans, credits roll over:
+- Starter: 50 credits / $20 per month ($0.40/transaction)
+- Basic: 100 credits / $40 per month ($0.40/transaction)
+- Professional (most popular): 200 credits / $76 per month ($0.38/transaction)
+- Business: 500 credits / $180 per month ($0.36/transaction)
 
-Note: Pricing tiers should be reviewed before going live — the "per month" recurring model may need to be reconsidered vs one-time credit bundles.
+Volume breaks start at the Professional tier. Recurring monthly-subscription model confirmed over one-time bundles.
 
 ---
 *Document version: 4.1 | May 2026 | Confidential*
