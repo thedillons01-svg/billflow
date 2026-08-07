@@ -1,6 +1,7 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { MarketingNav } from '@/components/marketing-nav'
 
 export const metadata: Metadata = {
   title: 'Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
@@ -33,7 +34,7 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
-      <Nav isLoggedIn={!!user} />
+      <MarketingNav isLoggedIn={!!user} />
       <Hero />
       <LogoStrip />
       <HowItWorks />
@@ -43,103 +44,6 @@ export default async function LandingPage() {
       <CtaBanner />
       <Footer />
     </div>
-  )
-}
-
-/* ─── Nav ─────────────────────────────────────────────────────────── */
-
-function Nav({ isLoggedIn }: { isLoggedIn: boolean }) {
-  return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(255,255,255,0.95)',
-        backdropFilter: 'blur(8px)',
-        borderBottom: '1px solid #E5E7EB',
-      }}
-    >
-      <div
-        style={{
-          maxWidth: 1100,
-          margin: '0 auto',
-          padding: '0 24px',
-          height: 60,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        {/* Logo */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 28, height: 28 }} />
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#1A3D2B', letterSpacing: '-0.01em' }}>
-            Purchasomatic
-          </span>
-        </div>
-
-        {/* Nav links */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link href="/pricing" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 14px' }}>
-            Pricing
-          </Link>
-          <Link href="/help" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 14px' }}>
-            Help
-          </Link>
-          {isLoggedIn ? (
-            <Link
-              href="/home"
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: 'white',
-                textDecoration: 'none',
-                background: '#2DB87A',
-                padding: '7px 18px',
-                borderRadius: 7,
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              Go to app
-              <i className="ti ti-arrow-right" style={{ fontSize: 13 }} />
-            </Link>
-          ) : (
-            <>
-              <Link
-                href="/login"
-                style={{
-                  fontSize: 14,
-                  fontWeight: 500,
-                  color: '#4B5563',
-                  textDecoration: 'none',
-                  padding: '6px 14px',
-                  borderRadius: 6,
-                }}
-              >
-                Sign in
-              </Link>
-              <Link
-                href="/signup"
-                style={{
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: 'white',
-                  textDecoration: 'none',
-                  background: '#2DB87A',
-                  padding: '7px 18px',
-                  borderRadius: 7,
-                }}
-              >
-                Get started free
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
   )
 }
 

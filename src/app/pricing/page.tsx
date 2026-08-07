@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import { MarketingNav } from '@/components/marketing-nav'
 
 export const metadata: Metadata = {
   title: 'Pricing — Purchasomatic',
@@ -67,7 +68,7 @@ const FAQS = [
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
-      <Nav />
+      <MarketingNav />
 
       {/* Hero */}
       <section style={{ background: '#1A3D2B', padding: '80px 24px 88px' }}>
@@ -255,40 +256,6 @@ export default function PricingPage() {
 
       <Footer />
     </div>
-  )
-}
-
-function Nav() {
-  return (
-    <header style={{
-      position: 'sticky', top: 0, zIndex: 50,
-      background: 'rgba(255,255,255,0.95)', backdropFilter: 'blur(8px)',
-      borderBottom: '1px solid #E5E7EB',
-    }}>
-      <div style={{
-        maxWidth: 1100, margin: '0 auto', padding: '0 24px',
-        height: 60, display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      }}>
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <img src="/logo-28.png" alt="Purchasomatic" style={{ width: 28, height: 28 }} />
-          <span style={{ fontSize: 16, fontWeight: 600, color: '#1A3D2B', letterSpacing: '-0.01em' }}>Purchasomatic</span>
-        </Link>
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <Link href="/help" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 14px' }}>
-            Help
-          </Link>
-          <Link href="/login" style={{ fontSize: 14, fontWeight: 500, color: '#4B5563', textDecoration: 'none', padding: '6px 14px' }}>
-            Sign in
-          </Link>
-          <Link href="/signup" style={{
-            fontSize: 14, fontWeight: 600, color: 'white', textDecoration: 'none',
-            background: '#2DB87A', padding: '7px 18px', borderRadius: 7,
-          }}>
-            Get started free
-          </Link>
-        </nav>
-      </div>
-    </header>
   )
 }
 
