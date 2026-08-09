@@ -7,6 +7,7 @@ import { sendNotification } from '@/lib/notifications/send-email'
 import { syncVendorsIfStale, syncJobsIfStale } from '@/lib/quickbooks/sync'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 import { pushPOToQBO } from '@/lib/quickbooks/push-po'
+import { extractJobCandidates, jobMatchesCandidates, type CacheJob } from '@/lib/quickbooks/job-matching'
 
 // Generate normalized variants of a vendor name to handle punctuation differences
 // e.g. "Gensco, Inc." → ["Gensco, Inc.", "Gensco Inc.", "Gensco Inc"]
@@ -298,54 +299,6 @@ export async function processPO(poId: string, opts?: { skipCredits?: boolean; pr
 // Job matching — same fuzzy logic as bill processing, but updates PO header
 // ---------------------------------------------------------------------------
 
-// Strip common label prefixes and extract numeric tokens from a reference string.
-// Year-like numbers (2000-2099) are excluded — they appear in PO numbers like
-// "PO-2026-1061" and would cause false matches against jobs named "2026-*".
-function extractCandidates(raw: string): string[] {
-  const s = raw.trim().toLowerCase()
-  const candidates = new Set<string>([s])
-
-  const stripped = s.replace(
-    /^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|customer\s*[#:\-]?\s*|#\s*)/,
-    ''
-  ).trim()
-  if (stripped && stripped !== s) candidates.add(stripped)
-
-  for (const n of s.match(/\b\d{4,}\b/g) ?? []) {
-    const num = parseInt(n, 10)
-    if (num >= 2000 && num <= 2099) continue   // skip year-like numbers
-    candidates.add(n)
-  }
-
-  return [...candidates].filter(Boolean)
-}
-
-type CacheJob = {
-  qb_job_id: string
-  job_number: string | null
-  job_name: string | null
-  customer_name: string | null
-  is_customer: boolean
-}
-
-// Returns true if any candidate fuzzy-matches the job's number or name.
-// customer_name is intentionally excluded — a customer-name match alone is not
-// sufficient to identify a specific job. Customer matching is a separate fallback pass.
-// Year-like job_numbers (2000-2099) are skipped for the "contained in" check to prevent
-// a PO number like "PO-2026-1061" from matching a job named "2026-Riverside HVAC".
-function jobMatchesCandidates(job: CacheJob, candidates: string[]): boolean {
-  const num  = job.job_number?.trim().toLowerCase()
-  const name = job.job_name?.trim().toLowerCase()
-  const numInt = num ? parseInt(num, 10) : NaN
-  const numIsYear = !isNaN(numInt) && numInt >= 2000 && numInt <= 2099
-  for (const c of candidates) {
-    if (num === c || name === c) return true
-    if (num && !numIsYear && num.length >= 4 && c.includes(num)) return true
-    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
-  }
-  return false
-}
-
 // Returns true if any candidate fuzzy-matches the customer record's name.
 function customerMatchesCandidates(customer: CacheJob, candidates: string[]): boolean {
   const name = (customer.job_name ?? customer.customer_name ?? '').trim().toLowerCase()
@@ -374,8 +327,8 @@ async function tryMatchJobForPO(
   if (!primaryRef) return null
 
   const candidates = [
-    ...extractCandidates(primaryRef),
-    ...(fields.customerName ? extractCandidates(fields.customerName) : []),
+    ...extractJobCandidates(primaryRef),
+    ...(fields.customerName ? extractJobCandidates(fields.customerName) : []),
   ]
 
   const { data: rows } = await supabase
@@ -409,7 +362,7 @@ async function tryMatchJobForPO(
 
   // No job match — try to identify the customer so the UI can pre-populate the create form.
   if (fields.customerName) {
-    const custCandidates = extractCandidates(fields.customerName)
+    const custCandidates = extractJobCandidates(fields.customerName)
     const customers = allRows.filter(r => r.is_customer)
     const custMatch = customers.find(c => customerMatchesCandidates(c, custCandidates))
     if (custMatch) {

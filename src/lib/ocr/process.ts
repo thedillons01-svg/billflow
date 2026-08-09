@@ -5,6 +5,7 @@ import { extractTier3 } from './tier3'
 import type { ExtractionResult, TierResult } from './types'
 import { sendNotification } from '@/lib/notifications/send-email'
 import { syncJobsIfStale, syncVendorsIfStale } from '@/lib/quickbooks/sync'
+import { extractJobCandidates, jobMatchesCandidates, type CacheJob } from '@/lib/quickbooks/job-matching'
 import { saveToStorage } from '@/lib/storage/save-to-storage'
 
 // ---------------------------------------------------------------------------
@@ -734,71 +735,12 @@ export async function processBill(billId: string, opts?: { skipCredits?: boolean
 // Job matching — match bill to QB job by PO reference field
 // ---------------------------------------------------------------------------
 
-// Build a set of candidate strings from a PO reference to try matching against job records.
-// Handles prefix stripping ("Job #52256" → "52256") and multiple references ("52256 and 52258").
-function extractJobCandidates(poReference: string): string[] {
-  const raw = poReference.trim().toLowerCase()
-  const candidates = new Set<string>([raw])
-
-  // Strip common prefixes used by techs and FSMs when writing PO/job references
-  const stripped = raw
-    .replace(/^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|#\s*)/, '')
-    .trim()
-  if (stripped && stripped !== raw) candidates.add(stripped)
-
-  // Extract 4+ digit sequences, but skip year-like numbers (2000-2099) to prevent
-  // "PO-2026-1061" from matching a job named "2026-Riverside" via the year "2026".
-  const numbers = raw.match(/\b\d{4,}\b/g) ?? []
-  for (const n of numbers) {
-    const num = parseInt(n, 10)
-    if (num >= 2000 && num <= 2099) continue
-    candidates.add(n)
-  }
-
-  return [...candidates].filter(Boolean)
-}
-
-function jobMatchesCandidates(
-  job: { qb_job_id: string; job_number: string | null; job_name: string | null },
-  candidates: string[]
-): boolean {
-  const num  = job.job_number?.trim().toLowerCase()
-  const name = job.job_name?.trim().toLowerCase()
-  for (const c of candidates) {
-    if (num === c || name === c) return true
-    if (num && num.length >= 4 && c.includes(num)) return true
-    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
-  }
-  return false
-}
-
 // Extract number of days from a payment terms string — "Net 30" → 30, "Due on Receipt" → 0
 function parsePaymentTermDays(terms: string): number | null {
   const net = terms.match(/\bnet\s*(\d+)\b/i)
   if (net) return parseInt(net[1])
   if (/due\s+on\s+receipt|immediate/i.test(terms)) return 0
   return null
-}
-
-type CacheJob = { qb_job_id: string; job_number: string | null; job_name: string | null; customer_name: string | null; is_customer: boolean }
-
-// Customer name is intentionally excluded — a customer-name match alone is not
-// sufficient to identify a specific job. Customer matching is a separate fallback pass.
-function jobMatchesCandidatesFull(job: CacheJob, candidates: string[]): boolean {
-  const num  = job.job_number?.trim().toLowerCase()
-  const name = job.job_name?.trim().toLowerCase()
-  // Year-like job_numbers (2000-2099) appear frequently in job names like "2026 Riverside HVAC".
-  // The regex in buildJobRow extracts the first number it finds, so "2026 Riverside" → job_number="2026".
-  // Using that as a "contained in" signal causes false matches against any PO-2026-XXXX reference.
-  // Exact match (num === c) is still allowed — if someone explicitly references "2026" as a job number.
-  const numInt = num ? parseInt(num, 10) : NaN
-  const numIsYear = !isNaN(numInt) && numInt >= 2000 && numInt <= 2099
-  for (const c of candidates) {
-    if (num === c || name === c) return true
-    if (num && !numIsYear && num.length >= 4 && c.includes(num)) return true
-    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
-  }
-  return false
 }
 
 export async function tryMatchJob(
@@ -828,7 +770,7 @@ export async function tryMatchJob(
   if (!rows || rows.length === 0) return false
 
   const subCustomers = (rows as CacheJob[]).filter(r => !r.is_customer)
-  let match = subCustomers.find(j => jobMatchesCandidatesFull(j, candidates))
+  let match = subCustomers.find(j => jobMatchesCandidates(j, candidates))
 
   if (!match) {
     await syncJobsIfStale(companyId)
@@ -836,7 +778,7 @@ export async function tryMatchJob(
       .from('qb_jobs_cache')
       .select('qb_job_id, job_number, job_name, customer_name, is_customer')
       .eq('company_id', companyId)
-    match = ((freshRows ?? []) as CacheJob[]).filter(r => !r.is_customer).find(j => jobMatchesCandidatesFull(j, candidates))
+    match = ((freshRows ?? []) as CacheJob[]).filter(r => !r.is_customer).find(j => jobMatchesCandidates(j, candidates))
   }
 
   if (!match) return false

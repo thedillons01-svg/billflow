@@ -1,5 +1,6 @@
 import { createServiceClient } from '@/lib/supabase/service'
 import { getQBClient } from './client'
+import { extractJobCandidates, jobMatchesCandidates, type CacheJob } from './job-matching'
 
 type QBAccount = {
   Id: string
@@ -768,36 +769,6 @@ async function rematchUnmatchedVendors(companyId: string, supabase: SB): Promise
   }
 }
 
-type CacheJobRow = { qb_job_id: string; job_number: string | null; job_name: string | null; is_customer: boolean }
-
-function extractJobCandidatesForSync(ref: string): string[] {
-  const raw = ref.trim().toLowerCase()
-  const candidates = new Set<string>([raw])
-  const stripped = raw
-    .replace(/^(job\s*[#\-]?\s*(no\.?\s*)?|work\s*order\s*[#\-]?\s*|wo\s*[#\-]?\s*|p\.?o\.?\s*[#\-]?\s*(no\.?\s*)?|order\s*[#\-]?\s*(no\.?\s*)?|ref\.?\s*[#:\-]?\s*|ticket\s*[#\-]?\s*|#\s*)/, '')
-    .trim()
-  if (stripped && stripped !== raw) candidates.add(stripped)
-  for (const n of raw.match(/\b\d{4,}\b/g) ?? []) {
-    const num = parseInt(n, 10)
-    if (num >= 2000 && num <= 2099) continue
-    candidates.add(n)
-  }
-  return [...candidates].filter(Boolean)
-}
-
-function jobMatchesForSync(job: CacheJobRow, candidates: string[]): boolean {
-  const num = job.job_number?.trim().toLowerCase()
-  const name = job.job_name?.trim().toLowerCase()
-  const numInt = num ? parseInt(num, 10) : NaN
-  const numIsYear = !isNaN(numInt) && numInt >= 2000 && numInt <= 2099
-  for (const c of candidates) {
-    if (num === c || name === c) return true
-    if (num && !numIsYear && num.length >= 4 && c.includes(num)) return true
-    if (name && name.length >= 4 && (c.includes(name) || name.includes(c))) return true
-  }
-  return false
-}
-
 // Retry job matching for pending_job_match bills using the freshly-synced job cache.
 // Loads jobs once and iterates — avoids N×syncJobsIfStale calls that the cron would make.
 async function rematchPendingJobMatch(companyId: string, supabase: SB): Promise<void> {
@@ -815,7 +786,7 @@ async function rematchPendingJobMatch(companyId: string, supabase: SB): Promise<
     .select('qb_job_id, job_number, job_name, is_customer')
     .eq('company_id', companyId)
 
-  const subCustomers = ((jobRows ?? []) as CacheJobRow[]).filter(r => !r.is_customer)
+  const subCustomers = ((jobRows ?? []) as CacheJob[]).filter(r => !r.is_customer)
   if (subCustomers.length === 0) return
 
   type PendingBill = { bill_id: string; vendor_po_reference: string | null; job_name_extracted: string | null; customer_name_extracted: string | null }
@@ -824,11 +795,11 @@ async function rematchPendingJobMatch(companyId: string, supabase: SB): Promise<
     if (!primaryRef) continue
 
     const candidates = [
-      ...extractJobCandidatesForSync(primaryRef),
-      ...(bill.customer_name_extracted ? extractJobCandidatesForSync(bill.customer_name_extracted) : []),
+      ...extractJobCandidates(primaryRef),
+      ...(bill.customer_name_extracted ? extractJobCandidates(bill.customer_name_extracted) : []),
     ]
 
-    const match = subCustomers.find(j => jobMatchesForSync(j, candidates))
+    const match = subCustomers.find(j => jobMatchesCandidates(j, candidates))
     if (!match) continue
 
     await supabase.from('bill_line_items').update({ job_id: match.qb_job_id }).eq('bill_id', bill.bill_id)
