@@ -13,6 +13,7 @@ const JSON_LD = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
   name: 'Purchasomatic',
+  alternateName: 'Purchaseomatic',
   applicationCategory: 'BusinessApplication',
   operatingSystem: 'Web',
   description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
@@ -653,6 +654,9 @@ function Footer() {
           <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>Purchasomatic</span>
           <span style={{ fontSize: 13, color: '#4B5563', marginLeft: 8 }}>
             &copy; {new Date().getFullYear()} Heather Dillon
+          </span>
+          <span style={{ fontSize: 11, color: '#374151', marginLeft: 8 }}>
+            (also searched as &quot;Purchaseomatic&quot;)
           </span>
         </div>
 
