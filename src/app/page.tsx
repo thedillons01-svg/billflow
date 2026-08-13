@@ -663,6 +663,7 @@ function Footer() {
         <nav style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
           {[
             { label: 'Pricing', href: '/pricing' },
+            { label: 'Blog', href: '/blog' },
             { label: 'Help', href: '/help' },
             { label: 'Sign in', href: '/login' },
             { label: 'Create account', href: '/signup' },

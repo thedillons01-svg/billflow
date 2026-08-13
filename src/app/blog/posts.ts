@@ -8,6 +8,13 @@ export type BlogPost = {
 // Add new posts here — both the blog index and the sitemap pick them up automatically.
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'how-to-import-vendor-bills-quickbooks',
+    title: 'How to Import Vendor Bills into QuickBooks Online',
+    description:
+      'There are 3 ways to import vendor bills into QuickBooks Online — but only one automatically matches them to the right job. Learn which option is right for your trades business.',
+    date: '2026-08-07',
+  },
+  {
     slug: 'how-to-import-purchase-orders-into-quickbooks',
     title: 'How to Import Purchase Orders into QuickBooks',
     description:
