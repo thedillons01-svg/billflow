@@ -74,7 +74,7 @@ src/
 - Credit balance always visible on dashboard and in settings
 
 ### Invoice & PO Capture
-- Two capture addresses per company: [prefix]-bills@purchasomatic.com and [prefix]-pos@purchasomatic.com
+- Two capture addresses per company: [prefix]-bills@mail.purchasomatic.com and [prefix]-pos@mail.purchasomatic.com
 - Bills address: filters on "invoice" in subject or body
 - POs address: filters on "purchase order" or "order confirmation" in subject or body
 - Wrong document type sent to wrong address → rejected with specific redirect message, no charge
@@ -85,7 +85,7 @@ src/
 - Line item total (including tax lines) must exactly equal invoice header total for auto-publish
 
 ### Purchase Orders
-- PO confirmations captured via [prefix]-pos@purchasomatic.com
+- PO confirmations captured via [prefix]-pos@mail.purchasomatic.com
 - Purchasomatic creates QB Purchase Order records via API
 - When invoice arrives: matched to open PO by vendor + PO number
 - Bill created in QB linked to PO, discrepancies flagged

@@ -77,7 +77,7 @@ Onboarding is a guided sequence that does not end until the user has successfull
 | Step | Description |
 |------|-------------|
 | Step 1: Connect QuickBooks | QBO: OAuth flow. QBD: Web Connector setup guide with step-by-step screenshots. Purchasomatic immediately pulls: vendor list with QB default GL accounts and payment terms, chart of accounts, job/project list with customer names, customer list, class list if enabled. |
-| Step 2: Set up email forwarding | Purchasomatic generates two capture addresses: [prefix]-bills@purchasomatic.com and [prefix]-pos@purchasomatic.com. Prefix is customizable. Instructions for Gmail and Outlook with screenshots. User sets up forwarding rules and sends test emails to confirm both work. |
+| Step 2: Set up email forwarding | Purchasomatic generates two capture addresses: [prefix]-bills@mail.purchasomatic.com and [prefix]-pos@mail.purchasomatic.com. Prefix is customizable. Instructions for Gmail and Outlook with screenshots. User sets up forwarding rules and sends test emails to confirm both work. |
 | Step 3: Process first invoice | User forwards a real vendor invoice. Onboarding not complete until a bill has successfully landed in QuickBooks. |
 | Step 4: Set vendor defaults | After first invoice confirmed accurate, prompt to confirm default GL account. "Remember this for future invoices" prompt. |
 | Step 5: Enable auto-publish | After 5 invoices from a vendor with no errors, prominent inline prompt: "Enable auto-publish?" One tap to enable. Not buried in settings. |
@@ -103,10 +103,10 @@ Purchasomatic generates two capture email addresses per company:
 
 | Address | Purpose | Filter |
 |---------|---------|--------|
-| [prefix]-bills@purchasomatic.com | Vendor invoices | Subject or body contains "invoice" |
-| [prefix]-pos@purchasomatic.com | PO confirmations | Subject or body contains "purchase order" or "order confirmation" |
+| [prefix]-bills@mail.purchasomatic.com | Vendor invoices | Subject or body contains "invoice" |
+| [prefix]-pos@mail.purchasomatic.com | PO confirmations | Subject or body contains "purchase order" or "order confirmation" |
 
-Wrong document type handling: If a document is detected as the wrong type for its address, it is rejected with a specific plain-language notification: "A purchase order was sent to your bills address. Forward it to [prefix]-pos@purchasomatic.com instead." No credit charged.
+Wrong document type handling: If a document is detected as the wrong type for its address, it is rejected with a specific plain-language notification: "A purchase order was sent to your bills address. Forward it to [prefix]-pos@mail.purchasomatic.com instead." No credit charged.
 
 Size limit: 30MB per email.
 
@@ -179,7 +179,7 @@ Purchasomatic solves this by capturing PO confirmations through the same email p
 
 ### 4.2 PO Capture Flow
 1. Tech or PM places order with vendor
-2. Vendor emails PO confirmation → forwarded to [prefix]-pos@purchasomatic.com automatically
+2. Vendor emails PO confirmation → forwarded to [prefix]-pos@mail.purchasomatic.com automatically
 3. Purchasomatic extracts PO data, creates PO record in QB via API
 4. PO appears in Purchasomatic PO inbox with status: Open
 5. When vendor invoice arrives → Purchasomatic matches invoice to open PO by vendor + PO number
@@ -556,8 +556,8 @@ Shows all published bills for this vendor. Searchable and filterable by date and
 - Last QB sync timestamp, Re-Sync QuickBooks Data button
 
 ### 12.2 Capture Email
-- Bills capture address ([prefix]-bills@purchasomatic.com) with Copy button
-- POs capture address ([prefix]-pos@purchasomatic.com) with Copy button
+- Bills capture address ([prefix]-bills@mail.purchasomatic.com) with Copy button
+- POs capture address ([prefix]-pos@mail.purchasomatic.com) with Copy button
 - Prefix editable (must be unique across Purchasomatic)
 - Forwarding setup instructions for Gmail and Outlook
 - Notify Uploader toggle

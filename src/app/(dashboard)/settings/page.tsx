@@ -64,8 +64,8 @@ export default async function SettingsPage({
 
   const company = data as Company | null
   const isQBConnected = company?.qb_connection_status === 'connected'
-  const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@purchasomatic.com`
-  const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@purchasomatic.com`
+  const billsAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-bills@mail.purchasomatic.com`
+  const posAddress = `${company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'}-pos@mail.purchasomatic.com`
 
   return (
     <div className="flex flex-col h-full">
@@ -298,7 +298,7 @@ export default async function SettingsPage({
                         fontSize: 13,
                       }}
                     />
-                    <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>-bills@purchasomatic.com</span>
+                    <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>-bills@mail.purchasomatic.com</span>
                     <SaveButton>Save</SaveButton>
                   </div>
                   <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 3 }}>

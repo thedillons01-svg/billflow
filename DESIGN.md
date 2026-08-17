@@ -434,7 +434,7 @@ Body:    "No invoices need your attention. Auto-publish is running in the backgr
 ```
 Icon:    ti-mail-forward, 48px, text-tertiary
 Title:   "No invoices yet" — 16px, weight 500, text-primary
-Body:    "Forward a vendor invoice to [prefix]-bills@purchasomatic.com to get started." — 13px, text-secondary
+Body:    "Forward a vendor invoice to [prefix]-bills@mail.purchasomatic.com to get started." — 13px, text-secondary
 Action:  "View setup instructions" — link, #2DB87A
 ```
 

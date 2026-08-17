@@ -10,6 +10,9 @@ import { getFileCategory, convertToPdf, SUPPORTED_TYPES_LABEL } from '@/lib/conv
 
 const FORWARD_TO      = 'billflowdev@gmail.com'
 const FROM_ADDRESS    = 'Purchasomatic <notifications@purchasomatic.com>'
+// Capture addresses live on a dedicated subdomain (Postmark inbound MX) so the root
+// domain's MX can stay on Google Workspace for real mailboxes like heather@purchasomatic.com.
+const CAPTURE_DOMAIN   = 'mail.purchasomatic.com'
 
 async function forwardUnknownEmail(payload: PostmarkPayload, toAddress: string): Promise<void> {
   const key = process.env.RESEND_API_KEY
@@ -99,7 +102,7 @@ export async function POST(request: NextRequest) {
 
   // If the address isn't a recognised capture address, forward and stop
   const toAddrLower = toAddress.toLowerCase()
-  if (!toAddrLower.endsWith('-bills@purchasomatic.com') && !toAddrLower.endsWith('-pos@purchasomatic.com')) {
+  if (!toAddrLower.endsWith(`-bills@${CAPTURE_DOMAIN}`) && !toAddrLower.endsWith(`-pos@${CAPTURE_DOMAIN}`)) {
     await forwardUnknownEmail(payload, toAddress)
     return NextResponse.json({ skipped: true, reason: 'unknown_address_forwarded' })
   }
@@ -139,7 +142,7 @@ export async function POST(request: NextRequest) {
       const supabaseEarly = createServiceClient()
       const { data: co } = await supabaseEarly.from('companies').select('company_id, capture_email_prefix').eq('capture_email_prefix', companyPrefix).single()
       if (co) {
-        const posAddr = `${co.capture_email_prefix}-pos@purchasomatic.com`
+        const posAddr = `${co.capture_email_prefix}-pos@${CAPTURE_DOMAIN}`
         await supabaseEarly.from('processing_log').insert({
           company_id: co.company_id,
           action: 'wrong_capture_address',
@@ -162,7 +165,7 @@ export async function POST(request: NextRequest) {
       const supabaseEarly = createServiceClient()
       const { data: co } = await supabaseEarly.from('companies').select('company_id, capture_email_prefix').eq('capture_email_prefix', companyPrefix).single()
       if (co) {
-        const billsAddr = `${co.capture_email_prefix}-bills@purchasomatic.com`
+        const billsAddr = `${co.capture_email_prefix}-bills@${CAPTURE_DOMAIN}`
         await supabaseEarly.from('processing_log').insert({
           company_id: co.company_id,
           action: 'wrong_capture_address',

@@ -264,7 +264,7 @@ export function OnboardingForm({
                 Your capture address for invoices
               </p>
               <p style={{ fontFamily: 'monospace', fontSize: 13, color: '#1A3D2B', wordBreak: 'break-all' }}>
-                {prefixPreview}-bills@purchasomatic.com
+                {prefixPreview}-bills@mail.purchasomatic.com
               </p>
             </div>
 

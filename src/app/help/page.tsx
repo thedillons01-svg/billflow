@@ -150,7 +150,7 @@ const SECTIONS = [
         content: [
           'Check your email client\'s sent folder to confirm the forward was sent.',
           'Make sure the email included a PDF attachment. Purchasomatic does not process HTML-only emails.',
-          'Check that the forwarding address is correct — it appears in Settings → Email Capture. The bills address ends in -bills@purchasomatic.com.',
+          'Check that the forwarding address is correct — it appears in Settings → Email Capture. The bills address ends in -bills@mail.purchasomatic.com.',
           'If the subject or body doesn\'t contain the word "invoice", Purchasomatic may have rejected it. You\'ll receive a rejection email at the address you forwarded from.',
           'If none of these apply, contact support@purchasomatic.com with the email subject and sender.',
         ],

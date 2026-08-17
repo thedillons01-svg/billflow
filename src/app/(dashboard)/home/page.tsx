@@ -52,8 +52,8 @@ export default async function DashboardPage() {
 
   const isQBConnected = company?.qb_connection_status === 'connected'
   const prefix = company?.capture_email_prefix ?? company?.company_id?.slice(0, 8) ?? 'your-company'
-  const billsAddress = `${prefix}-bills@purchasomatic.com`
-  const posAddress = `${prefix}-pos@purchasomatic.com`
+  const billsAddress = `${prefix}-bills@mail.purchasomatic.com`
+  const posAddress = `${prefix}-pos@mail.purchasomatic.com`
   const creditBalance = company?.credit_balance ?? 0
   const inboxTotal = (needsReviewCount ?? 0) + (pendingJobCount ?? 0)
 

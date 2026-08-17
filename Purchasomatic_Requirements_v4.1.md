@@ -172,8 +172,8 @@ The following items are added to the build sequence after the original 23 steps:
 
 ### 7.1 Capture Email Addresses
 All capture addresses use the Purchasomatic domain:
-- `[prefix]-bills@purchasomatic.com`
-- `[prefix]-pos@purchasomatic.com`
+- `[prefix]-bills@mail.purchasomatic.com`
+- `[prefix]-pos@mail.purchasomatic.com`
 
 ### 7.2 Pricing Tiers (Stripe)
 Confirmed monthly subscription plans, credits roll over:
