@@ -33,9 +33,17 @@ export function extractJobCandidates(raw: string): string[] {
   return [...candidates].filter(Boolean)
 }
 
-// Split into words, dropping punctuation.
+// Split into words, dropping punctuation. Normalizes "ph2"/"ph 2" style phase
+// abbreviations (common on vendor invoices/POs) to "phase 2" so they line up
+// with jobs named out in full, e.g. "Brownsville Commerce Center Ph2" vs.
+// "Brownsville Commerce Center — Phase 2".
 function tokenize(s: string): string[] {
-  return s.split(/[^a-z0-9]+/i).filter(Boolean)
+  return s.split(/[^a-z0-9]+/i).filter(Boolean).flatMap(t => {
+    const abbrev = t.match(/^ph(?:ase)?(\d+)$/i)
+    if (abbrev) return ['phase', abbrev[1]]
+    if (/^ph$/i.test(t)) return ['phase']
+    return [t]
+  })
 }
 
 // True if every "meaningful" word (3+ chars) on the shorter side appears as a whole
