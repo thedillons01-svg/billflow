@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { MarketingNav } from '@/components/marketing-nav'
+import { SUBSCRIPTION_PLANS } from '@/lib/stripe/client'
 
 export const metadata: Metadata = {
   title: 'Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
@@ -20,9 +21,9 @@ const JSON_LD = {
   url: 'https://www.purchasomatic.com',
   offers: {
     '@type': 'Offer',
-    price: '76',
+    price: '20',
     priceCurrency: 'USD',
-    description: '200 credits / month, starting plan',
+    description: '50 credits / month, starting plan',
   },
 }
 
@@ -383,10 +384,16 @@ function Features() {
 
 /* ─── Pricing ─────────────────────────────────────────────────────── */
 
-const PACKAGES = [
-  { credits: 200, price: 76,  name: 'Starter',      label: '200 credits / month', rate: '$0.38 / transaction', popular: false },
-  { credits: 500, price: 180, name: 'Professional', label: '500 credits / month', rate: '$0.36 / transaction', popular: true  },
-]
+const PACKAGES = Object.values(SUBSCRIPTION_PLANS)
+  .sort((a, b) => a.credits - b.credits)
+  .map(plan => ({
+    credits: plan.credits,
+    price:   plan.monthlyUsd,
+    name:    plan.name,
+    label:   `${plan.credits} credits / month`,
+    rate:    plan.rateNote,
+    popular: plan.popular,
+  }))
 
 function Pricing() {
   return (
@@ -404,7 +411,7 @@ function Pricing() {
           </p>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, maxWidth: 560, margin: '0 auto' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, maxWidth: 1040, margin: '0 auto' }}>
           {PACKAGES.map(pkg => (
             <div
               key={pkg.credits}
