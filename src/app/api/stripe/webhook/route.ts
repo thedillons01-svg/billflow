@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { getStripe } from '@/lib/stripe/client'
+import { getStripe, creditsForPriceId } from '@/lib/stripe/client'
 import { createServiceClient } from '@/lib/supabase/service'
 
 export async function POST(request: NextRequest) {
@@ -131,16 +131,46 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // ── Subscription payment failed ───────────────────────────────────
+  // ── Subscription updated: payment failure, or plan switched via portal ──
   if (event.type === 'customer.subscription.updated') {
     const sub = event.data.object as import('stripe').Stripe.Subscription
     const companyId = sub.metadata?.company_id
 
-    if (companyId && sub.status === 'past_due') {
+    // Sync subscription_status from Stripe's actual status on every update, not just
+    // the past_due transition — otherwise a recovered payment (past_due -> active)
+    // never gets written back, leaving the company stuck blocked once credits run out
+    // even though they're a current paying customer. Cancellation is handled by the
+    // separate customer.subscription.deleted event, not here.
+    const STATUS_MAP: Partial<Record<Stripe.Subscription.Status, 'active' | 'past_due'>> = {
+      active:   'active',
+      trialing: 'active',
+      past_due: 'past_due',
+      unpaid:   'past_due',
+    }
+    const mappedStatus = STATUS_MAP[sub.status]
+
+    if (companyId && mappedStatus) {
       await supabase
         .from('companies')
-        .update({ subscription_status: 'past_due' })
+        .update({ subscription_status: mappedStatus })
         .eq('company_id', companyId)
+
+      console.log(`[stripe-webhook] Subscription status synced — company ${companyId}, now ${mappedStatus} (Stripe: ${sub.status})`)
+    }
+
+    // Portal plan switches use proration_behavior: 'none', so this only
+    // updates what gets granted at the *next* renewal — no immediate
+    // charge or credit change happens here.
+    const currentPriceId = sub.items.data[0]?.price?.id ?? null
+    const newPlanCredits = currentPriceId ? creditsForPriceId(currentPriceId) : null
+
+    if (companyId && newPlanCredits) {
+      await supabase
+        .from('companies')
+        .update({ plan_credits: newPlanCredits })
+        .eq('company_id', companyId)
+
+      console.log(`[stripe-webhook] Plan synced from portal — company ${companyId}, now ${newPlanCredits} credits/month`)
     }
   }
 
