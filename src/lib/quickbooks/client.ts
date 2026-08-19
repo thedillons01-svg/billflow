@@ -115,6 +115,15 @@ export async function getQBClient(companyId: string) {
     if (tid) console.log(`[qb-client] intuit_tid=${tid} (${context})`)
   }
 
+  // Intuit rejects an unauthorized/revoked connection as either a bare 401, or a
+  // 403 carrying fault code 3100 (ApplicationAuthorizationFailed) — a real customer
+  // hit the latter and got a raw JSON error dumped on their bill instead of a
+  // "reconnect QuickBooks" prompt, because only 401 was treated as an auth failure.
+  function isAuthFailure(res: Response, bodyText: string): boolean {
+    if (res.status === 401) return true
+    return res.status === 403 && (bodyText.includes('"code":"3100"') || bodyText.includes('ApplicationAuthorizationFailed'))
+  }
+
   async function qbQuery(query: string) {
     const url = new URL(`${QBO_BASE_URL}/v3/company/${realmId}/query`)
     url.searchParams.set('query', query)
@@ -123,10 +132,11 @@ export async function getQBClient(companyId: string) {
     const res = await fetchWithRetry(url.toString(), {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
-    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) {
+      const bodyText = await res.text()
+      if (isAuthFailure(res, bodyText)) return handleUnauthorized()
       logTid(res, `query: ${query.slice(0, 80)}`)
-      throw new Error(`QBO query failed (${res.status}): ${await res.text()}`)
+      throw new Error(`QBO query failed (${res.status}): ${bodyText}`)
     }
     return res.json()
   }
@@ -156,10 +166,11 @@ export async function getQBClient(companyId: string) {
       },
       body: JSON.stringify(body),
     })
-    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) {
+      const bodyText = await res.text()
+      if (isAuthFailure(res, bodyText)) return handleUnauthorized()
       logTid(res, `POST ${path}`)
-      throw new Error(`QBO POST ${path} failed (${res.status}): ${await res.text()}`)
+      throw new Error(`QBO POST ${path} failed (${res.status}): ${bodyText}`)
     }
     return res.json()
   }
@@ -188,10 +199,11 @@ export async function getQBClient(companyId: string) {
       },
       body,
     })
-    if (res.status === 401) return handleUnauthorized()
     if (!res.ok) {
+      const bodyText = await res.text()
+      if (isAuthFailure(res, bodyText)) return handleUnauthorized()
       logTid(res, 'upload')
-      throw new Error(`QBO upload failed (${res.status}): ${await res.text()}`)
+      throw new Error(`QBO upload failed (${res.status}): ${bodyText}`)
     }
     return res.json()
   }
