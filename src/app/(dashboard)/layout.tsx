@@ -1,5 +1,6 @@
 ﻿import { createClient } from '@/lib/supabase/server'
 import { SidebarNav } from '@/components/sidebar-nav'
+import { HelpWidget } from '@/components/help-widget'
 import { DashboardProviders } from './providers'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
@@ -56,6 +57,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           {children}
         </main>
       </div>
+      <HelpWidget />
     </DashboardProviders>
   )
 }
