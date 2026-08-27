@@ -60,6 +60,11 @@ export const SUBSCRIPTION_PLANS: Record<PlanKey, {
   },
 }
 
+export function creditsForPriceId(priceId: string): number | null {
+  const entry = Object.values(SUBSCRIPTION_PLANS).find(plan => plan.priceId === priceId)
+  return entry?.credits ?? null
+}
+
 // One-time top-up bundles
 export const TOPUP_BUNDLES: Record<number, { credits: number; amountCents: number; label: string }> = {
   50:  { credits: 50,  amountCents: 2000, label: '50 extra credits — $20' },
