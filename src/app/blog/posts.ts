@@ -8,6 +8,13 @@ export type BlogPost = {
 // Add new posts here — both the blog index and the sitemap pick them up automatically.
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'job-costing-in-quickbooks-for-trades-contractors',
+    title: 'Job Costing in QuickBooks: A Guide for Trades Contractors',
+    description:
+      'How job costing actually works in QuickBooks Online, how to set it up correctly, and why most trades businesses still can’t trust their job profitability numbers even after they do.',
+    date: '2026-08-27',
+  },
+  {
     slug: 'how-to-import-vendor-bills-quickbooks',
     title: 'How to Import Vendor Bills into QuickBooks Online',
     description:
