@@ -15,7 +15,7 @@ Purchasomatic is a SaaS web application that automatically captures vendor invoi
 **The glorious moment:** The user realizes they haven't thought about vendor invoice entry in weeks. It has been happening correctly in the background without them.
 
 ## Who Built This
-Solo founder: Heather Dillon, Hillsboro OR. Deep operational background as office manager and bookkeeper for HVAC/mechanical contractors. Hands-on expertise in QuickBooks, Housecall Pro, and ServiceTrade. MIS background. Building with Claude as coding partner.
+Solo founder: Heather Dillon, Brownsville, OR. Deep operational background as office manager and bookkeeper for one HVAC/mechanical contractor, where she automated AP for faster, more accurate job costing data — the company was barely breaking even, and better job profitability reporting was meant to help find out why and bid future jobs more profitably. Hands-on expertise in QuickBooks, Housecall Pro, and ServiceTrade. MIS background. Building with Claude as coding partner.
 
 ## Technology Stack
 - **Frontend/API:** Next.js 15, TypeScript, Tailwind CSS, App Router, Turbopack
@@ -208,9 +208,16 @@ Extraction accuracy on clean digital PDFs from major HVAC distributors must matc
 - Purchasomatic differentiators: job matching, PO capture, receiving workflow, per-vendor auto-publish promotion, processing speed
 
 ## Target Market
-Primary: HVAC and mechanical contractors using QuickBooks (Online or Desktop)
-Secondary: Any trade/service business buying materials for jobs (plumbing, electrical, roofing, general contracting, auto repair)
-Job costing is optional — invoice capture alone has broad market value
+Primary: all trades/service businesses and their bookkeepers — plumbing, electrical,
+HVAC/mechanical, roofing, general contracting, auto repair, and beyond — plus any
+business (trade or not) that wants vendor bill/PO import automation into QuickBooks
+(Online or Desktop). **This is not HVAC-primary.** HVAC/mechanical is one example
+vertical Heather has deep personal expertise in (informs product decisions, demo
+content, initial outreach), but it is not the target market definition — treat "HVAC
+contractors" as a convenient example, never as a scoping constraint on marketing,
+content, or lead-gen work. This has been corrected multiple times across sessions —
+if a doc or a past decision implies HVAC-only targeting, that's stale, not the market.
+Job costing is optional — invoice capture alone has broad market value.
 
 ## Relationship to FSM Platform
 Purchasomatic is built first as standalone product. ~90% of Purchasomatic code is reused in the full Field Service Intelligence Platform built later. Purchasomatic is not a prototype — it is a real product.
