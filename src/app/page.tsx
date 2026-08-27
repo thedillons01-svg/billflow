@@ -38,6 +38,7 @@ export default async function LandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <MarketingNav isLoggedIn={!!user} />
       <Hero />
+      <DemoVideo />
       <LogoStrip />
       <HowItWorks />
       <Features />
@@ -167,6 +168,31 @@ function Hero() {
             </div>
           ))}
         </div>
+      </div>
+    </section>
+  )
+}
+
+/* ─── Demo video ──────────────────────────────────────────────────── */
+
+function DemoVideo() {
+  return (
+    <section style={{ padding: '0 24px 88px', background: '#1A3D2B' }}>
+      <div style={{ maxWidth: 820, margin: '0 auto' }}>
+        <video
+          controls
+          preload="metadata"
+          playsInline
+          style={{
+            width: '100%',
+            borderRadius: 12,
+            border: '1px solid rgba(255,255,255,0.12)',
+            display: 'block',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
+          }}
+        >
+          <source src="/demo.mp4" type="video/mp4" />
+        </video>
       </div>
     </section>
   )
