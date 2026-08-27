@@ -64,7 +64,7 @@ export function HelpWidget() {
           <div style={{ background: '#1A3D2B', padding: '12px 16px' }}>
             <p style={{ fontSize: 13, fontWeight: 500, color: 'white' }}>Help &amp; Support</p>
             <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.7)', marginTop: 2 }}>
-              Send Heather a message — she&apos;ll get it right away.
+              Send Support a message — we&apos;ll get it right away.
             </p>
           </div>
 
@@ -76,7 +76,7 @@ export function HelpWidget() {
                   padding: '10px 12px', fontSize: 12, color: '#1A3D2B', lineHeight: 1.5,
                 }}
               >
-                Sent — thanks! Heather will follow up by text or email.
+                Sent — thanks! Support will follow up by text or email.
               </div>
             )}
 
@@ -106,7 +106,7 @@ export function HelpWidget() {
               }}
             />
             <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', lineHeight: 1.5 }}>
-              This goes straight to Heather, along with the page you&apos;re on. She usually responds within a few minutes during business hours.
+              This goes straight to Support, along with the page you&apos;re on. We usually respond within a few minutes during business hours.
             </p>
 
             <button
