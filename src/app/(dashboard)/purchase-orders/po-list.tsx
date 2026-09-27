@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useState, useTransition } from 'react'
+import { usePathname, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { softDeletePO, bulkPublishPOs } from './actions'
 import { formatDateOnly } from '@/lib/utils/date'
+import { JobFilterInput, ProductFilterInput, jobOptionsFor, matchPoFilters, type FilterableLine } from '@/components/po-filters'
 
 type PO = {
   po_id: string
@@ -16,6 +17,7 @@ type PO = {
   status: string
   qb_po_id: string | null
   qb_sync_error: string | null
+  po_line_items: FilterableLine[] | null
 }
 
 const STATUS_BADGE: Record<string, { bg: string; color: string; label: string }> = {
@@ -31,23 +33,62 @@ export function PoList({
   pos,
   jobMap,
   matchedBillMap,
+  initialProduct = '',
+  initialJob = '',
 }: {
   pos: PO[]
   jobMap: Map<string, string>
   matchedBillMap?: Map<string, { bill_id: string; invoice_number: string | null }>
+  initialProduct?: string
+  initialJob?: string
 }) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
   const [isPublishing, setIsPublishing] = useState(false)
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [bulkErrors, setBulkErrors] = useState<{ poId: string; poNumber: string | null; reason: string }[]>([])
+  const [productFilter, setProductFilter] = useState(initialProduct)
+  const [jobFilter, setJobFilter] = useState(initialJob)
 
-  const allSelected = pos.length > 0 && selected.size === pos.length
+  // Don't let bulk actions reach POs the filters have hidden.
+  useEffect(() => { setSelected(new Set()) }, [productFilter, jobFilter])
+
+  // Mirror filters into the URL (debounced) so the status tabs carry them along.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const params = new URLSearchParams(searchParams.toString())
+      for (const [key, val] of [['product', productFilter], ['job', jobFilter]] as const) {
+        if (val.trim()) params.set(key, val); else params.delete(key)
+      }
+      if (params.toString() !== searchParams.toString()) {
+        router.replace(`${pathname}?${params}`, { scroll: false })
+      }
+    }, 400)
+    return () => clearTimeout(t)
+  }, [productFilter, jobFilter, pathname, router, searchParams])
+
+  const withLines = useMemo(() => pos.map(p => ({ ...p, lines: p.po_line_items ?? [] })), [pos])
+  const jobOptions = useMemo(() => jobOptionsFor(withLines, jobMap), [withLines, jobMap])
+
+  // Line descriptions matched by the product filter, shown under the PO # so you can see why it matched.
+  const matchedLinesByPo = new Map<string, string[]>()
+  const visible = withLines.filter(po => {
+    const { match, matchedLineIds } = matchPoFilters(po, { product: productFilter, job: jobFilter }, jobMap)
+    if (match && matchedLineIds.size > 0) {
+      matchedLinesByPo.set(po.po_id, po.lines.filter(l => matchedLineIds.has(l.line_id)).map(l => l.description ?? ''))
+    }
+    return match
+  })
+  const anyFilter = productFilter.trim() || jobFilter.trim()
+
+  const allSelected = visible.length > 0 && visible.every(p => selected.has(p.po_id))
   const someSelected = selected.size > 0
 
   function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(pos.map(p => p.po_id)))
+    setSelected(allSelected ? new Set() : new Set(visible.map(p => p.po_id)))
   }
 
   function toggleOne(id: string) {
@@ -94,6 +135,26 @@ export function PoList({
 
   return (
     <>
+      {/* Filter bar */}
+      <div
+        className="flex flex-wrap items-center gap-3 px-5 py-3"
+        style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
+      >
+        <ProductFilterInput value={productFilter} onChange={setProductFilter} />
+        <JobFilterInput value={jobFilter} onChange={setJobFilter} options={jobOptions} listId="po-job-options" />
+        {anyFilter && (
+          <button
+            onClick={() => { setProductFilter(''); setJobFilter('') }}
+            style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
+          >
+            Clear
+          </button>
+        )}
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+          {visible.length} of {pos.length}
+        </span>
+      </div>
+
       {/* Bulk action bar */}
       {someSelected && (
         <div
@@ -165,12 +226,18 @@ export function PoList({
       </div>
 
       {/* Rows */}
-      {pos.map((po, i) => {
+      {visible.length === 0 && (
+        <p style={{ fontSize: 13, color: 'var(--color-text-secondary)', textAlign: 'center', padding: '48px 20px' }}>
+          No purchase orders match your filters.
+        </p>
+      )}
+      {visible.map((po, i) => {
         const badge = STATUS_BADGE[po.status] ?? STATUS_BADGE.open
         const vendorDisplay = (po.vendors as { vendor_name_display: string | null } | null)?.vendor_name_display ?? po.vendor_name_raw ?? '—'
         const isChecked = selected.has(po.po_id)
 
         const matchedBill = matchedBillMap?.get(po.po_id)
+        const matchedLines = matchedLinesByPo.get(po.po_id)
 
         return (
           <div
@@ -201,7 +268,16 @@ export function PoList({
             </Link>
 
             <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{po.po_number ?? '—'}</span>
+              <span style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{po.po_number ?? '—'}</span>
+                {matchedLines && (
+                  <span style={{ display: 'block', fontSize: 11, color: '#1A3D2B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={matchedLines.join('\n')}>
+                    <i className="ti ti-box" style={{ fontSize: 10, marginRight: 3 }} />
+                    {matchedLines[0]}{matchedLines.length > 1 ? ` +${matchedLines.length - 1} more` : ''}
+                  </span>
+                )}
+              </span>
               {po.qb_po_id && (
                 <span style={{ fontSize: 10, color: '#059669', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
                   <i className="ti ti-circle-check" style={{ fontSize: 10 }} />

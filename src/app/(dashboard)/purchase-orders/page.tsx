@@ -8,9 +8,9 @@ import { RecalculateJobsButton } from './recalculate-jobs-button'
 export default async function PurchaseOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>
+  searchParams: Promise<{ tab?: string; product?: string; job?: string }>
 }) {
-  const { tab = 'open' } = await searchParams
+  const { tab = 'open', product = '', job = '' } = await searchParams
   const supabase = await createClient()
 
   let query = supabase
@@ -18,7 +18,8 @@ export default async function PurchaseOrdersPage({
     .select(`
       po_id, vendor_name_raw, po_number, order_date, expected_delivery_date,
       job_id, status, qb_po_id, qb_sync_error, created_at,
-      vendors(vendor_name_display)
+      vendors(vendor_name_display),
+      po_line_items(line_id, description, job_id)
     `)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -92,7 +93,7 @@ export default async function PurchaseOrdersPage({
         {tabs.map(t => (
           <Link
             key={t.id}
-            href={`/purchase-orders?tab=${t.id}`}
+            href={tabHref(t.id, product, job)}
             className="flex items-center gap-1.5"
             style={{
               padding: '10px 14px',
@@ -125,11 +126,19 @@ export default async function PurchaseOrdersPage({
         {!pos || pos.length === 0 ? (
           <EmptyState tab={tab} />
         ) : (
-          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} matchedBillMap={matchedBillMap} />
+          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} matchedBillMap={matchedBillMap} initialProduct={product} initialJob={job} />
         )}
       </div>
     </div>
   )
+}
+
+// Tabs keep the product/job filters so switching status doesn't clear them.
+function tabHref(tab: string, product: string, job: string) {
+  const params = new URLSearchParams({ tab })
+  if (product) params.set('product', product)
+  if (job) params.set('job', job)
+  return `/purchase-orders?${params}`
 }
 
 function EmptyState({ tab }: { tab: string }) {

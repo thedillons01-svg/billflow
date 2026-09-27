@@ -12,7 +12,7 @@ export default async function ReceivingPage() {
       .select(`
         po_id, vendor_name_raw, po_number, order_date, job_id, status, created_at, created_by,
         vendors(vendor_name_display),
-        po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost)
+        po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, job_id)
       `)
       .in('status', ['open', 'partially_received'])
       .is('deleted_at', null)
@@ -80,7 +80,7 @@ export default async function ReceivingPage() {
                 ? (po.created_by === user?.id ? 'Ordered by you' : `Ordered by ${userNameMap.get(po.created_by) ?? 'team member'}`)
                 : '',
               lines: (po.po_line_items as {
-                line_id: string; description: string | null
+                line_id: string; description: string | null; job_id: string | null
                 quantity_ordered: number | null; quantity_received: number | null; unit_cost: number | null
               }[]) ?? [],
             }

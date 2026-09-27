@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { formatDateOnly } from '@/lib/utils/date'
+import { JobFilterInput, ProductFilterInput, jobOptionsFor, matchPoFilters } from '@/components/po-filters'
 
 type PO = {
   po_id: string
@@ -20,13 +21,18 @@ type PO = {
     quantity_ordered: number | null
     quantity_received: number | null
     unit_cost: number | null
+    job_id: string | null
   }[]
 }
 
 export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, string> }) {
   const [vendorFilter, setVendorFilter] = useState('')
   const [poFilter, setPoFilter]         = useState('')
+  const [productFilter, setProductFilter] = useState('')
+  const [jobFilter, setJobFilter]       = useState('')
   const [expanded, setExpanded]         = useState<Set<string>>(new Set())
+
+  const jobOptions = useMemo(() => jobOptionsFor(pos, jobMap), [pos, jobMap])
 
   const toggle = (id: string) =>
     setExpanded(prev => {
@@ -35,13 +41,19 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
       return next
     })
 
+  // Line ids matched by the product filter, per PO — those POs auto-expand with the lines highlighted.
+  const matchedLinesByPo = new Map<string, Set<string>>()
   const filtered = pos.filter(po => {
     const vendorName = (po.vendor_name_display ?? po.vendor_name_raw ?? '').toLowerCase()
     const poNum      = (po.po_number ?? '').toLowerCase()
     if (vendorFilter && !vendorName.includes(vendorFilter.toLowerCase())) return false
     if (poFilter      && !poNum.includes(poFilter.toLowerCase()))          return false
+    const { match, matchedLineIds } = matchPoFilters(po, { product: productFilter, job: jobFilter }, jobMap)
+    if (!match) return false
+    if (matchedLineIds.size > 0) matchedLinesByPo.set(po.po_id, matchedLineIds)
     return true
   })
+  const anyFilter = vendorFilter || poFilter || productFilter || jobFilter
 
   if (pos.length === 0) {
     return (
@@ -58,8 +70,10 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
   return (
     <div>
       {/* Filter bar */}
-      <div className="flex items-center gap-3 mb-4">
-        <div style={{ position: 'relative', flex: 1 }}>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <ProductFilterInput value={productFilter} onChange={setProductFilter} />
+        <JobFilterInput value={jobFilter} onChange={setJobFilter} options={jobOptions} listId="receiving-job-options" />
+        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <i className="ti ti-search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
           <input
             type="text"
@@ -73,7 +87,7 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
             }}
           />
         </div>
-        <div style={{ position: 'relative', flex: 1 }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
           <i className="ti ti-file-text" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
           <input
             type="text"
@@ -87,9 +101,9 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
             }}
           />
         </div>
-        {(vendorFilter || poFilter) && (
+        {anyFilter && (
           <button
-            onClick={() => { setVendorFilter(''); setPoFilter('') }}
+            onClick={() => { setVendorFilter(''); setPoFilter(''); setProductFilter(''); setJobFilter('') }}
             style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
           >
             Clear
@@ -108,7 +122,9 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
         <div className="space-y-3">
           {filtered.map(po => {
             const vendorName = po.vendor_name_display ?? po.vendor_name_raw ?? 'Unknown vendor'
-            const isOpen = expanded.has(po.po_id)
+            const matchedLines = matchedLinesByPo.get(po.po_id)
+            // Product matches open by default; clicking still toggles.
+            const isOpen = matchedLines ? !expanded.has(po.po_id) : expanded.has(po.po_id)
             const jobLabel = po.job_id ? (jobMap.get(po.job_id) ?? po.job_id) : null
 
             return (
@@ -180,6 +196,7 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
                             <div key={line.line_id} className="grid items-center px-5 py-2" style={{
                               gridTemplateColumns: '2fr 0.8fr 0.8fr 0.8fr 100px',
                               borderBottom: idx < po.lines.length - 1 ? '0.5px solid var(--color-border-tertiary)' : 'none',
+                              background: matchedLines?.has(line.line_id) ? '#EBF5EF' : undefined,
                             }}>
                               <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{line.description ?? '—'}</span>
                               <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>{line.quantity_ordered ?? '—'}</span>
