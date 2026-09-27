@@ -268,7 +268,7 @@ export function PoList({
             </Link>
 
             <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ minWidth: 0 }}>
+              <span style={{ minWidth: 0, overflow: 'hidden' }}>
                 <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{po.po_number ?? '—'}</span>
                 {matchedLines && (
                   <span style={{ display: 'block', fontSize: 11, color: '#1A3D2B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
