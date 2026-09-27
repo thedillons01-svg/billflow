@@ -267,21 +267,21 @@ export function PoList({
               )}
             </Link>
 
-            <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ minWidth: 0, overflow: 'hidden' }}>
+            <Link href={`/purchase-orders/${po.po_id}`} style={{ textDecoration: 'none', display: 'block', minWidth: 0, paddingRight: 12 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span style={{ fontSize: 13, color: 'var(--color-text-primary)' }}>{po.po_number ?? '—'}</span>
-                {matchedLines && (
-                  <span style={{ display: 'block', fontSize: 11, color: '#1A3D2B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-                    title={matchedLines.join('\n')}>
-                    <i className="ti ti-box" style={{ fontSize: 10, marginRight: 3 }} />
-                    {matchedLines[0]}{matchedLines.length > 1 ? ` +${matchedLines.length - 1} more` : ''}
+                {po.qb_po_id && (
+                  <span style={{ fontSize: 10, color: '#059669', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
+                    <i className="ti ti-circle-check" style={{ fontSize: 10 }} />
+                    In QB
                   </span>
                 )}
               </span>
-              {po.qb_po_id && (
-                <span style={{ fontSize: 10, color: '#059669', display: 'flex', alignItems: 'center', gap: 2, flexShrink: 0 }}>
-                  <i className="ti ti-circle-check" style={{ fontSize: 10 }} />
-                  In QB
+              {matchedLines && (
+                <span style={{ display: 'block', fontSize: 11, color: '#1A3D2B', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={matchedLines.join('\n')}>
+                  <i className="ti ti-box" style={{ fontSize: 10, marginRight: 3 }} />
+                  {matchedLines[0]}{matchedLines.length > 1 ? ` +${matchedLines.length - 1} more` : ''}
                 </span>
               )}
             </Link>
