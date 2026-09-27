@@ -8,9 +8,10 @@ import { RecalculateJobsButton } from './recalculate-jobs-button'
 export default async function PurchaseOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; product?: string; job?: string }>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const { tab = 'open', product = '', job = '' } = await searchParams
+  const sp = await searchParams
+  const tab = typeof sp.tab === 'string' ? sp.tab : 'open'
   const supabase = await createClient()
 
   let query = supabase
@@ -93,7 +94,7 @@ export default async function PurchaseOrdersPage({
         {tabs.map(t => (
           <Link
             key={t.id}
-            href={tabHref(t.id, product, job)}
+            href={tabHref(t.id, sp)}
             className="flex items-center gap-1.5"
             style={{
               padding: '10px 14px',
@@ -126,18 +127,20 @@ export default async function PurchaseOrdersPage({
         {!pos || pos.length === 0 ? (
           <EmptyState tab={tab} />
         ) : (
-          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} matchedBillMap={matchedBillMap} initialProduct={product} initialJob={job} />
+          <PoList pos={pos as unknown as Parameters<typeof PoList>[0]['pos']} jobMap={jobMap} matchedBillMap={matchedBillMap} />
         )}
       </div>
     </div>
   )
 }
 
-// Tabs keep the product/job filters so switching status doesn't clear them.
-function tabHref(tab: string, product: string, job: string) {
+// Tabs keep the active filters so switching status doesn't clear them.
+function tabHref(tab: string, sp: Record<string, string | string[] | undefined>) {
   const params = new URLSearchParams({ tab })
-  if (product) params.set('product', product)
-  if (job) params.set('job', job)
+  for (const [key, val] of Object.entries(sp)) {
+    if (key === 'tab' || val == null) continue
+    for (const v of Array.isArray(val) ? val : [val]) params.append(key, v)
+  }
   return `/purchase-orders?${params}`
 }
 

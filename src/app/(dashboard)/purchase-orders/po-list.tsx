@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useMemo, useState, useTransition } from 'react'
-import { usePathname, useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { softDeletePO, bulkPublishPOs } from './actions'
 import { formatDateOnly } from '@/lib/utils/date'
-import { JobFilterInput, ProductFilterInput, jobOptionsFor, matchPoFilters, type FilterableLine } from '@/components/po-filters'
+import { PoFilterBar, buildPickOptions, matchPo, useUrlFilters, type FilterableLine } from '@/components/po-filters'
 
 type PO = {
   po_id: string
@@ -13,6 +13,7 @@ type PO = {
   vendors?: { vendor_name_display: string | null } | null
   po_number: string | null
   order_date: string | null
+  expected_delivery_date: string | null
   job_id: string | null
   status: string
   qb_po_id: string | null
@@ -33,56 +34,38 @@ export function PoList({
   pos,
   jobMap,
   matchedBillMap,
-  initialProduct = '',
-  initialJob = '',
 }: {
   pos: PO[]
   jobMap: Map<string, string>
   matchedBillMap?: Map<string, { bill_id: string; invoice_number: string | null }>
-  initialProduct?: string
-  initialJob?: string
 }) {
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [isPending, startTransition] = useTransition()
   const [isPublishing, setIsPublishing] = useState(false)
   const [bulkMessage, setBulkMessage] = useState<string | null>(null)
   const [bulkErrors, setBulkErrors] = useState<{ poId: string; poNumber: string | null; reason: string }[]>([])
-  const [productFilter, setProductFilter] = useState(initialProduct)
-  const [jobFilter, setJobFilter] = useState(initialJob)
+  const [filters, setFilters] = useUrlFilters()
 
   // Don't let bulk actions reach POs the filters have hidden.
-  useEffect(() => { setSelected(new Set()) }, [productFilter, jobFilter])
+  useEffect(() => { setSelected(new Set()) }, [filters])
 
-  // Mirror filters into the URL (debounced) so the status tabs carry them along.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const params = new URLSearchParams(searchParams.toString())
-      for (const [key, val] of [['product', productFilter], ['job', jobFilter]] as const) {
-        if (val.trim()) params.set(key, val); else params.delete(key)
-      }
-      if (params.toString() !== searchParams.toString()) {
-        router.replace(`${pathname}?${params}`, { scroll: false })
-      }
-    }, 400)
-    return () => clearTimeout(t)
-  }, [productFilter, jobFilter, pathname, router, searchParams])
-
-  const withLines = useMemo(() => pos.map(p => ({ ...p, lines: p.po_line_items ?? [] })), [pos])
-  const jobOptions = useMemo(() => jobOptionsFor(withLines, jobMap), [withLines, jobMap])
+  const filterable = useMemo(() => pos.map(p => ({
+    ...p,
+    vendor: (p.vendors as { vendor_name_display: string | null } | null)?.vendor_name_display ?? p.vendor_name_raw ?? '—',
+    lines: p.po_line_items ?? [],
+  })), [pos])
+  const { vendorOptions, jobOptions } = useMemo(() => buildPickOptions(filterable, jobMap), [filterable, jobMap])
 
   // Line descriptions matched by the product filter, shown under the PO # so you can see why it matched.
   const matchedLinesByPo = new Map<string, string[]>()
-  const visible = withLines.filter(po => {
-    const { match, matchedLineIds } = matchPoFilters(po, { product: productFilter, job: jobFilter }, jobMap)
+  const visible = filterable.filter(po => {
+    const { match, matchedLineIds } = matchPo(po, filters)
     if (match && matchedLineIds.size > 0) {
       matchedLinesByPo.set(po.po_id, po.lines.filter(l => matchedLineIds.has(l.line_id)).map(l => l.description ?? ''))
     }
     return match
   })
-  const anyFilter = productFilter.trim() || jobFilter.trim()
 
   const allSelected = visible.length > 0 && visible.every(p => selected.has(p.po_id))
   const someSelected = selected.size > 0
@@ -136,23 +119,16 @@ export function PoList({
   return (
     <>
       {/* Filter bar */}
-      <div
-        className="flex flex-wrap items-center gap-3 px-5 py-3"
-        style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}
-      >
-        <ProductFilterInput value={productFilter} onChange={setProductFilter} />
-        <JobFilterInput value={jobFilter} onChange={setJobFilter} options={jobOptions} listId="po-job-options" />
-        {anyFilter && (
-          <button
-            onClick={() => { setProductFilter(''); setJobFilter('') }}
-            style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            Clear
-          </button>
-        )}
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-          {visible.length} of {pos.length}
-        </span>
+      <div className="px-5 py-3" style={{ borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+        <PoFilterBar
+          fields={['vendor', 'product', 'delivery', 'status', 'job']}
+          filters={filters}
+          onChange={setFilters}
+          vendorOptions={vendorOptions}
+          jobOptions={jobOptions}
+          count={visible.length}
+          total={pos.length}
+        />
       </div>
 
       {/* Bulk action bar */}
@@ -233,7 +209,7 @@ export function PoList({
       )}
       {visible.map((po, i) => {
         const badge = STATUS_BADGE[po.status] ?? STATUS_BADGE.open
-        const vendorDisplay = (po.vendors as { vendor_name_display: string | null } | null)?.vendor_name_display ?? po.vendor_name_raw ?? '—'
+        const vendorDisplay = po.vendor
         const isChecked = selected.has(po.po_id)
 
         const matchedBill = matchedBillMap?.get(po.po_id)

@@ -10,7 +10,7 @@ export default async function ReceivingPage() {
     supabase
       .from('purchase_orders')
       .select(`
-        po_id, vendor_name_raw, po_number, order_date, job_id, status, created_at, created_by,
+        po_id, vendor_name_raw, po_number, order_date, expected_delivery_date, job_id, status, created_at, created_by,
         vendors(vendor_name_display),
         po_line_items(line_id, description, quantity_ordered, quantity_received, unit_cost, job_id)
       `)
@@ -73,6 +73,7 @@ export default async function ReceivingPage() {
               vendor_name_display: vendor?.vendor_name_display ?? null,
               po_number:           po.po_number,
               order_date:          po.order_date,
+              expected_delivery_date: po.expected_delivery_date,
               job_id:              po.job_id,
               status:              po.status,
               created_by:          po.created_by,

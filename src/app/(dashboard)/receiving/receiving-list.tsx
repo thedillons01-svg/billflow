@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
 import { formatDateOnly } from '@/lib/utils/date'
-import { JobFilterInput, ProductFilterInput, jobOptionsFor, matchPoFilters } from '@/components/po-filters'
+import { PoFilterBar, STATUS_OPTIONS, buildPickOptions, isOverdue, matchPo, useUrlFilters } from '@/components/po-filters'
 
 type PO = {
   po_id: string
@@ -11,6 +11,7 @@ type PO = {
   vendor_name_display: string | null
   po_number: string | null
   order_date: string | null
+  expected_delivery_date: string | null
   job_id: string | null
   status: string
   created_by: string | null
@@ -26,13 +27,14 @@ type PO = {
 }
 
 export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, string> }) {
-  const [vendorFilter, setVendorFilter] = useState('')
-  const [poFilter, setPoFilter]         = useState('')
-  const [productFilter, setProductFilter] = useState('')
-  const [jobFilter, setJobFilter]       = useState('')
-  const [expanded, setExpanded]         = useState<Set<string>>(new Set())
+  const [filters, setFilters] = useUrlFilters()
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
-  const jobOptions = useMemo(() => jobOptionsFor(pos, jobMap), [pos, jobMap])
+  const filterable = useMemo(
+    () => pos.map(po => ({ ...po, vendor: po.vendor_name_display ?? po.vendor_name_raw ?? 'Unknown vendor' })),
+    [pos],
+  )
+  const { vendorOptions, jobOptions } = useMemo(() => buildPickOptions(filterable, jobMap), [filterable, jobMap])
 
   const toggle = (id: string) =>
     setExpanded(prev => {
@@ -43,17 +45,11 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
 
   // Line ids matched by the product filter, per PO — those POs auto-expand with the lines highlighted.
   const matchedLinesByPo = new Map<string, Set<string>>()
-  const filtered = pos.filter(po => {
-    const vendorName = (po.vendor_name_display ?? po.vendor_name_raw ?? '').toLowerCase()
-    const poNum      = (po.po_number ?? '').toLowerCase()
-    if (vendorFilter && !vendorName.includes(vendorFilter.toLowerCase())) return false
-    if (poFilter      && !poNum.includes(poFilter.toLowerCase()))          return false
-    const { match, matchedLineIds } = matchPoFilters(po, { product: productFilter, job: jobFilter }, jobMap)
-    if (!match) return false
-    if (matchedLineIds.size > 0) matchedLinesByPo.set(po.po_id, matchedLineIds)
-    return true
+  const filtered = filterable.filter(po => {
+    const { match, matchedLineIds } = matchPo(po, filters)
+    if (match && matchedLineIds.size > 0) matchedLinesByPo.set(po.po_id, matchedLineIds)
+    return match
   })
-  const anyFilter = vendorFilter || poFilter || productFilter || jobFilter
 
   if (pos.length === 0) {
     return (
@@ -70,48 +66,17 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
   return (
     <div>
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
-        <ProductFilterInput value={productFilter} onChange={setProductFilter} />
-        <JobFilterInput value={jobFilter} onChange={setJobFilter} options={jobOptions} listId="receiving-job-options" />
-        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
-          <i className="ti ti-search" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
-          <input
-            type="text"
-            value={vendorFilter}
-            onChange={e => setVendorFilter(e.target.value)}
-            placeholder="Filter by vendor…"
-            style={{
-              width: '100%', height: 34, boxSizing: 'border-box',
-              border: '0.5px solid var(--color-border-secondary)', borderRadius: 7,
-              padding: '0 10px 0 30px', fontSize: 13, outline: 'none', background: 'white',
-            }}
-          />
-        </div>
-        <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
-          <i className="ti ti-file-text" style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', fontSize: 13, color: 'var(--color-text-tertiary)', pointerEvents: 'none' }} />
-          <input
-            type="text"
-            value={poFilter}
-            onChange={e => setPoFilter(e.target.value)}
-            placeholder="Filter by PO #…"
-            style={{
-              width: '100%', height: 34, boxSizing: 'border-box',
-              border: '0.5px solid var(--color-border-secondary)', borderRadius: 7,
-              padding: '0 10px 0 30px', fontSize: 13, outline: 'none', background: 'white',
-            }}
-          />
-        </div>
-        {anyFilter && (
-          <button
-            onClick={() => { setVendorFilter(''); setPoFilter(''); setProductFilter(''); setJobFilter('') }}
-            style={{ fontSize: 12, color: 'var(--color-text-secondary)', background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap' }}
-          >
-            Clear
-          </button>
-        )}
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
-          {filtered.length} of {pos.length}
-        </span>
+      <div className="mb-4">
+        <PoFilterBar
+          fields={['vendor', 'product', 'delivery', 'status', 'job', 'po']}
+          filters={filters}
+          onChange={setFilters}
+          vendorOptions={vendorOptions}
+          jobOptions={jobOptions}
+          statusOptions={STATUS_OPTIONS.filter(o => o.value === 'open' || o.value === 'partially_received')}
+          count={filtered.length}
+          total={pos.length}
+        />
       </div>
 
       {filtered.length === 0 ? (
@@ -121,7 +86,8 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
       ) : (
         <div className="space-y-3">
           {filtered.map(po => {
-            const vendorName = po.vendor_name_display ?? po.vendor_name_raw ?? 'Unknown vendor'
+            const vendorName = po.vendor
+            const overdue = isOverdue(po.expected_delivery_date, po.status)
             const matchedLines = matchedLinesByPo.get(po.po_id)
             // Product matches open by default; clicking still toggles.
             const isOpen = matchedLines ? !expanded.has(po.po_id) : expanded.has(po.po_id)
@@ -150,6 +116,11 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
                     </p>
                     <p style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 2 }}>
                       {po.order_date ? `Ordered ${formatDateOnly(po.order_date)}` : ''}
+                      {po.expected_delivery_date && (
+                        <span style={{ color: overdue ? '#B91C1C' : undefined, fontWeight: overdue ? 500 : undefined }}>
+                          {` · Expected ${formatDateOnly(po.expected_delivery_date)}`}
+                        </span>
+                      )}
                       {jobLabel ? ` · ${jobLabel}` : ''}
                       {po.ordered_by ? ` · ${po.ordered_by}` : ''}
                       {' · '}
@@ -160,6 +131,11 @@ export function ReceivingList({ pos, jobMap }: { pos: PO[]; jobMap: Map<string, 
                     </p>
                   </div>
                   <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+                    {overdue && (
+                      <span style={{ background: '#FEE2E2', color: '#B91C1C', borderRadius: 4, padding: '3px 8px', fontSize: 10, fontWeight: 500 }}>
+                        Overdue
+                      </span>
+                    )}
                     <span style={{
                       background: po.status === 'partially_received' ? '#FEF3C7' : '#D1FAE5',
                       color: po.status === 'partially_received' ? '#92400E' : '#065F46',
