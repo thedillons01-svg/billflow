@@ -52,4 +52,23 @@ for (const lead of leads) {
   console.log(`✓ ${lead.company_name} → ${file}`)
 }
 
+// One combined PDF (a page per business) for printing everything in one go
+await page.goto(template, { waitUntil: 'networkidle' })
+await page.evaluate((rows) => {
+  const tpl = document.querySelector('.sheet')
+  for (const r of rows) {
+    const s = tpl.cloneNode(true)
+    s.querySelector('#company').textContent = r.company
+    s.querySelector('#city').textContent = r.town
+    s.style.breakAfter = 'page'
+    tpl.parentNode.appendChild(s)
+  }
+  tpl.remove()
+  document.body.style.display = 'block'
+}, leads.map(l => ({ company: l.company_name, town: l.city.replace(/\s+OR\b.*$/, '').trim() })))
+await page.evaluate(() => document.fonts.ready)
+const all = join(outDir, `_ALL-${leads.length}-flyers.pdf`)
+await page.pdf({ path: all, format: 'Letter', printBackground: true, margin: { top: 0, right: 0, bottom: 0, left: 0 } })
+console.log(`✓ combined → ${all}`)
+
 await browser.close()
