@@ -153,27 +153,44 @@ export async function checkAutopublishEligibility(billId: string, companyId: str
 export async function runAutopublishForCompany(companyId: string): Promise<{ attempted: number; published: number; failed: number }> {
   const supabase = createServiceClient()
 
-  const { data: readyBills } = await supabase
+  // Draft bills are checked too, but only for auto-publish vendors — a bill downgraded to
+  // draft (missing GL, totals mismatch) would otherwise sit silently while the user assumes
+  // it posted. Drafts are never published here; they only get a hold reason and an alert.
+  const { data: candidates } = await supabase
     .from('bills')
-    .select('bill_id')
+    .select('bill_id, status, vendors!bills_vendor_id_fkey ( auto_publish_enabled )')
     .eq('company_id', companyId)
-    .eq('status', 'ready')
+    .in('status', ['ready', 'draft'])
 
-  if (!readyBills || readyBills.length === 0) return { attempted: 0, published: 0, failed: 0 }
+  const bills = ((candidates ?? []) as unknown as Array<{
+    bill_id: string
+    status: string
+    vendors: { auto_publish_enabled: boolean } | null
+  }>).filter(b => b.status === 'ready' || b.vendors?.auto_publish_enabled)
 
+  let attempted = 0
   let published = 0
   let failed = 0
 
-  for (const { bill_id } of readyBills) {
+  for (const { bill_id, status, vendors } of bills) {
     const eligibility = await checkAutopublishEligibility(bill_id, companyId)
 
     if (!eligibility.eligible) {
       await supabase.from('bills')
         .update({ autopublish_hold_reason: eligibility.reason })
         .eq('bill_id', bill_id)
-      failed++
+      if (vendors?.auto_publish_enabled) {
+        await notifyAutopublishHeld(companyId, bill_id, eligibility.reason)
+      }
+      if (status === 'ready') {
+        attempted++
+        failed++
+      }
       continue
     }
+
+    if (status !== 'ready') continue
+    attempted++
 
     // Clear any prior hold reason
     await supabase.from('bills')
@@ -193,5 +210,50 @@ export async function runAutopublishForCompany(companyId: string): Promise<{ att
     }
   }
 
-  return { attempted: readyBills.length, published, failed }
+  return { attempted, published, failed }
+}
+
+// Alerts once per bill when a vendor is on auto-publish but a bill was held back.
+// The cron re-checks held bills daily, so the processing_log entry prevents a repeat email
+// every morning for the same bill.
+async function notifyAutopublishHeld(companyId: string, billId: string, reason: string): Promise<void> {
+  const supabase = createServiceClient()
+
+  const { count } = await supabase
+    .from('processing_log')
+    .select('id', { count: 'exact', head: true })
+    .eq('bill_id', billId)
+    .eq('action', 'autopublish_held_notified')
+  if ((count ?? 0) > 0) return
+
+  const { data: bill } = await supabase
+    .from('bills')
+    .select('invoice_number, total, vendor_name_raw, vendors!bills_vendor_id_fkey ( vendor_name_display )')
+    .eq('bill_id', billId)
+    .single()
+
+  const b = bill as unknown as {
+    invoice_number: string | null
+    total: number | null
+    vendor_name_raw: string | null
+    vendors: { vendor_name_display: string | null } | null
+  } | null
+  const vendorName = b?.vendors?.vendor_name_display ?? b?.vendor_name_raw ?? 'Unknown vendor'
+  const invoice = b?.invoice_number ? `Invoice ${b.invoice_number}` : 'An invoice'
+  const amount = b?.total != null ? ` ($${Number(b.total).toFixed(2)})` : ''
+
+  await sendNotification({
+    companyId,
+    event:   'autopublish_held',
+    subject: `Not auto-published: ${vendorName}`,
+    body:    `${invoice}${amount} from ${vendorName} was not posted to QuickBooks automatically.\n\nReason: ${reason}\n\nIt is waiting for you in Purchasomatic — fix the issue and publish it.`,
+    billId,
+  })
+
+  await supabase.from('processing_log').insert({
+    bill_id:     billId,
+    action:      'autopublish_held_notified',
+    actor:       'system',
+    after_state: { reason },
+  })
 }

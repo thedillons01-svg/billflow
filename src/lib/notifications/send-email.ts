@@ -8,13 +8,13 @@ function getServiceClient() {
   )
 }
 
-function getResend(): Resend | null {
+export function getResend(): Resend | null {
   const key = process.env.RESEND_API_KEY
   if (!key) return null
   return new Resend(key)
 }
 
-const FROM_ADDRESS = 'Purchasomatic <notifications@purchasomatic.com>'
+export const FROM_ADDRESS = 'Purchasomatic <notifications@purchasomatic.com>'
 
 export type NotificationEvent =
   | 'bill_processed'
@@ -29,6 +29,7 @@ export type NotificationEvent =
   | 'unrecognized_sender'
   | 'pdf_unreadable'
   | 'duplicate_held'
+  | 'autopublish_held'
 
 const ERROR_EVENTS: NotificationEvent[] = [
   'bill_sync_error',
@@ -39,6 +40,7 @@ const ERROR_EVENTS: NotificationEvent[] = [
   'unrecognized_sender',
   'pdf_unreadable',
   'duplicate_held',
+  'autopublish_held',
 ]
 
 export async function sendNotification({
@@ -68,8 +70,9 @@ export async function sendNotification({
 
   const isError = ERROR_EVENTS.includes(event)
 
-  // Error notifications are always sent; success notifications respect the toggle
-  if (!isError && !company.success_notifications) {
+  // Error notifications are always sent; success notifications respect the toggle and are
+  // replaced by the morning digest when daily_digest is on
+  if (!isError && (!company.success_notifications || company.daily_digest)) {
     // Still create in-app notification even if email suppressed
     await insertInAppNotification(supabase, companyId, event, subject, body, billId, poId)
     return

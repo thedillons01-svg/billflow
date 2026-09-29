@@ -610,7 +610,7 @@ export default async function SettingsPage({
                   name="daily_digest"
                   defaultChecked={company?.daily_digest ?? false}
                   label="Daily digest"
-                  helper="Receive a daily summary of all activity instead of individual notifications. Off by default."
+                  helper="One email each morning (about 7am Pacific) listing anything that needs attention plus the last 24 hours of activity. Replaces individual success emails; error alerts still arrive right away. Off by default."
                 />
                 <Toggle
                   name="notify_uploader"
