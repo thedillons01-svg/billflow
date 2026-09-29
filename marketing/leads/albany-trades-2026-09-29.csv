@@ -1,0 +1,23 @@
+company_name,trade,website,address,city,phone,office_type,drop_in,cluster,notes
+Positive Electric,Electrical,https://www.positiveelectricinc.com/,1879 Fescue St SE,Albany OR 97322,(541) 730-3839,commercial,yes,A: Fescue/Rye St SE,Residential + commercial + industrial
+Axis Electric,Electrical,https://axiselectricinc.com/,"1980 Fescue St SE, Suite A",Albany OR 97322,(541) 924-2427,commercial,yes,A: Fescue/Rye St SE,Since 2007; also has a Philomath location
+Stutzman & Kropf Contractors,Electrical/Contractor,,1954 Rye St SE,Albany OR 97322,(541) 752-1961,commercial,verify,A: Fescue/Rye St SE,Showed up in electrician results; confirm what trade they are before stopping
+Linn Benton Plumbing,Plumbing,https://linnbentonplumbing.com/,"4505 Marion St SE, Suite C",Albany OR 97322,,commercial,yes,B: South Albany,
+Midway Mechanical,HVAC,https://www.midwaymechanicalhvac.net/,"2450 Three Lakes Rd SE, Suite B",Albany OR 97322,(541) 928-2423,commercial,yes,C: Three Lakes Rd SE,
+Rite Way Electric,Electrical,https://www.ritewayelectric.net/,2904 Three Lakes Rd SE,Albany OR 97322,(541) 926-0504,commercial,yes,C: Three Lakes Rd SE,Since 1979; residential/commercial/industrial/ag
+Birchfield Heating & Air Conditioning,HVAC,https://bryantnorthwest.com/contractors/birchfield-heating-air-conditioning-inc/,181 34th Ave SE,Albany OR 97321,,commercial,yes,D: 34th-41st Ave SE,Since 1935; Bryant dealer
+Mike's Heating & Air Conditioning,HVAC,https://mikesac.com/,113 41st Ave SE,Albany OR 97322,,commercial,yes,D: 34th-41st Ave SE,Since 1985
+Roto-Rooter Albany,Plumbing,https://www.rotorooter.com/albanyor/,149 SE 41st Ave,Albany OR 97322,,commercial (franchise),optional,D: 34th-41st Ave SE,Franchise; may use corporate systems; low priority
+Buckmaster Plumbing Heating & AC,Plumbing/HVAC,,1207 9th Ave SE,Albany OR 97322,,verify,verify,E: Central/Downtown,Plumbing + HVAC
+Albany Cooling and Heating,HVAC,,911 Central Ave,Albany OR,,verify,verify,E: Central/Downtown,Only found on Yelp; confirm it's open
+Complete Plumbing Systems,Plumbing,,422 Cleveland St SE,Albany OR 97321,,verify,verify,E: Central/Downtown,
+Friesen Plumbing,Plumbing,,135 Montgomery St SE,Albany OR 97321,,verify,verify,E: Central/Downtown,
+Innovative Plumbing and Mechanical,Plumbing/Mechanical,,403 1st Ave NW,Albany OR 97321,,commercial,yes,E: Central/Downtown,Downtown storefront address
+Weis Plumbing,Plumbing,https://www.weisplumbingllc.com/,462 25th Ave SE,Albany OR 97322,,verify,verify,E: Central/Downtown,Also listed at 4492 Aztec Loop NE (looks residential); confirm which is the office
+Albany Plumbing & Heating,Plumbing/Heating,,1420 Lawnridge St SW,Albany OR 97321,,verify,verify,F: West Albany,Street may be residential
+Pace Heating & Air,HVAC,https://paceresidential.com/,34101 Cushman Rd SW,Albany OR 97321,(541) 214-2450,rural - verify,verify,G: Outside town,Rural address; Carrier dealer
+M&W Electric,Electrical,https://www.mwelectricinc.com/,29889 Hwy 34 SW,Albany OR 97321,(541) 754-6171,rural - verify,verify,G: Outside town,On Hwy 34 toward Corvallis
+EC Electric,Electrical,,32758 Old Hwy 34 SE,Albany OR 97321,,verify,verify,G: Outside town,May be a branch of a larger regional company; lower priority
+Hendrix Heating & Air Conditioning,HVAC,https://hendrixheating.com/,33551 Eagle Rd,Tangent OR 97389,,commercial - verify,optional,G: Outside town,Tangent; Albany Chamber member
+Allied Heating & Cooling,HVAC,https://www.alliedheatingandcooling.com/,36769 Old Bridge Dr SE,Albany OR 97322,(541) 307-0219,likely home-based,no,,Mail or call instead
+Wise Heating & Cooling,HVAC,https://www.wise-heating.com/,3345 NW Pineview Pl,Albany OR 97321,,likely home-based,no,,Mail or call instead

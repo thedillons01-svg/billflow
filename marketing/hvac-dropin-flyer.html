@@ -63,7 +63,7 @@
   .headline{
     font-family:'Source Serif 4', Georgia, serif;
     font-weight:700;
-    font-size:54px;
+    font-size:48px;
     line-height:1.05;
     letter-spacing:-0.01em;
     text-wrap:balance;
@@ -75,10 +75,10 @@
     font-size:1.12rem;
     line-height:1.5;
     max-width:58ch;
-    margin:0 0 26px;
+    margin:0 0 18px;
   }
 
-  .steps{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:26px; }
+  .steps{ display:grid; grid-template-columns:repeat(3, 1fr); gap:16px; margin-bottom:20px; }
   .step{ background:var(--accent-soft); border-radius:10px; padding:16px 15px; }
   .step .n{
     font-family:'Source Serif 4', serif; font-weight:700; font-size:1.3rem;
@@ -104,6 +104,7 @@
   .spacer{ flex:1; }
 
   .cta{
+    margin-top:14px;
     background:var(--ink); color:#fff; border-radius:14px;
     padding:18px 26px;
     display:flex; align-items:center; justify-content:space-between; gap:24px;
@@ -121,7 +122,7 @@
   .cta-qr p{ margin:0; font-size:0.62rem; color:var(--ink); text-align:center; font-weight:600; max-width:100px; }
   #qr svg{ display:block; }
 
-  @media (max-width: 860px){
+  @media screen and (max-width: 860px){
     body{ padding:16px; }
     .sheet{ width:100%; height:auto; padding:22px 18px; }
     .headline{ font-size:36px; }
@@ -132,7 +133,8 @@
   @media print{
     body{ background:#fff; padding:0; }
     .toolbar{ display:none; }
-    .sheet{ box-shadow:none; width:8.5in; height:11in; padding:0.27in 0.65in 0.23in; }
+    .sheet{ box-shadow:none; width:8.5in; height:11in; padding:0.45in 0.65in 0.45in; overflow:hidden; }
+    .steps, .cta, .bullets{ break-inside:avoid; }
     @page{ size:letter; margin:0; }
   }
 </style>
