@@ -5,6 +5,13 @@ import { blogPosts } from './posts'
 export const metadata: Metadata = {
   title: 'Blog',
   description: 'Guides for importing, automating, and tracking purchase orders and invoices in QuickBooks.',
+  alternates: { canonical: '/blog' },
+  openGraph: {
+    title: 'Purchasomatic Blog',
+    description: 'Guides for importing, automating, and tracking purchase orders and invoices in QuickBooks.',
+    url: '/blog',
+    type: 'website',
+  },
 }
 
 export default function BlogIndexPage() {

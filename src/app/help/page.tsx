@@ -3,8 +3,15 @@ import type { Metadata } from 'next'
 import { MarketingNav } from '@/components/marketing-nav'
 
 export const metadata: Metadata = {
-  title: 'Help & Support — Purchasomatic',
+  title: 'Help & Support',
   description: 'Setup guides, common questions, and how to get help with Purchasomatic.',
+  alternates: { canonical: '/help' },
+  openGraph: {
+    title: 'Purchasomatic Help & Support',
+    description: 'Setup guides, common questions, and how to get help with Purchasomatic.',
+    url: '/help',
+    type: 'website',
+  },
 }
 
 const SECTIONS = [

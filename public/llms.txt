@@ -1,0 +1,31 @@
+# Purchasomatic
+
+> Purchasomatic captures vendor invoices and purchase orders by email, reads every line item with OCR and AI, matches bills to QuickBooks jobs, customers and GL accounts, and pushes them into QuickBooks. It is built for trade and service businesses (HVAC, plumbing, electrical, general contractors and more) and their bookkeepers.
+
+## What it does
+- Each company gets two capture email addresses: one for vendor invoices, one for purchase orders. Forward a vendor email and the PDF is processed automatically.
+- Reads every line item from clean digital PDFs and scanned PDFs, including multi-invoice PDFs.
+- Matches each bill to a QuickBooks job, customer and GL account, and to an open purchase order (price and quantity mismatches are flagged).
+- Catches duplicate invoices before they post.
+- Pushes bills to QuickBooks Online and QuickBooks Desktop (Desktop via the Intuit Web Connector), with the PDF kept with the bill.
+- Auto-publish can be turned on vendor by vendor, only after 5 processed invoices; unusual bills are still held for a person to review.
+
+## Pricing
+- About $0.40 per transaction. 1 credit per invoice or purchase order; line-item extraction is always included.
+- 25 free trial credits when you sign up, no credit card required.
+- Reprocessing, duplicates and rejected documents do not use a credit.
+- A done-for-you setup service is also available.
+
+## Key pages
+- [Home](https://www.purchasomatic.com/): overview and how it works
+- [Pricing](https://www.purchasomatic.com/pricing): plans, credit rules and pricing FAQ
+- [Help](https://www.purchasomatic.com/help): setup guides for QuickBooks, email forwarding and first invoice
+- [Blog](https://www.purchasomatic.com/blog): guides for QuickBooks invoice, bill and purchase order workflows
+- [How to import vendor invoices into QuickBooks](https://www.purchasomatic.com/blog/how-to-import-vendor-invoices-into-quickbooks)
+- [How to import vendor bills into QuickBooks Online](https://www.purchasomatic.com/blog/how-to-import-vendor-bills-quickbooks)
+- [How to import purchase orders into QuickBooks](https://www.purchasomatic.com/blog/how-to-import-purchase-orders-into-quickbooks)
+- [Job costing in QuickBooks for trades contractors](https://www.purchasomatic.com/blog/job-costing-in-quickbooks-for-trades-contractors)
+- [Sign up](https://www.purchasomatic.com/signup)
+
+## Contact
+support@purchasomatic.com

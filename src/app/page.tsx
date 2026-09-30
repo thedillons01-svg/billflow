@@ -8,6 +8,23 @@ export const metadata: Metadata = {
   title: 'Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
   description:
     'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks. Forward invoices and POs — Purchasomatic reads every line item and publishes automatically.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Purchasomatic — Vendor Invoice & Purchase Order Capture for QuickBooks',
+    description:
+      'Forward vendor invoices and POs. Purchasomatic reads every line item, matches jobs and GL accounts, and pushes bills to QuickBooks. 25 free trial credits, no card.',
+    url: '/',
+    type: 'website',
+  },
+}
+
+const ORG_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'Purchasomatic',
+  url: 'https://www.purchasomatic.com',
+  logo: 'https://www.purchasomatic.com/logo-512.png',
+  email: 'support@purchasomatic.com',
 }
 
 const JSON_LD = {
@@ -36,6 +53,7 @@ export default async function LandingPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }} />
       <MarketingNav isLoggedIn={!!user} />
       <Hero />
       <DemoVideo />
