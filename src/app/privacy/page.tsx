@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Purchasomatic',
+  title: 'Privacy Policy',
+  description: 'How Purchasomatic collects, uses, and protects your data, including QuickBooks data and uploaded invoices.',
+  alternates: { canonical: '/privacy' },
 }
 
 const EFFECTIVE_DATE = 'June 7, 2026'

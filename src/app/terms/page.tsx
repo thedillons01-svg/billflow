@@ -2,7 +2,9 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Purchasomatic',
+  title: 'Terms of Service',
+  description: 'The terms that apply when you use Purchasomatic, including credits, billing, and acceptable use.',
+  alternates: { canonical: '/terms' },
 }
 
 const EFFECTIVE_DATE = 'June 5, 2026'

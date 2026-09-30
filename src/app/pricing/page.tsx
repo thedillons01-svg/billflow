@@ -4,8 +4,15 @@ import { MarketingNav } from '@/components/marketing-nav'
 import { SUBSCRIPTION_PLANS } from '@/lib/stripe/client'
 
 export const metadata: Metadata = {
-  title: 'Pricing — Purchasomatic',
-  description: 'Simple per-transaction pricing. Start with 25 free credits — no credit card required. Subscribe when you\'re ready.',
+  title: 'Pricing',
+  description: 'Simple per-transaction pricing, about $0.40 per invoice or purchase order. Start with 25 free credits — no credit card required. Subscribe when you\'re ready.',
+  alternates: { canonical: '/pricing' },
+  openGraph: {
+    title: 'Purchasomatic Pricing',
+    description: 'About $0.40 per invoice or purchase order. 25 free trial credits, no credit card required.',
+    url: '/pricing',
+    type: 'website',
+  },
 }
 
 const PLAN_DESCRIPTIONS: Record<string, string> = {
@@ -65,9 +72,20 @@ const FAQS = [
   },
 ]
 
+const FAQ_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: FAQS.map(f => ({
+    '@type': 'Question',
+    name: f.q,
+    acceptedAnswer: { '@type': 'Answer', text: f.a },
+  })),
+}
+
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
       <MarketingNav />
 
       {/* Hero */}
