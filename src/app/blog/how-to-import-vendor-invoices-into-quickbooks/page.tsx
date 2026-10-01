@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { blogPosts } from '../posts'
+import { BreadcrumbJsonLd } from '../breadcrumb-jsonld'
 
 const post = blogPosts.find(p => p.slug === 'how-to-import-vendor-invoices-into-quickbooks')!
 
@@ -43,6 +44,7 @@ export default function BlogPostPage() {
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
       {/* eslint-disable-next-line @next/next/no-sync-scripts */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <BreadcrumbJsonLd title={post.title} slug={post.slug} />
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 80px' }}>
 
         <div style={{ marginBottom: 40 }}>

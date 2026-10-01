@@ -20,6 +20,16 @@ export const metadata: Metadata = {
     template: '%s | Purchasomatic',
   },
   description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
+  openGraph: {
+    siteName: 'Purchasomatic',
+    locale: 'en_US',
+    type: 'website',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
+  },
+  twitter: {
+    card: 'summary',
+    images: ['/logo-512.png'],
+  },
   verification: {
     google: 'FEUF-HMzREY1Akg2JOZkBVGW7GqRsMa9We1dnadNEMo',
   },

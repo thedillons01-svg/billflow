@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { blogPosts } from '../posts'
+import { BreadcrumbJsonLd } from '../breadcrumb-jsonld'
 
 const post = blogPosts.find(p => p.slug === 'how-to-import-vendor-bills-quickbooks')!
 const canonicalPath = `/blog/${post.slug}`
@@ -136,6 +137,7 @@ export default function BlogPostPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'white' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }} />
+      <BreadcrumbJsonLd title={post.title} slug={post.slug} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }} />
 
       <div style={{ background: '#F0F9F4', borderBottom: '1px solid #D0E8D8', padding: '40px 24px 48px', textAlign: 'center' }}>

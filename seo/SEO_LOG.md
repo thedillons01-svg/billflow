@@ -1,5 +1,19 @@
 # SEO log
 
+## 2026-10-01
+**Changed (invisible, master):**
+- BreadcrumbList JSON-LD on all 4 blog posts (new src/app/blog/breadcrumb-jsonld.tsx).
+- Site-wide default Open Graph (siteName, locale, logo image) and Twitter card in root layout. Note: pages that define their own openGraph override these defaults.
+- sitemap.ts: replaced `new Date()` lastModified with fixed dates so the value only changes when content does.
+**Checks:** tsc and next build pass. Visibility check skipped (done 2026-09-30; next due ~2026-10-07).
+**Visible changes waiting on seo/visible:** none (branch not created yet).
+**Backlog (top):**
+1. Monday 2026-10-05 article (visible, seo/visible): QuickBooks Desktop vendor bill / PDF invoice import + FAQ.
+2. Add QBD FAQ to home (visible) now that Pricing/Help say Desktop is supported.
+3. Add og:image to page-level openGraph on home/pricing/blog posts (invisible).
+4. Article on matching POs to bills in QuickBooks.
+5. Fix 9 pre-existing eslint errors in public pages (visible-neutral but touches code).
+
 ## 2026-09-30 (first run)
 **Checked:** metadata on all public pages, robots, sitemap, structured data, llms.txt (absent).
 **Changed:**
