@@ -68,7 +68,7 @@ const FAQS = [
   },
   {
     q: 'Does Purchasomatic work with QuickBooks Desktop?',
-    a: 'QuickBooks Online is fully supported. QuickBooks Desktop support via Web Connector is in development — email support@purchasomatic.com to be notified when it\'s available.',
+    a: 'Yes. Purchasomatic works with both QuickBooks Online and QuickBooks Desktop. Desktop connects through Intuit\'s Web Connector, which syncs bills every few minutes while QuickBooks Desktop is open.',
   },
 ]
 

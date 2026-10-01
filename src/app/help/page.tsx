@@ -28,7 +28,7 @@ const SECTIONS = [
           'After authorizing, you\'ll be returned to Purchasomatic. Your vendors, jobs, and accounts will sync automatically within a few minutes.',
           'The connection status, last sync time, and a Sync Now button appear in Settings → Integrations. If the sync fails, disconnect and reconnect to force a fresh token.',
         ],
-        note: 'QuickBooks Desktop (QBD) support via Web Connector is in development. Email support@purchasomatic.com to be notified when it\'s available.',
+        note: 'Using QuickBooks Desktop? It\'s supported through Intuit\'s Web Connector. In Settings → Integrations, download the .QWC file and add it in Web Connector. QuickBooks Desktop needs to be open with your company file loaded for bills to sync.',
       },
       {
         id: 'email-forwarding',
