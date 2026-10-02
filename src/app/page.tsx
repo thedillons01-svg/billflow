@@ -15,6 +15,8 @@ export const metadata: Metadata = {
       'Forward vendor invoices and POs. Purchasomatic reads every line item, matches jobs and GL accounts, and pushes bills to QuickBooks. 25 free trial credits, no card.',
     url: '/',
     type: 'website',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
 }
 
@@ -36,12 +38,30 @@ const JSON_LD = {
   operatingSystem: 'Web',
   description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
   url: 'https://www.purchasomatic.com',
-  offers: {
-    '@type': 'Offer',
-    price: '20',
-    priceCurrency: 'USD',
-    description: '50 credits / month, starting plan',
-  },
+  featureList: [
+    'Captures vendor invoices and purchase orders by email',
+    'Reads every line item from clean and scanned PDFs',
+    'Matches bills to QuickBooks jobs, customers and GL accounts',
+    'Matches bills to open purchase orders and flags price or quantity mismatches',
+    'Catches duplicate invoices',
+    'Pushes bills to QuickBooks Online and QuickBooks Desktop with the PDF kept with the bill',
+  ],
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'Free trial',
+      price: '0',
+      priceCurrency: 'USD',
+      description: '25 free trial credits, no credit card required',
+    },
+    {
+      '@type': 'Offer',
+      name: 'Starting plan',
+      price: '20',
+      priceCurrency: 'USD',
+      description: '50 credits / month, about $0.40 per invoice or purchase order',
+    },
+  ],
 }
 
 export default async function LandingPage() {

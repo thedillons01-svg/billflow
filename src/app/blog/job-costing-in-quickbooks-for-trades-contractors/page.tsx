@@ -22,6 +22,8 @@ export const metadata: Metadata = {
     description: 'Job costing tells you which jobs make money and which ones quietly don’t — if the numbers going into it are actually right.',
     url: canonicalPath,
     type: 'article',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
 }
 

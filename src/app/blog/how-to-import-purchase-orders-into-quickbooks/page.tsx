@@ -14,6 +14,8 @@ export const metadata: Metadata = {
     description: post.description,
     url: `/blog/${post.slug}`,
     type: 'article',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
 }
 

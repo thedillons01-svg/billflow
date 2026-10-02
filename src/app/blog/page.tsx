@@ -11,6 +11,8 @@ export const metadata: Metadata = {
     description: 'Guides for importing, automating, and tracking purchase orders and invoices in QuickBooks.',
     url: '/blog',
     type: 'website',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
 }
 

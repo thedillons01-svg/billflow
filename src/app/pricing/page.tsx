@@ -12,6 +12,8 @@ export const metadata: Metadata = {
     description: 'About $0.40 per invoice or purchase order. 25 free trial credits, no credit card required.',
     url: '/pricing',
     type: 'website',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
 }
 

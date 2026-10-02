@@ -1,5 +1,18 @@
 # SEO log
 
+## 2026-10-02
+**Changed (invisible, master):**
+- Page-level Open Graph on home, pricing, help, blog index and all 4 posts now includes siteName and the logo image (previously overridden to none).
+- Home SoftwareApplication JSON-LD: added featureList and a separate free-trial Offer (25 credits, $0) alongside the $20 starting plan.
+**Checks:** tsc and next build pass. Visibility check not due until ~2026-10-07.
+**Visible changes waiting on seo/visible:** none (branch not created yet).
+**Backlog (top):**
+1. Monday 2026-10-05 article (visible, seo/visible): QuickBooks Desktop vendor bill / PDF invoice import + FAQ.
+2. Add QBD FAQ to home (visible).
+3. Article on matching POs to bills in QuickBooks.
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Weekly visibility check on 2026-10-07.
+
 ## 2026-10-01
 **Changed (invisible, master):**
 - BreadcrumbList JSON-LD on all 4 blog posts (new src/app/blog/breadcrumb-jsonld.tsx).

@@ -11,6 +11,8 @@ export const metadata: Metadata = {
     description: 'Setup guides, common questions, and how to get help with Purchasomatic.',
     url: '/help',
     type: 'website',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
 }
 
