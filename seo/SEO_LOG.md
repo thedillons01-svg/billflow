@@ -1,5 +1,16 @@
 # SEO log
 
+## 2026-10-05
+**Changed (invisible, master):** Article JSON-LD on all 4 posts now has publisher url + logo ImageObject and an image (Google Article rich-result fields).
+**Visible, waiting on seo/visible (PR #3):** new post "How to Enter Vendor Bills in QuickBooks Desktop" with FAQ/JSON-LD, registered in posts.ts. After merge: add it to public/llms.txt key pages (invisible, do not link before it's live) and add its link to sitemap (automatic).
+**Checks:** tsc and next build pass on master and seo/visible. Visibility check due ~2026-10-07.
+**Backlog (top):**
+1. After PR #3 merges: add new post to llms.txt.
+2. Add QBD FAQ to home (visible, seo/visible).
+3. Article on matching POs to bills in QuickBooks (next Monday 2026-10-12).
+4. Visibility check 2026-10-07.
+5. Fix 9 pre-existing eslint errors in public pages.
+
 ## 2026-10-02
 **Changed (invisible, master):**
 - Page-level Open Graph on home, pricing, help, blog index and all 4 posts now includes siteName and the logo image (previously overridden to none).
