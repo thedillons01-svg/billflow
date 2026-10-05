@@ -39,7 +39,8 @@ export default function BlogPostPage() {
     datePublished: post.date,
     dateModified: post.date,
     author: { '@type': 'Person', name: 'Heather Dillon' },
-    publisher: { '@type': 'Organization', name: 'Purchasomatic' },
+    publisher: { '@type': 'Organization', name: 'Purchasomatic', url: 'https://www.purchasomatic.com', logo: { '@type': 'ImageObject', url: 'https://www.purchasomatic.com/logo-512.png' } },
+    image: 'https://www.purchasomatic.com/logo-512.png',
   }
 
   return (
