@@ -8,6 +8,13 @@ export type BlogPost = {
 // Add new posts here — both the blog index and the sitemap pick them up automatically.
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'how-to-enter-vendor-bills-in-quickbooks-desktop',
+    title: 'How to Enter Vendor Bills in QuickBooks Desktop',
+    description:
+      'Step-by-step: how to enter a vendor bill in QuickBooks Desktop, put the job on every line, and get PDF invoices into Desktop without retyping them.',
+    date: '2026-10-05',
+  },
+  {
     slug: 'job-costing-in-quickbooks-for-trades-contractors',
     title: 'Job Costing in QuickBooks: A Guide for Trades Contractors',
     description:
