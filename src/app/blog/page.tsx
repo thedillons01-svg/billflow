@@ -16,9 +16,25 @@ export const metadata: Metadata = {
   },
 }
 
+const blogJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Blog',
+  name: 'Purchasomatic Blog',
+  url: 'https://www.purchasomatic.com/blog',
+  description: 'Guides for importing, automating, and tracking purchase orders and invoices in QuickBooks.',
+  publisher: { '@type': 'Organization', name: 'Purchasomatic', url: 'https://www.purchasomatic.com' },
+  blogPost: blogPosts.map(post => ({
+    '@type': 'BlogPosting',
+    headline: post.title,
+    url: `https://www.purchasomatic.com/blog/${post.slug}`,
+    datePublished: post.date,
+  })),
+}
+
 export default function BlogIndexPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }} />
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 80px' }}>
 
         <div style={{ marginBottom: 40 }}>

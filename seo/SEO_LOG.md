@@ -1,5 +1,18 @@
 # SEO log
 
+## 2026-10-06
+**Changed (invisible, master):** WebSite JSON-LD on home; Blog + BlogPosting list JSON-LD on blog index; "Quick answers" section (what/how/cost/QBD/job costing) in public/llms.txt for AI search.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.
+**Checks:** tsc and next build pass.
+**Visibility check (4 searches):** purchasomatic.com still absent for QBD email-PDF import, PO-to-invoice matching, and contractor job-coded bill entry; brand search "purchasomatic" shows no site pages at all (worse than 09-30, when /help appeared) - likely not indexed yet; suggest owner submit sitemap in Google Search Console. SERPs dominated by Intuit docs, n8n/automation workflow pages, third-party AP vendors.
+**Backlog (top):**
+1. After PR #3 merges: add new post to llms.txt.
+2. Add QBD FAQ to home (visible, seo/visible).
+3. Article on matching POs to bills in QuickBooks (Monday 2026-10-12).
+4. Owner: verify site in Google Search Console and submit sitemap.
+5. Fix 9 pre-existing eslint errors in public pages.
+Next visibility check ~2026-10-13.
+
 ## 2026-10-05
 **Changed (invisible, master):** Article JSON-LD on all 4 posts now has publisher url + logo ImageObject and an image (Google Article rich-result fields).
 **Visible, waiting on seo/visible (PR #3):** new post "How to Enter Vendor Bills in QuickBooks Desktop" with FAQ/JSON-LD, registered in posts.ts. After merge: add it to public/llms.txt key pages (invisible, do not link before it's live) and add its link to sitemap (automatic).

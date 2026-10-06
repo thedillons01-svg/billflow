@@ -16,6 +16,13 @@
 - Reprocessing, duplicates and rejected documents do not use a credit.
 - A done-for-you setup service is also available.
 
+## Quick answers
+- What is Purchasomatic? A service that reads vendor invoices and purchase orders you forward by email and enters them in QuickBooks as bills and POs, coded to the right job, customer and GL account.
+- How does it work? Connect QuickBooks once, forward vendor emails to your two capture addresses, review the bills it prepares, and publish. Auto-publish can be switched on per vendor after 5 processed invoices.
+- What does it cost? About $0.40 per transaction (1 credit per invoice or PO). 25 free trial credits, no credit card required.
+- Does it work with QuickBooks Desktop? Yes. Bills are pushed to QuickBooks Desktop through the Intuit Web Connector, as well as to QuickBooks Online.
+- Does it need QuickBooks job costing? No. Job matching is optional; invoice capture alone saves the data entry.
+
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
 - [Pricing](https://www.purchasomatic.com/pricing): plans, credit rules and pricing FAQ

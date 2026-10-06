@@ -29,6 +29,15 @@ const ORG_JSON_LD = {
   email: 'support@purchasomatic.com',
 }
 
+const WEBSITE_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'Purchasomatic',
+  url: 'https://www.purchasomatic.com',
+  description: 'Vendor invoice and purchase order capture for QuickBooks Online and QuickBooks Desktop.',
+  publisher: { '@type': 'Organization', name: 'Purchasomatic', url: 'https://www.purchasomatic.com' },
+}
+
 const JSON_LD = {
   '@context': 'https://schema.org',
   '@type': 'SoftwareApplication',
@@ -74,6 +83,7 @@ export default async function LandingPage() {
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }} />
       <MarketingNav isLoggedIn={!!user} />
       <Hero />
       <DemoVideo />
