@@ -3,8 +3,10 @@ import type { Metadata } from 'next'
 import { MarketingNav } from '@/components/marketing-nav'
 import { SUBSCRIPTION_PLANS } from '@/lib/stripe/client'
 
+import { PageBreadcrumbJsonLd } from '../blog/breadcrumb-jsonld'
+
 export const metadata: Metadata = {
-  title: 'Pricing',
+  title: 'Pricing: About $0.40 per Invoice or PO, 25 Free Credits',
   description: 'Simple per-transaction pricing, about $0.40 per invoice or purchase order. Start with 25 free credits — no credit card required. Subscribe when you\'re ready.',
   alternates: { canonical: '/pricing' },
   openGraph: {
@@ -88,6 +90,7 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
+      <PageBreadcrumbJsonLd name="Pricing" path="/pricing" />
       <MarketingNav />
 
       {/* Hero */}

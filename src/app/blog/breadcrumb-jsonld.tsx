@@ -12,3 +12,15 @@ export function BreadcrumbJsonLd({ title, slug }: { title: string; slug: string 
   }
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
 }
+
+export function PageBreadcrumbJsonLd({ name, path }: { name: string; path: string }) {
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Purchasomatic', item: `${baseUrl}/` },
+      { '@type': 'ListItem', position: 2, name, item: `${baseUrl}${path}` },
+    ],
+  }
+  return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+}

@@ -1,5 +1,18 @@
 # SEO log
 
+## 2026-10-07
+**Changed (invisible, master):** Help and Pricing page titles/descriptions rewritten to be keyword-specific (were "Help & Support" / "Pricing"); BreadcrumbList JSON-LD added to /help and /pricing (new PageBreadcrumbJsonLd in blog/breadcrumb-jsonld.tsx).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.
+**Checks:** tsc and next build pass.
+**Visibility check (3 searches):** purchasomatic.com absent for "email vendor invoices to QuickBooks automatically coded to job" (Tailride, Payable, n8n, Intuit forwarding dominate), "enter vendor bills in QuickBooks Desktop from PDF" (Intuit help, Lido, invoicedataextraction), and brand search "purchasomatic" (no site pages; engine suggests it's unknown). Site still appears unindexed: owner should verify in Search Console and submit sitemap.
+**Backlog (top):**
+1. After PR #3 merges: add new post to llms.txt.
+2. Add QBD FAQ to home (visible, seo/visible).
+3. Article on matching POs to bills in QuickBooks (Monday 2026-10-12).
+4. Owner: submit sitemap in Google Search Console.
+5. Fix 9 pre-existing eslint errors in public pages.
+Next visibility check ~2026-10-14.
+
 ## 2026-10-06
 **Changed (invisible, master):** WebSite JSON-LD on home; Blog + BlogPosting list JSON-LD on blog index; "Quick answers" section (what/how/cost/QBD/job costing) in public/llms.txt for AI search.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.

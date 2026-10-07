@@ -2,9 +2,11 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 import { MarketingNav } from '@/components/marketing-nav'
 
+import { PageBreadcrumbJsonLd } from '../blog/breadcrumb-jsonld'
+
 export const metadata: Metadata = {
-  title: 'Help & Support',
-  description: 'Setup guides, common questions, and how to get help with Purchasomatic.',
+  title: 'Help Center: Connect QuickBooks, Forward Invoices, Publish Your First Bill',
+  description: 'Step-by-step setup for Purchasomatic: connect QuickBooks Online or Desktop, set up your invoice and purchase order capture emails, review your first bill, and get support.',
   alternates: { canonical: '/help' },
   openGraph: {
     title: 'Purchasomatic Help & Support',
@@ -203,6 +205,7 @@ const SECTIONS = [
 export default function HelpPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
+      <PageBreadcrumbJsonLd name="Help" path="/help" />
       <MarketingNav />
 
       {/* Hero */}
