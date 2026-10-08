@@ -27,6 +27,12 @@ const ORG_JSON_LD = {
   url: 'https://www.purchasomatic.com',
   logo: 'https://www.purchasomatic.com/logo-512.png',
   email: 'support@purchasomatic.com',
+  contactPoint: {
+    '@type': 'ContactPoint',
+    contactType: 'customer support',
+    email: 'support@purchasomatic.com',
+    availableLanguage: 'English',
+  },
 }
 
 const WEBSITE_JSON_LD = {

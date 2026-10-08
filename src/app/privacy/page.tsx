@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: 'Privacy Policy',
   description: 'How Purchasomatic collects, uses, and protects your data, including QuickBooks data and uploaded invoices.',
   alternates: { canonical: '/privacy' },
+  openGraph: {
+    title: 'Purchasomatic Privacy Policy',
+    description: 'How Purchasomatic collects, uses, and protects your data, including QuickBooks data and uploaded invoices.',
+    url: '/privacy',
+    type: 'website',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
+  },
 }
 
 const EFFECTIVE_DATE = 'June 7, 2026'

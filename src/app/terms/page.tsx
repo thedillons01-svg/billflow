@@ -5,6 +5,14 @@ export const metadata: Metadata = {
   title: 'Terms of Service',
   description: 'The terms that apply when you use Purchasomatic, including credits, billing, and acceptable use.',
   alternates: { canonical: '/terms' },
+  openGraph: {
+    title: 'Purchasomatic Terms of Service',
+    description: 'The terms that apply when you use Purchasomatic, including credits, billing, and acceptable use.',
+    url: '/terms',
+    type: 'website',
+    siteName: 'Purchasomatic',
+    images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
+  },
 }
 
 const EFFECTIVE_DATE = 'June 5, 2026'

@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-08
+**Changed (invisible, master):** Organization JSON-LD on home now has a ContactPoint (support email); Open Graph tags added to /privacy and /terms; llms.txt quick answers expanded (scanned PDFs, duplicates, PO matching, done-for-you setup).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (last 2026-10-07; next ~2026-10-14).
+**Backlog (top):**
+1. After PR #3 merges: add new post to llms.txt.
+2. Add QBD FAQ to home (visible, seo/visible).
+3. Article on matching POs to bills in QuickBooks (Monday 2026-10-12).
+4. Owner: submit sitemap in Google Search Console.
+5. Fix 9 pre-existing eslint errors in public pages.
+
 ## 2026-10-07
 **Changed (invisible, master):** Help and Pricing page titles/descriptions rewritten to be keyword-specific (were "Help & Support" / "Pricing"); BreadcrumbList JSON-LD added to /help and /pricing (new PageBreadcrumbJsonLd in blog/breadcrumb-jsonld.tsx).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.

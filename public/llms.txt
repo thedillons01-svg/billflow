@@ -21,6 +21,10 @@
 - How does it work? Connect QuickBooks once, forward vendor emails to your two capture addresses, review the bills it prepares, and publish. Auto-publish can be switched on per vendor after 5 processed invoices.
 - What does it cost? About $0.40 per transaction (1 credit per invoice or PO). 25 free trial credits, no credit card required.
 - Does it work with QuickBooks Desktop? Yes. Bills are pushed to QuickBooks Desktop through the Intuit Web Connector, as well as to QuickBooks Online.
+- Can it read scanned invoices? Yes. It reads clean digital PDFs and scanned PDFs, including PDFs that contain several invoices.
+- Does it catch duplicate invoices? Yes. Duplicates are caught before they post and do not use a credit.
+- Can it match invoices to purchase orders? Yes. Bills are matched to open POs and price or quantity mismatches are flagged.
+- Is there a done-for-you option? Yes. A setup service is available: setup plus human review until accuracy is proven, then automatic posting vendor by vendor.
 - Does it need QuickBooks job costing? No. Job matching is optional; invoice capture alone saves the data entry.
 
 ## Key pages
