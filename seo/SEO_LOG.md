@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-09
+**Changed (invisible, master):** Signup now has its own title/description/canonical/OG ("Sign up free: 25 trial credits, no card"); Login has title/description/canonical; forgot/reset-password pages set noindex; robots.txt now also disallows /admin and /forgot-password (new layout.tsx files in src/app/(auth)/{signup,login,forgot-password,reset-password}).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (next ~2026-10-14).
+**Backlog (top):**
+1. After PR #3 merges: add new post to llms.txt.
+2. Add QBD FAQ to home (visible, seo/visible).
+3. Article on matching POs to bills in QuickBooks (Monday 2026-10-12).
+4. Owner: submit sitemap in Google Search Console.
+5. Fix 9 pre-existing eslint errors in public pages.
+
 ## 2026-10-08
 **Changed (invisible, master):** Organization JSON-LD on home now has a ContactPoint (support email); Open Graph tags added to /privacy and /terms; llms.txt quick answers expanded (scanned PDFs, duplicates, PO matching, done-for-you setup).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.

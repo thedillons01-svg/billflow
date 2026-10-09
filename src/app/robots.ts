@@ -22,6 +22,8 @@ export default function robots(): MetadataRoute.Robots {
         '/trash',
         '/onboarding',
         '/reset-password',
+        '/forgot-password',
+        '/admin',
       ],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
