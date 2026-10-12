@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-12
+**Changed (invisible, master):** mainEntityOfPage added to Article JSON-LD on the 2 posts missing it; Open Graph article publishedTime + author added on all 4 posts.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus new Monday article "How to match vendor invoices to purchase orders in QuickBooks" with FAQ.
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (next ~2026-10-14).
+**Backlog (top):**
+1. After PR #3 merges: add both new posts to llms.txt.
+2. Add QBD FAQ to home (visible, seo/visible).
+3. Owner: submit sitemap in Google Search Console.
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Visibility check ~2026-10-14.
+
 ## 2026-10-09
 **Changed (invisible, master):** Signup now has its own title/description/canonical/OG ("Sign up free: 25 trial credits, no card"); Login has title/description/canonical; forgot/reset-password pages set noindex; robots.txt now also disallows /admin and /forgot-password (new layout.tsx files in src/app/(auth)/{signup,login,forgot-password,reset-password}).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article, still unmerged. Nothing new added.

@@ -22,6 +22,8 @@ export const metadata: Metadata = {
     description: 'There are 3 ways to get vendor invoices into QuickBooks — but only one does job matching automatically.',
     url: canonicalPath,
     type: 'article',
+    publishedTime: post.date,
+    authors: ['Heather Dillon'],
     siteName: 'Purchasomatic',
     images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
