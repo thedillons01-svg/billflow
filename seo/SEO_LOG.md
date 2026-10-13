@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-13
+**Changed (invisible, master):** Blog index title now keyword-specific ("QuickBooks Invoice, Bill and Purchase Order Guides"); VideoObject JSON-LD added to home for the demo video.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Nothing new added.
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (next ~2026-10-14).
+**Backlog (top):**
+1. After PR #3 merges: add both new posts to llms.txt.
+2. Visibility check ~2026-10-14.
+3. Add QBD FAQ to home (visible, seo/visible).
+4. Owner: submit sitemap in Google Search Console.
+5. Fix 9 pre-existing eslint errors in public pages.
+
 ## 2026-10-12
 **Changed (invisible, master):** mainEntityOfPage added to Article JSON-LD on the 2 posts missing it; Open Graph article publishedTime + author added on all 4 posts.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus new Monday article "How to match vendor invoices to purchase orders in QuickBooks" with FAQ.

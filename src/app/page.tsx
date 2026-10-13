@@ -90,6 +90,7 @@ export default async function LandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(VIDEO_JSON_LD) }} />
       <MarketingNav isLoggedIn={!!user} />
       <Hero />
       <DemoVideo />
@@ -228,6 +229,16 @@ function Hero() {
 }
 
 /* ─── Demo video ──────────────────────────────────────────────────── */
+
+const VIDEO_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'VideoObject',
+  name: 'Purchasomatic demo: vendor invoices into QuickBooks automatically',
+  description: 'A walkthrough of Purchasomatic capturing vendor invoices by email, reading the line items and preparing bills for QuickBooks.',
+  thumbnailUrl: 'https://www.purchasomatic.com/logo-512.png',
+  uploadDate: '2026-09-30',
+  contentUrl: 'https://www.purchasomatic.com/demo.mp4',
+}
 
 function DemoVideo() {
   return (
