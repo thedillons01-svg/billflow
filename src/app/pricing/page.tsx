@@ -86,10 +86,36 @@ const FAQ_JSON_LD = {
   })),
 }
 
+const PRODUCT_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'SoftwareApplication',
+  name: 'Purchasomatic',
+  applicationCategory: 'BusinessApplication',
+  operatingSystem: 'Web',
+  url: 'https://www.purchasomatic.com/pricing',
+  offers: [
+    {
+      '@type': 'Offer',
+      name: 'Free trial',
+      price: '0',
+      priceCurrency: 'USD',
+      description: '25 free trial credits, no credit card required',
+    },
+    ...PACKAGES.map(pkg => ({
+      '@type': 'Offer',
+      name: pkg.name,
+      price: String(pkg.price),
+      priceCurrency: 'USD',
+      description: `${pkg.credits} credits per month. ${pkg.rateNote}`,
+    })),
+  ],
+}
+
 export default function PricingPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(FAQ_JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PRODUCT_JSON_LD) }} />
       <PageBreadcrumbJsonLd name="Pricing" path="/pricing" />
       <MarketingNav />
 

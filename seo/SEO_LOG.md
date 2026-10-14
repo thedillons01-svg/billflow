@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-14
+**Changed (invisible, master):** Pricing page now has SoftwareApplication JSON-LD listing the free trial plus all four paid plans (built from the same plan data as the page); sitemap lastModified for marketing pages bumped to 2026-10-14.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Nothing new added; branch is one commit behind master (rebase when next adding to it).
+**Checks:** tsc and next build pass.
+**Visibility check (3 searches):** purchasomatic.com absent for "import vendor invoices into QuickBooks Desktop automatically" (SaasAnt, Lido, Intuit community, invoicedataextraction dominate; answers say QBD has no native automatic option, so a clear "automatic" angle is open), "automate job costing materials invoices QuickBooks contractor" (Udemy, coefficient, handoff, knowify, levelset), and brand search "purchasomatic" (no site pages at all; site appears still unindexed).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt.
+2. Owner: verify site in Google Search Console and submit sitemap (brand search returns nothing).
+3. Add QBD FAQ to home (visible, seo/visible).
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Next Monday (2026-10-19) article only if PR #3 is merged or stalled; consider topic: inventory/job material costing workaround alternatives.
+
 ## 2026-10-13
 **Changed (invisible, master):** Blog index title now keyword-specific ("QuickBooks Invoice, Bill and Purchase Order Guides"); VideoObject JSON-LD added to home for the demo video.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Nothing new added.
