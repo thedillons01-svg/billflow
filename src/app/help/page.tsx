@@ -202,10 +202,21 @@ const SECTIONS = [
   },
 ]
 
+const HOWTO_JSON_LD = SECTIONS.filter(s => s.id === 'getting-started').flatMap(s => s.articles).map(a => ({
+  '@context': 'https://schema.org',
+  '@type': 'HowTo',
+  name: a.title,
+  url: `https://www.purchasomatic.com/help#${a.id}`,
+  step: a.content.map((text, i) => ({ '@type': 'HowToStep', position: i + 1, text })),
+}))
+
 export default function HelpPage() {
   return (
     <div className="min-h-screen bg-white" style={{ fontFamily: 'var(--font-geist-sans), system-ui, sans-serif' }}>
       <PageBreadcrumbJsonLd name="Help" path="/help" />
+      {HOWTO_JSON_LD.map(j => (
+        <script key={j.name} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(j) }} />
+      ))}
       <MarketingNav />
 
       {/* Hero */}
