@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-16
+**Changed (invisible, master):** BreadcrumbList JSON-LD added to /blog, /privacy and /terms; root layout now sets robots metadata with max-snippet/max-image-preview:large/max-video-preview (allows rich snippets and large previews).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged. Nothing new added.
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (last 2026-10-14; next ~2026-10-21).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt.
+2. Owner: verify site in Google Search Console and submit sitemap.
+3. Add QBD FAQ to home (visible, seo/visible).
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Monday 2026-10-19 article only if PR #3 merged or stalled.
+
 ## 2026-10-15
 **Changed (invisible, master):** HowTo JSON-LD (3 guides: connect QuickBooks, email forwarding, first invoice) on /help, generated from the page's own content so it stays in sync. Image alt audit: all public images/video already fine.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged. Nothing new added.

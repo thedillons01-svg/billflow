@@ -30,6 +30,11 @@ export const metadata: Metadata = {
     card: 'summary',
     images: ['/logo-512.png'],
   },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, 'max-snippet': -1, 'max-image-preview': 'large', 'max-video-preview': -1 },
+  },
   verification: {
     google: 'FEUF-HMzREY1Akg2JOZkBVGW7GqRsMa9We1dnadNEMo',
   },

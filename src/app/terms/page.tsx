@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { PageBreadcrumbJsonLd } from '../blog/breadcrumb-jsonld'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -22,6 +23,8 @@ const APP_NAME       = 'Purchasomatic'
 
 export default function TermsPage() {
   return (
+    <>
+    <PageBreadcrumbJsonLd name="Terms of Service" path="/terms" />
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 80px' }}>
 
@@ -185,6 +188,7 @@ export default function TermsPage() {
         </p>
       </div>
     </div>
+    </>
   )
 }
 

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { blogPosts } from './posts'
+import { PageBreadcrumbJsonLd } from './breadcrumb-jsonld'
 
 export const metadata: Metadata = {
   title: 'QuickBooks Invoice, Bill and Purchase Order Guides',
@@ -35,6 +36,7 @@ export default function BlogIndexPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#F9FAFB' }}>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogJsonLd) }} />
+      <PageBreadcrumbJsonLd name="Blog" path="/blog" />
       <div style={{ maxWidth: 760, margin: '0 auto', padding: '48px 24px 80px' }}>
 
         <div style={{ marginBottom: 40 }}>
