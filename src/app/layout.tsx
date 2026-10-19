@@ -16,10 +16,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.purchasomatic.com'),
   title: {
-    default: 'Purchasomatic — Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
+    default: 'Purchasomatic: Vendor Invoice & Purchase Order Capture for QuickBooks',
     template: '%s | Purchasomatic',
   },
-  description: 'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks.',
+  description: 'Forward vendor invoices and POs by email. Purchasomatic reads every line item, matches jobs and GL accounts, and posts to QuickBooks Online or Desktop.',
   openGraph: {
     siteName: 'Purchasomatic',
     locale: 'en_US',

@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-19
+**Changed (invisible, master):** Home and site-default <title> shortened to ~66 chars ("Vendor Invoice & Purchase Order Capture for QuickBooks", was ~90 and truncating); home/default meta description rewritten to ~150 chars and now mentions QuickBooks Online and Desktop (was 190 chars, truncating).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (two weeks). No new Monday article: PR #3 has two unmerged articles, adding more would pile up unreviewed content.
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (last 2026-10-14; next ~2026-10-21).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt.
+2. Owner: verify site in Google Search Console (a verification tag is already in layout) and submit sitemap.
+3. Add QBD FAQ to home (visible, seo/visible); add FAQ sections to the two older posts so FAQPage JSON-LD can be added.
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Visibility check 2026-10-21.
+
 ## 2026-10-16
 **Changed (invisible, master):** BreadcrumbList JSON-LD added to /blog, /privacy and /terms; root layout now sets robots metadata with max-snippet/max-image-preview:large/max-video-preview (allows rich snippets and large previews).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged. Nothing new added.

@@ -5,9 +5,9 @@ import { MarketingNav } from '@/components/marketing-nav'
 import { SUBSCRIPTION_PLANS } from '@/lib/stripe/client'
 
 export const metadata: Metadata = {
-  title: 'Automated PDF Purchase Order & Invoice Capture Synced to QuickBooks',
+  title: 'Vendor Invoice & Purchase Order Capture for QuickBooks',
   description:
-    'Automated PDF purchase order and invoice capture with class and job tracking, synced to QuickBooks. Forward invoices and POs — Purchasomatic reads every line item and publishes automatically.',
+    'Forward vendor invoices and POs by email. Purchasomatic reads every line item, matches jobs and GL accounts, and posts to QuickBooks Online or Desktop.',
   alternates: { canonical: '/' },
   openGraph: {
     title: 'Purchasomatic — Vendor Invoice & Purchase Order Capture for QuickBooks',
