@@ -26,6 +26,10 @@
 - Can it match invoices to purchase orders? Yes. Bills are matched to open POs and price or quantity mismatches are flagged.
 - Is there a done-for-you option? Yes. A setup service is available: setup plus human review until accuracy is proven, then automatic posting vendor by vendor.
 - Does it need QuickBooks job costing? No. Job matching is optional; invoice capture alone saves the data entry.
+- Who is it for? Trade and service businesses (HVAC, plumbing, electrical, general contractors and more) and the bookkeepers who enter their vendor bills. It also suits any business that wants vendor bills and purchase orders imported into QuickBooks without retyping.
+- Does it work with QuickBooks Online? Yes. Connect QuickBooks Online once; bills and purchase orders are pushed to it with the PDF kept with the bill.
+- Will it post bills without anyone looking? Only if you turn on auto-publish for a vendor, which is available after 5 processed invoices for that vendor. Unusual bills are still held for a person to review.
+- Can I try it free? Yes. 25 free trial credits, no credit card required.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works

@@ -1,5 +1,17 @@
 # SEO log
 
+## 2026-10-20
+**Changed (invisible, master):** llms.txt Quick answers expanded (who it is for, QuickBooks Online, auto-publish safeguards, free trial); sitemap lastModified for marketing pages bumped to 2026-10-20.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (about 2 weeks). No new Monday article.
+**Checks:** npm ci, tsc and next build pass.
+**Visibility check:** not due (last 2026-10-14; next 2026-10-21).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt.
+2. Owner: verify site in Google Search Console and submit sitemap.
+3. Add QBD FAQ to home (visible, seo/visible); FAQ sections on the two older posts.
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Visibility check 2026-10-21.
+
 ## 2026-10-19
 **Changed (invisible, master):** Home and site-default <title> shortened to ~66 chars ("Vendor Invoice & Purchase Order Capture for QuickBooks", was ~90 and truncating); home/default meta description rewritten to ~150 chars and now mentions QuickBooks Online and Desktop (was 190 chars, truncating).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (two weeks). No new Monday article: PR #3 has two unmerged articles, adding more would pile up unreviewed content.
