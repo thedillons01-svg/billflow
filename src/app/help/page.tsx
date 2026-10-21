@@ -16,6 +16,12 @@ export const metadata: Metadata = {
     siteName: 'Purchasomatic',
     images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
+  twitter: {
+    card: 'summary',
+    title: 'Purchasomatic Help & Support',
+    description: 'Setup guides, common questions, and how to get help with Purchasomatic.',
+    images: ['/logo-512.png'],
+  },
 }
 
 const SECTIONS = [

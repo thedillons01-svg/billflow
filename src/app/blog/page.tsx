@@ -15,6 +15,12 @@ export const metadata: Metadata = {
     siteName: 'Purchasomatic',
     images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
+  twitter: {
+    card: 'summary',
+    title: 'Purchasomatic Blog',
+    description: 'Guides for importing, automating, and tracking purchase orders and invoices in QuickBooks.',
+    images: ['/logo-512.png'],
+  },
 }
 
 const blogJsonLd = {

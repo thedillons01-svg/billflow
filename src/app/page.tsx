@@ -18,6 +18,12 @@ export const metadata: Metadata = {
     siteName: 'Purchasomatic',
     images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
+  twitter: {
+    card: 'summary',
+    title: 'Purchasomatic — Vendor Invoice & Purchase Order Capture for QuickBooks',
+    description: 'Forward vendor invoices and POs. Purchasomatic reads every line item, matches jobs and GL accounts, and pushes bills to QuickBooks. 25 free trial credits, no card.',
+    images: ['/logo-512.png'],
+  },
 }
 
 const ORG_JSON_LD = {

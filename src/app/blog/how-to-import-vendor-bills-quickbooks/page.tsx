@@ -27,6 +27,12 @@ export const metadata: Metadata = {
     siteName: 'Purchasomatic',
     images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
+  twitter: {
+    card: 'summary',
+    title: post.title,
+    description: 'There are 3 ways to get vendor invoices into QuickBooks — but only one does job matching automatically.',
+    images: ['/logo-512.png'],
+  },
 }
 
 const faqs = [

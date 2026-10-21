@@ -17,6 +17,12 @@ export const metadata: Metadata = {
     siteName: 'Purchasomatic',
     images: [{ url: '/logo-512.png', width: 512, height: 512, alt: 'Purchasomatic' }],
   },
+  twitter: {
+    card: 'summary',
+    title: 'Purchasomatic Pricing',
+    description: 'About $0.40 per invoice or purchase order. 25 free trial credits, no credit card required.',
+    images: ['/logo-512.png'],
+  },
 }
 
 const PLAN_DESCRIPTIONS: Record<string, string> = {

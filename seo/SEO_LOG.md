@@ -1,5 +1,16 @@
 # SEO log
 
+## 2026-10-21
+**Changed (invisible, master):** Per-page Twitter card tags (title, description, image) on home, pricing, help, blog index and all 4 posts (previously only a site-wide image, no per-page title/description).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks). No new Monday article.
+**Checks:** npm ci, tsc and next build pass.
+**Visibility check (3 searches):** purchasomatic.com absent for "automatically create QuickBooks bills from emailed vendor invoices with job costing" (a Gmail-sidebar add-on listing appeared), "match purchase order to vendor bill QuickBooks Online discrepancies automatically" (ApprovalMax, Intuit community, Quartzy; sources say QBO has no native auto PO-to-bill match, which is an open angle for the PO article), and brand search "purchasomatic" (nothing; site still appears unindexed). Next check 2026-10-28.
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt.
+2. Owner: verify site in Google Search Console and submit sitemap (brand search still returns nothing).
+3. Add QBD FAQ to home (visible, seo/visible); FAQ sections on the two older posts.
+4. Fix 9 pre-existing eslint errors in public pages.
+
 ## 2026-10-20
 **Changed (invisible, master):** llms.txt Quick answers expanded (who it is for, QuickBooks Online, auto-publish safeguards, free trial); sitemap lastModified for marketing pages bumped to 2026-10-20.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (about 2 weeks). No new Monday article.
