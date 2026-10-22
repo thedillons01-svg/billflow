@@ -16,6 +16,13 @@
 - Reprocessing, duplicates and rejected documents do not use a credit.
 - A done-for-you setup service is also available.
 
+### Monthly plans
+- Starter: $20 per month, 50 credits ($0.40 per transaction)
+- Basic: $40 per month, 100 credits ($0.40 per transaction)
+- Professional: $76 per month, 200 credits ($0.38 per transaction)
+- Business: $180 per month, 500 credits ($0.36 per transaction)
+- Full plan details and credit rules: https://www.purchasomatic.com/pricing
+
 ## Quick answers
 - What is Purchasomatic? A service that reads vendor invoices and purchase orders you forward by email and enters them in QuickBooks as bills and POs, coded to the right job, customer and GL account.
 - How does it work? Connect QuickBooks once, forward vendor emails to your two capture addresses, review the bills it prepares, and publish. Auto-publish can be switched on per vendor after 5 processed invoices.
