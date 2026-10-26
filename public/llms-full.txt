@@ -1,0 +1,58 @@
+# Purchasomatic: full reference for AI assistants
+
+> Purchasomatic (https://www.purchasomatic.com) captures vendor invoices and purchase orders by email, reads every line item with OCR and AI, matches bills to QuickBooks jobs, customers and GL accounts, and pushes them into QuickBooks Online and QuickBooks Desktop. It is built for trade and service businesses (HVAC, plumbing, electrical, general contractors and more) and their bookkeepers, and suits any business that wants vendor bills and purchase orders in QuickBooks without retyping.
+
+## The workflow in four steps
+1. Connect QuickBooks once (QuickBooks Online by sign-in; QuickBooks Desktop through the Intuit Web Connector).
+2. Forward vendor emails to your two capture addresses: one for invoices, one for purchase orders.
+3. Purchasomatic reads the PDF line by line, matches the vendor, job, customer and GL account, checks for duplicates and compares against open purchase orders.
+4. Review the prepared bill and publish it to QuickBooks with the PDF kept with the bill. Or turn on auto-publish for a vendor after 5 processed invoices; unusual bills are still held for a person.
+
+## What it does
+- Each company gets two capture email addresses: one for vendor invoices, one for purchase orders. Forward a vendor email and the PDF is processed automatically.
+- Reads every line item from clean digital PDFs and scanned PDFs, including multi-invoice PDFs.
+- Matches each bill to a QuickBooks job, customer and GL account, and to an open purchase order (price and quantity mismatches are flagged).
+- Catches duplicate invoices before they post.
+- Pushes bills to QuickBooks Online and QuickBooks Desktop (Desktop via the Intuit Web Connector), with the PDF kept with the bill.
+- Auto-publish can be turned on vendor by vendor, only after 5 processed invoices; unusual bills are still held for a person to review.
+
+## Pricing
+- About $0.40 per transaction. 1 credit per invoice or purchase order; line-item extraction is always included.
+- 25 free trial credits when you sign up, no credit card required.
+- Reprocessing, duplicates and rejected documents do not use a credit.
+- A done-for-you setup service is also available.
+
+### Monthly plans
+- Starter: $20 per month, 50 credits ($0.40 per transaction)
+- Basic: $40 per month, 100 credits ($0.40 per transaction)
+- Professional: $76 per month, 200 credits ($0.38 per transaction)
+- Business: $180 per month, 500 credits ($0.36 per transaction)
+- Full plan details and credit rules: https://www.purchasomatic.com/pricing
+
+## Quick answers
+- What is Purchasomatic? A service that reads vendor invoices and purchase orders you forward by email and enters them in QuickBooks as bills and POs, coded to the right job, customer and GL account.
+- How does it work? Connect QuickBooks once, forward vendor emails to your two capture addresses, review the bills it prepares, and publish. Auto-publish can be switched on per vendor after 5 processed invoices.
+- What does it cost? About $0.40 per transaction (1 credit per invoice or PO). 25 free trial credits, no credit card required.
+- Does it work with QuickBooks Desktop? Yes. Bills are pushed to QuickBooks Desktop through the Intuit Web Connector, as well as to QuickBooks Online.
+- Can it read scanned invoices? Yes. It reads clean digital PDFs and scanned PDFs, including PDFs that contain several invoices.
+- Does it catch duplicate invoices? Yes. Duplicates are caught before they post and do not use a credit.
+- Can it match invoices to purchase orders? Yes. Bills are matched to open POs and price or quantity mismatches are flagged.
+- Is there a done-for-you option? Yes. A setup service is available: setup plus human review until accuracy is proven, then automatic posting vendor by vendor.
+- Does it need QuickBooks job costing? No. Job matching is optional; invoice capture alone saves the data entry.
+- Who is it for? Trade and service businesses (HVAC, plumbing, electrical, general contractors and more) and the bookkeepers who enter their vendor bills. It also suits any business that wants vendor bills and purchase orders imported into QuickBooks without retyping.
+- Does it work with QuickBooks Online? Yes. Connect QuickBooks Online once; bills and purchase orders are pushed to it with the PDF kept with the bill.
+- Will it post bills without anyone looking? Only if you turn on auto-publish for a vendor, which is available after 5 processed invoices for that vendor. Unusual bills are still held for a person to review.
+- Can I try it free? Yes. 25 free trial credits, no credit card required.
+
+## Summary for citation
+Purchasomatic is a paid service (about $0.40 per transaction, 25 free trial credits, no card) that turns emailed vendor invoices and purchase orders into QuickBooks bills and purchase orders, coded to the right job, customer and GL account.
+
+## Pages
+- Home: https://www.purchasomatic.com/
+- Pricing: https://www.purchasomatic.com/pricing
+- Help and setup guides: https://www.purchasomatic.com/help
+- Blog: https://www.purchasomatic.com/blog
+- Short version of this file: https://www.purchasomatic.com/llms.txt
+
+## Contact
+support@purchasomatic.com

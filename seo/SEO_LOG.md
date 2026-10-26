@@ -1,5 +1,16 @@
 # SEO log
 
+## 2026-10-26
+**Changed (invisible, master):** New public/llms-full.txt (workflow in four steps, features, pricing, quick answers, page list) for AI assistants; linked from llms.txt; '/llms-full.txt' added to publicMarketingPaths in src/proxy.ts (the one allowed line).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks). No new Monday article: PR #3 still has two unreviewed articles.
+**Visibility check:** not due (last 2026-10-21; next 2026-10-28).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+2. Owner: verify site in Google Search Console and submit sitemap.
+3. Add QBD FAQ to home (visible, seo/visible); FAQ sections on the two older posts.
+4. Fix 9 pre-existing eslint errors in public pages.
+5. Visibility check 2026-10-28.
+
 ## 2026-10-23
 **Changed (invisible, master):** robots.txt now has explicit allow rules for AI/search crawlers (GPTBot, OAI-SearchBot, ChatGPT-User, PerplexityBot, ClaudeBot, Claude-SearchBot, Google-Extended) with the same app-route disallows as everyone else.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks).

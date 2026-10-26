@@ -47,6 +47,7 @@
 - [How to import vendor bills into QuickBooks Online](https://www.purchasomatic.com/blog/how-to-import-vendor-bills-quickbooks)
 - [How to import purchase orders into QuickBooks](https://www.purchasomatic.com/blog/how-to-import-purchase-orders-into-quickbooks)
 - [Job costing in QuickBooks for trades contractors](https://www.purchasomatic.com/blog/job-costing-in-quickbooks-for-trades-contractors)
+- [Full reference for AI assistants](https://www.purchasomatic.com/llms-full.txt)
 - [Sign up](https://www.purchasomatic.com/signup)
 
 ## Contact

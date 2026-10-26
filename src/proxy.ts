@@ -36,7 +36,7 @@ export async function proxy(request: NextRequest) {
 
   const isAuthRoute = pathname.startsWith('/login') || pathname.startsWith('/signup') || pathname.startsWith('/forgot-password') || pathname.startsWith('/reset-password')
   const isPublicApiRoute = pathname.startsWith('/api/webhooks') || pathname.startsWith('/api/quickbooks/callback')
-  const publicMarketingPaths = ['/', '/blog', '/pricing', '/help', '/privacy', '/terms', '/robots.txt', '/sitemap.xml', '/llms.txt']
+  const publicMarketingPaths = ['/', '/blog', '/pricing', '/help', '/privacy', '/terms', '/robots.txt', '/sitemap.xml', '/llms.txt', '/llms-full.txt']
   const isPublicPage = publicMarketingPaths.some(p => pathname === p || pathname.startsWith(`${p}/`))
   const isDashboardRoute = !isAuthRoute && !isPublicApiRoute && !isPublicPage && !pathname.startsWith('/api/')
 
