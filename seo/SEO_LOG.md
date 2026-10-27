@@ -1,5 +1,16 @@
 # SEO log
 
+## 2026-10-27
+**Changed (invisible, master):** BlogPosting JSON-LD on all 4 posts now has inLanguage (en-US) and isPartOf (Blog entity linking to /blog).
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks). No new Monday article.
+**Checks:** npm ci, tsc and next build pass.
+**Visibility check:** not due (next 2026-10-28).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+2. Owner: verify site in Google Search Console and submit sitemap.
+3. Add FAQ sections to the two older posts (visible, seo/visible); QBD FAQ on home.
+4. Visibility check 2026-10-28.
+
 ## 2026-10-26
 **Changed (invisible, master):** New public/llms-full.txt (workflow in four steps, features, pricing, quick answers, page list) for AI assistants; linked from llms.txt; '/llms-full.txt' added to publicMarketingPaths in src/proxy.ts (the one allowed line).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks). No new Monday article: PR #3 still has two unreviewed articles.

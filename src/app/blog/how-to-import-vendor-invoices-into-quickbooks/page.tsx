@@ -47,6 +47,8 @@ export default function BlogPostPage() {
     datePublished: post.date,
     dateModified: post.date,
     mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.purchasomatic.com/blog/${post.slug}` },
+    inLanguage: 'en-US',
+    isPartOf: { '@type': 'Blog', name: 'Purchasomatic Blog', url: 'https://www.purchasomatic.com/blog' },
     author: { '@type': 'Person', name: 'Heather Dillon' },
     publisher: { '@type': 'Organization', name: 'Purchasomatic', url: 'https://www.purchasomatic.com', logo: { '@type': 'ImageObject', url: 'https://www.purchasomatic.com/logo-512.png' } },
     image: 'https://www.purchasomatic.com/logo-512.png',

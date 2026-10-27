@@ -130,6 +130,8 @@ export default function BlogPostPage() {
     datePublished: post.date,
     dateModified: post.date,
     mainEntityOfPage: { '@type': 'WebPage', '@id': `https://www.purchasomatic.com${canonicalPath}` },
+    inLanguage: 'en-US',
+    isPartOf: { '@type': 'Blog', name: 'Purchasomatic Blog', url: 'https://www.purchasomatic.com/blog' },
   }
 
   const faqJsonLd = {
