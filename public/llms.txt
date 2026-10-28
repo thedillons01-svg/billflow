@@ -37,6 +37,9 @@
 - Does it work with QuickBooks Online? Yes. Connect QuickBooks Online once; bills and purchase orders are pushed to it with the PDF kept with the bill.
 - Will it post bills without anyone looking? Only if you turn on auto-publish for a vendor, which is available after 5 processed invoices for that vendor. Unusual bills are still held for a person to review.
 - Can I try it free? Yes. 25 free trial credits, no credit card required.
+- Can vendor invoices be entered in QuickBooks Desktop automatically? Yes. Forward the invoice to your capture address; Purchasomatic reads the line items and posts the bill to QuickBooks Desktop through the Intuit Web Connector, with no spreadsheet or CSV import step.
+- Does it flag when an invoice does not match the purchase order? Yes. The bill is matched to the open PO by vendor and PO number, and price or quantity differences are flagged for review.
+- Can bills be coded to the right job automatically? Yes, when QuickBooks jobs exist. Purchasomatic matches the bill to an existing QuickBooks job and never creates job records itself.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works

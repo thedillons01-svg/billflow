@@ -1,5 +1,15 @@
 # SEO log
 
+## 2026-10-28
+**Changed (invisible, master):** llms.txt Quick answers: added QuickBooks Desktop automatic entry (no CSV step), PO price/quantity mismatch flagging, and job matching (never creates jobs); sitemap lastModified bumped to 2026-10-28.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks). No new article (Wednesday).
+**Visibility check (5 searches):** purchasomatic.com absent everywhere, including the brand search "purchasomatic" (no results at all, site still looks unindexed). "import vendor invoices into QuickBooks Desktop automatically": SaasAnt, Lido, Intuit community, commonsku; results say QBD has no built-in automation (CSV/IIF only), an open angle. "email vendor invoices to QuickBooks automatically bookkeeper": tailride, Gmail Payable add-on, n8n, Fiverr. "match purchase orders to invoices QuickBooks flag price mismatch": getply, Matchy Match, Zoho; QuickBooks has no native 3-way match. "automate job costing materials supplier invoices QuickBooks contractor": handoff, knowify, simpro, milner AP automation for contractors.
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+2. Owner: verify site in Google Search Console and submit sitemap (brand search returns nothing, so indexing is the main blocker).
+3. Add FAQ sections to the two older posts; QBD FAQ on home (visible, seo/visible).
+4. Next visibility check 2026-11-04.
+
 ## 2026-10-27
 **Changed (invisible, master):** BlogPosting JSON-LD on all 4 posts now has inLanguage (en-US) and isPartOf (Blog entity linking to /blog).
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3 weeks). No new Monday article.
