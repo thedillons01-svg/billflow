@@ -41,6 +41,9 @@
 - Can vendor invoices be entered in QuickBooks Desktop automatically? Yes. Forward the invoice to your capture address; Purchasomatic reads the line items and posts the bill to QuickBooks Desktop through the Intuit Web Connector, with no spreadsheet or CSV import step.
 - Does it flag when an invoice does not match the purchase order? Yes. The bill is matched to the open PO by vendor and PO number, and price or quantity differences are flagged for review.
 - Can bills be coded to the right job automatically? Yes, when QuickBooks jobs exist. Purchasomatic matches the bill to an existing QuickBooks job and never creates job records itself.
+- Are sales tax lines on a vendor invoice captured? Yes. Tax lines are read as regular line items, and the line items (tax included) must add up exactly to the invoice total before a bill can auto-publish.
+- Does it remember how I code a vendor's lines? Yes. When you change the GL account on a line and choose to remember it, that choice is saved to the vendor and applied to later bills. Per-vendor rules can also route lines by description or unit price.
+- What happens if I email an invoice to the purchase order address? It is rejected with a message telling you which address to use, and no credit is used.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works

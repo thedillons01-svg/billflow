@@ -1,5 +1,15 @@
 # SEO log
 
+## 2026-10-30
+**Changed (invisible, master):** Added quick answers on tax lines, remembered line coding and wrong-address rejection to llms.txt and llms-full.txt; sitemap lastModified bumped to 2026-10-30.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3.5 weeks). No new article (Friday).
+**Checks:** tsc and next build pass.
+**Visibility check:** not due (next 2026-11-04).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+2. Owner: verify site in Google Search Console and submit sitemap.
+3. Add FAQ sections to the two older posts; QBD FAQ on home (visible, seo/visible).
+
 ## 2026-10-29
 **Changed (invisible, master):** Added a Mark as Paid quick answer (per-vendor, linked bill payment, off by default) to llms.txt and llms-full.txt; sitemap lastModified bumped to 2026-10-29.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~3.5 weeks). No new article (Thursday).

@@ -5,7 +5,7 @@ const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.purchasomatic.co
 
 export default function sitemap(): MetadataRoute.Sitemap {
   // Fixed dates so lastModified only changes when content actually does.
-  const marketingUpdated = new Date('2026-10-29')
+  const marketingUpdated = new Date('2026-10-30')
   const legalUpdated = new Date('2026-09-30')
   return [
     { url: baseUrl, lastModified: marketingUpdated, changeFrequency: 'weekly', priority: 1 },

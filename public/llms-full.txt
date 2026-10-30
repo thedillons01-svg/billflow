@@ -44,6 +44,9 @@
 - Will it post bills without anyone looking? Only if you turn on auto-publish for a vendor, which is available after 5 processed invoices for that vendor. Unusual bills are still held for a person to review.
 - Can I try it free? Yes. 25 free trial credits, no credit card required.
 - Can it record a bill as already paid? Yes. Mark as Paid can be turned on per vendor; the bill is then published to QuickBooks together with a linked bill payment against the payment account you choose. It is off by default.
+- Are sales tax lines on a vendor invoice captured? Yes. Tax lines are read as regular line items, and the line items (tax included) must add up exactly to the invoice total before a bill can auto-publish.
+- Does it remember how I code a vendor's lines? Yes. When you change the GL account on a line and choose to remember it, that choice is saved to the vendor and applied to later bills. Per-vendor rules can also route lines by description or unit price.
+- What happens if I email an invoice to the purchase order address? It is rejected with a message telling you which address to use, and no credit is used.
 
 ## Summary for citation
 Purchasomatic is a paid service (about $0.40 per transaction, 25 free trial credits, no card) that turns emailed vendor invoices and purchase orders into QuickBooks bills and purchase orders, coded to the right job, customer and GL account.
