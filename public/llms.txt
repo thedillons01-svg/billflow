@@ -44,6 +44,9 @@
 - Are sales tax lines on a vendor invoice captured? Yes. Tax lines are read as regular line items, and the line items (tax included) must add up exactly to the invoice total before a bill can auto-publish.
 - Does it remember how I code a vendor's lines? Yes. When you change the GL account on a line and choose to remember it, that choice is saved to the vendor and applied to later bills. Per-vendor rules can also route lines by description or unit price.
 - What happens if I email an invoice to the purchase order address? It is rejected with a message telling you which address to use, and no credit is used.
+- Can I track whether ordered materials actually arrived? Yes. Open or partially received purchase orders can be checked off line by line (received, partial or not received) on a mobile-friendly receiving screen that shows who ordered, for which job and when.
+- What does QuickBooks Desktop need to be running for bills to sync? QuickBooks Desktop must be open with your company file loaded, and the Intuit Web Connector set up with the .QWC file from Settings > Integrations. Bills are then picked up on the Web Connector's polling schedule.
+- Can I get back a bill I deleted by mistake? Yes. Deleted bills go to a Trash area in the app, where they can be restored.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
