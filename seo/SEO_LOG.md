@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-03
+**Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers from the Help page (automatic forwarding via Gmail/Outlook rules or vendor-direct; why a forwarded invoice may not appear); sitemap lastModified bumped to 2026-11-03.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~4 weeks). No new Monday article: PR #3 has two unreviewed articles.
+**Visibility check:** not due (next 2026-11-04).
+**Backlog (top):**
+1. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+2. Owner: verify site in Google Search Console and submit sitemap (site appears unindexed).
+3. Visibility check 2026-11-04; FAQ sections on older posts; QBD FAQ on home (visible, seo/visible).
+
 ## 2026-11-02
 **Changed (invisible, master):** llms.txt and llms-full.txt: three new quick answers (receiving workflow, what QuickBooks Desktop needs open for sync, restoring deleted bills from Trash); sitemap lastModified bumped to 2026-11-02.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~4 weeks). No new Monday article: PR #3 has two unreviewed articles.

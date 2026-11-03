@@ -50,6 +50,8 @@
 - Can I track whether ordered materials actually arrived? Yes. Open or partially received purchase orders can be checked off line by line (received, partial or not received) on a mobile-friendly receiving screen that shows who ordered, for which job and when.
 - What does QuickBooks Desktop need to be running for bills to sync? QuickBooks Desktop must be open with your company file loaded, and the Intuit Web Connector set up with the .QWC file from Settings > Integrations. Bills are then picked up on the Web Connector's polling schedule.
 - Can I get back a bill I deleted by mistake? Yes. Deleted bills go to a Trash area in the app, where they can be restored.
+- Do I have to forward every invoice by hand? No. You can forward manually, set up automatic forwarding rules in Gmail or Outlook, or give vendors your capture address directly.
+- Why did my forwarded invoice not appear in the inbox? Check that the forward was sent and that the capture address is correct (shown in Settings > Email Capture; the bills address ends in -bills@mail.purchasomatic.com). A bills email whose subject or body does not contain the word "invoice" can be rejected, and a rejection email is sent to the address you forwarded from.
 
 ## Summary for citation
 Purchasomatic is a paid service (about $0.40 per transaction, 25 free trial credits, no card) that turns emailed vendor invoices and purchase orders into QuickBooks bills and purchase orders, coded to the right job, customer and GL account.
