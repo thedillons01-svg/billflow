@@ -1,5 +1,13 @@
 # SEO log
 
+## 2026-11-04
+**Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers (splitting an invoice across jobs at line level; QuickBooks Desktop has no native PDF invoice capture); sitemap lastModified bumped to 2026-11-04.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~4 weeks). No new Monday-type article (Wednesday).
+**Visibility check (5 searches):** purchasomatic.com absent everywhere; the brand search "purchasomatic" returns nothing relevant (site still unindexed). QBD email-to-bill: Gmail Payable add-on, n8n, Fiverr, CSV/IIF guides; no QBD-specific automation ranks. QBO PO-to-bill matching: ApprovalMax, Intuit help/community, SaasAnt. Job assignment of bill lines: Intuit community threads (manual per-line; no automation). AP automation for HVAC/plumbing: Rillion, Affiniti, ServiceTitan Payables.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (brand search returns nothing: indexing is the main blocker).
+2. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): FAQ sections on older posts; QBD FAQ on home; possible article on assigning bill lines to jobs (Intuit threads show demand). Next visibility check 2026-11-11.
 ## 2026-11-03
 **Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers from the Help page (automatic forwarding via Gmail/Outlook rules or vendor-direct; why a forwarded invoice may not appear); sitemap lastModified bumped to 2026-11-03.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~4 weeks). No new Monday article: PR #3 has two unreviewed articles.
