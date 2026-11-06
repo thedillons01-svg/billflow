@@ -56,6 +56,9 @@
 - Does QuickBooks Desktop have a built-in way to read PDF invoices? No. QuickBooks Desktop has no native PDF invoice capture, so bills are normally keyed by hand or imported from a file. Purchasomatic reads the PDF and posts the bill through the Intuit Web Connector instead.
 - What happens if QuickBooks rejects a bill? The bill shows a Sync Error with the specific reason QuickBooks gave (for example, the vendor is missing in QuickBooks, the GL account is inactive, the job is closed or the date is in a locked period). Fix the cause and publish again; a bill in Sync Error can also be unpublished back to Ready.
 - What if no QuickBooks job matches a bill yet? The bill waits as Pending Job Match and the match is retried every 2 hours during business hours, and you can click Find Match to retry on demand. It is never given a made-up job.
+- Does reprocessing a bill cost another credit? No. Reprocessing (re-running the reading or re-applying vendor defaults), duplicates and rejected documents never use a credit. One credit is used per successfully processed invoice or purchase order.
+- Can I set rules so certain line items always go to a specific account? Yes. Each vendor has a Rules tab: if a line's description or unit price contains, equals, begins with or ends with a value you choose, it is coded to the GL account you pick. Rules are applied after remembered line mappings.
+- Does Purchasomatic ever create jobs in QuickBooks? No. It only matches bills to jobs that already exist in QuickBooks and never creates new job records.
 
 ## Summary for citation
 Purchasomatic is a paid service (about $0.40 per transaction, 25 free trial credits, no card) that turns emailed vendor invoices and purchase orders into QuickBooks bills and purchase orders, coded to the right job, customer and GL account.

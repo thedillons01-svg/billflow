@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-06
+**Changed (invisible, master):** llms.txt and llms-full.txt: three new quick answers (reprocessing/duplicates/rejects cost no credit; per-vendor Rules tab for line coding; never creates QuickBooks jobs); sitemap lastModified bumped to 2026-11-06.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~4.5 weeks). No new article (Friday).
+**Visibility check:** not due (next 2026-11-11).
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (site appears unindexed).
+2. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): FAQ sections on older posts; QBD FAQ on home; article on assigning bill lines to jobs.
+
 ## 2026-11-05
 **Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers (what happens when QuickBooks rejects a bill / Sync Error recovery; Pending Job Match retry every 2 hours plus Find Match); sitemap lastModified bumped to 2026-11-05.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~4 weeks). No new article (Thursday).
