@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-10
+**Changed (invisible, master):** Added Open Graph tags to /login (it already had title, description, canonical; signup had OG, login did not); sitemap lastModified bumped to 2026-11-10. Audit: titles, descriptions, canonicals, JSON-LD (Organization, WebSite, SoftwareApplication, FAQPage, Article, Breadcrumb), robots and llms files all in place; llms.txt already has ~35 quick answers, so further additions have diminishing value.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~5 weeks). No new Monday article (Tuesday).
+**Visibility check:** due tomorrow 2026-11-11.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (site appears unindexed; main blocker).
+2. Owner: merge PR #3, then add both new posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): FAQ sections on older posts; QBD FAQ on home; article on assigning bill lines to jobs.
+
 ## 2026-11-09
 **Changed (invisible, master):** llms.txt and llms-full.txt: three new quick answers (optional daily digest email; per-vendor Hold for job match; unpublish only for Sync Error); sitemap lastModified bumped to 2026-11-09.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~5 weeks). No new Monday article: PR #3 has two unreviewed articles.
