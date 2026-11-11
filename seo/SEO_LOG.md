@@ -1,5 +1,15 @@
 # SEO log
 
+## 2026-11-11
+**Changed (invisible, master):** llms.txt and llms-full.txt: three new quick answers (QuickBooks links POs to bills by hand vs automatic matching; PDF kept with bill, QBO attached / QBD stored in app; auto-publish after 5 invoices with holds); sitemap lastModified bumped to 2026-11-11.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~5 weeks). No new article (Wednesday).
+**Visibility check (5 searches):** purchasomatic.com absent everywhere; brand search "purchasomatic" still returns nothing (site unindexed). QBD email-to-bill: DocuClipper (IIF export), Rillion, Payable (QBO only), SaasAnt, n8n, Intuit's own "Upload and Review Bills" email address for QBD. QBO PO-to-bill: ApprovalMax, Stampli, Zapier template; native QBO is manual linking. Bill lines to jobs: Intuit community threads report a split bill shows full amount on each job (real pain; article angle). Trades OCR job costing: ProcureDesk, Knowify, various blogs.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs (the full-amount-on-each-job complaint); FAQ on older posts; QBD FAQ on home.
+Next visibility check 2026-11-18.
+
 ## 2026-11-10
 **Changed (invisible, master):** Added Open Graph tags to /login (it already had title, description, canonical; signup had OG, login did not); sitemap lastModified bumped to 2026-11-10. Audit: titles, descriptions, canonicals, JSON-LD (Organization, WebSite, SoftwareApplication, FAQPage, Article, Breadcrumb), robots and llms files all in place; llms.txt already has ~35 quick answers, so further additions have diminishing value.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~5 weeks). No new Monday article (Tuesday).
