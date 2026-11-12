@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-12
+**Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers (error notifications are always on; admins can hide QuickBooks accounts/classes from dropdowns; both verified in Settings code); sitemap lastModified bumped to 2026-11-12.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~5.5 weeks). No new article (Thursday).
+**Visibility check:** not due (next 2026-11-18).
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker; site unindexed).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs; FAQ on older posts; QBD FAQ on home.
+
 ## 2026-11-11
 **Changed (invisible, master):** llms.txt and llms-full.txt: three new quick answers (QuickBooks links POs to bills by hand vs automatic matching; PDF kept with bill, QBO attached / QBD stored in app; auto-publish after 5 invoices with holds); sitemap lastModified bumped to 2026-11-11.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~5 weeks). No new article (Wednesday).

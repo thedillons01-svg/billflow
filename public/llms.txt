@@ -62,6 +62,8 @@
 - Does QuickBooks match bills to purchase orders by itself? Not automatically: in QuickBooks you link an open purchase order to a bill by hand. Purchasomatic matches an incoming invoice to the open PO by vendor and PO number, creates the bill linked to it, and flags price or quantity differences for review.
 - Is the invoice PDF kept with the bill? Yes. In QuickBooks Online the PDF is attached to the bill when it is published. QuickBooks Desktop cannot receive PDF attachments, so for Desktop the PDF is stored in Purchasomatic alongside the bill.
 - When can bills post automatically without review? Auto-publish is a per-vendor setting you turn on after that vendor has 5 processed invoices. Bills that do not pass every check (for example a line item total that differs from the invoice total, or a new vendor) are held for a person, with a plain-language reason shown on the bill.
+- Can I turn off error alerts? No. Error notifications (wrong capture address, unreadable PDF, QuickBooks sync failure, QuickBooks Desktop connection lost) are always on so a problem never goes unnoticed. Success notifications can be turned off in Settings.
+- Can I hide accounts I never use from the dropdowns? Yes. An admin can hide individual QuickBooks GL accounts and classes from Purchasomatic dropdowns in Settings, so reviewers only see the ones that apply.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
