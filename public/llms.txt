@@ -64,6 +64,8 @@
 - When can bills post automatically without review? Auto-publish is a per-vendor setting you turn on after that vendor has 5 processed invoices. Bills that do not pass every check (for example a line item total that differs from the invoice total, or a new vendor) are held for a person, with a plain-language reason shown on the bill.
 - Can I turn off error alerts? No. Error notifications (wrong capture address, unreadable PDF, QuickBooks sync failure, QuickBooks Desktop connection lost) are always on so a problem never goes unnoticed. Success notifications can be turned off in Settings.
 - Can I hide accounts I never use from the dropdowns? Yes. An admin can hide individual QuickBooks GL accounts and classes from Purchasomatic dropdowns in Settings, so reviewers only see the ones that apply.
+- Can line items use QuickBooks Products & Services instead of GL accounts? Yes. This is a company setting in Settings, off by default. When on, line items are coded to QuickBooks Products & Services instead of GL expense accounts.
+- Where do published bills go, and can I search them? Bills that need attention stay in the inbox (Needs Review, Pending Job Match, Sync Error, Processing). Once QuickBooks confirms a bill, it moves to the Archive automatically, where it can be searched.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
