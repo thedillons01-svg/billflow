@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-16
+**Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers (bulk actions in the inbox; multi-invoice PDFs with summary page split, both verified in code); sitemap lastModified bumped to 2026-11-16.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~6 weeks). No new Monday article: PR #3 has two unreviewed articles.
+**Visibility check:** due Wed 2026-11-18.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker; site unindexed).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs; FAQ on older posts; QBD FAQ on home.
+
 ## 2026-11-13
 **Changed (invisible, master):** llms.txt and llms-full.txt: two new quick answers (Products & Services setting; inbox vs Archive, both verified in code); sitemap lastModified bumped to 2026-11-13.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~6 weeks). No new article (Friday).

@@ -66,6 +66,8 @@
 - Can I hide accounts I never use from the dropdowns? Yes. An admin can hide individual QuickBooks GL accounts and classes from Purchasomatic dropdowns in Settings, so reviewers only see the ones that apply.
 - Can line items use QuickBooks Products & Services instead of GL accounts? Yes. This is a company setting in Settings, off by default. When on, line items are coded to QuickBooks Products & Services instead of GL expense accounts.
 - Where do published bills go, and can I search them? Bills that need attention stay in the inbox (Needs Review, Pending Job Match, Sync Error, Processing). Once QuickBooks confirms a bill, it moves to the Archive automatically, where it can be searched.
+- Can I act on many bills at once? Yes. Select several bills in the inbox and you can mark them Ready, publish them to QuickBooks, run Find Job Match on those waiting for a job, or delete them. Deleted bills stay recoverable from Trash for 30 days.
+- What if a vendor sends one PDF with many invoices? Purchasomatic detects PDFs that begin with a statement or summary page, discards that page and splits the remaining pages into separate bills, each captured and matched on its own.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
