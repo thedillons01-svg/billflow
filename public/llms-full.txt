@@ -71,6 +71,7 @@
 - Where do published bills go, and can I search them? Bills that need attention stay in the inbox (Needs Review, Pending Job Match, Sync Error, Processing). Once QuickBooks confirms a bill, it moves to the Archive automatically, where it can be searched.
 - Can I act on many bills at once? Yes. Select several bills in the inbox and you can mark them Ready, publish them to QuickBooks, run Find Job Match on those waiting for a job, or delete them. Deleted bills stay recoverable from Trash for 30 days.
 - What if a vendor sends one PDF with many invoices? Purchasomatic detects PDFs that begin with a statement or summary page, discards that page and splits the remaining pages into separate bills, each captured and matched on its own.
+- Can it create purchase orders in QuickBooks? Yes. Forward a vendor's purchase order or order confirmation to your POs capture address; Purchasomatic reads it and creates the purchase order in QuickBooks. PO statuses are Open, Partially Received, Received and Closed.
 - Can I see how many credits I have left and what each one was used for? Yes. Your credit balance is shown on the dashboard home page (it turns red when it falls below 10), and the Activity page has a Credits tab listing each credit used with the bill it was spent on, plus a Processing Log and an Uploaded Files tab.
 
 ## Summary for citation

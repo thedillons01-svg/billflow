@@ -1,5 +1,15 @@
 # SEO log
 
+## 2026-11-18
+**Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on creating purchase orders in QuickBooks from the POs capture address (statuses per product spec); sitemap lastModified bumped to 2026-11-18.
+**Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~6 weeks). No new article (Wednesday).
+**Visibility check (5 searches):** purchasomatic.com absent; brand search "purchasomatic" returns nothing about us (site unindexed). QBD email-to-bill: Rillion, DocuClipper (IIF export), Intuit community, tailride. QB PO/bill price mismatch: ServiceTitan, ApprovalMax, Matchy Match, Zoho; QuickBooks has no native warning on PO vs bill difference (supports PO article). Contractor job costing: Enterprise DNA, Knowify, Method, Buildertrend. Line-level job assignment by a standalone scanner is undocumented elsewhere: an open angle for the jobs article. Next check 2026-11-25.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs; FAQ on older posts; QBD FAQ on home.
+
+
 ## 2026-11-17
 **Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on credit balance and the Activity page Credits tab (verified in code); sitemap lastModified bumped to 2026-11-17.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~6 weeks). No new Monday article (Tuesday).
