@@ -80,6 +80,14 @@ const FAQS = [
     q: 'Does Purchasomatic work with QuickBooks Desktop?',
     a: 'Yes. Purchasomatic works with both QuickBooks Online and QuickBooks Desktop. Desktop connects through Intuit\'s Web Connector, which syncs bills every few minutes while QuickBooks Desktop is open.',
   },
+  {
+    q: 'Is the invoice PDF kept with the bill?',
+    a: 'Yes. In QuickBooks Online the PDF is attached to the bill when it is published. QuickBooks Desktop cannot receive PDF attachments, so there the PDF stays with the bill inside Purchasomatic.',
+  },
+  {
+    q: 'Will bills post to QuickBooks without anyone checking them?',
+    a: 'Only if you turn on auto-publish for a vendor, which becomes available after that vendor has 5 processed invoices. Bills that look unusual are still held for a person to review.',
+  },
 ]
 
 const FAQ_JSON_LD = {
