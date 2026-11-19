@@ -8,6 +8,20 @@ export type BlogPost = {
 // Add new posts here — both the blog index and the sitemap pick them up automatically.
 export const blogPosts: BlogPost[] = [
   {
+    slug: 'how-to-match-vendor-invoices-to-purchase-orders-quickbooks',
+    title: 'How to Match Vendor Invoices to Purchase Orders in QuickBooks',
+    description:
+      'How to link a vendor invoice to a purchase order in QuickBooks, what QuickBooks does not check, and how to catch price and quantity mismatches automatically.',
+    date: '2026-10-12',
+  },
+  {
+    slug: 'how-to-enter-vendor-bills-in-quickbooks-desktop',
+    title: 'How to Enter Vendor Bills in QuickBooks Desktop',
+    description:
+      'Step-by-step: how to enter a vendor bill in QuickBooks Desktop, put the job on every line, and get PDF invoices into Desktop without retyping them.',
+    date: '2026-10-05',
+  },
+  {
     slug: 'job-costing-in-quickbooks-for-trades-contractors',
     title: 'Job Costing in QuickBooks: A Guide for Trades Contractors',
     description:
