@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-19
+**Changed (invisible, master):** SEO log only. llms.txt already has ~45 quick answers covering the product spec, so no further additions today.
+**Visible, waiting on seo/visible (PR #3):** added to the pricing FAQ (PDF kept with bill; auto-publish only after 5 invoices, unusual bills held). FAQPage JSON-LD updates automatically from the same list. Branch rebased onto master. Still waiting: QBD bill-entry article, PO-matching article.
+**Visibility check:** not due (next 2026-11-25). Build and tsc pass on seo/visible.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs (Mon only); FAQ on older posts.
+
 ## 2026-11-18
 **Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on creating purchase orders in QuickBooks from the POs capture address (statuses per product spec); sitemap lastModified bumped to 2026-11-18.
 **Visible, waiting on seo/visible (PR #3):** QBD bill-entry article (10-05) plus PO-matching article (10-12). Still unmerged (~6 weeks). No new article (Wednesday).
