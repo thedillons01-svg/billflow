@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-20
+**Changed (invisible, master):** Home page JSON-LD: SoftwareApplication now lists all four paid plans (Starter, Basic, Professional, Business, matching pricing page) plus the free trial, and an audience; new Service entity for the done-for-you setup. Sitemap lastModified bumped to 2026-11-20. llms files already saturated, so no additions.
+**Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new article (Friday).
+**Visibility check:** not due (next 2026-11-25). tsc and build pass.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs (Mon only); FAQ on older posts.
+
 ## 2026-11-19
 **Changed (invisible, master):** SEO log only. llms.txt already has ~45 quick answers covering the product spec, so no further additions today.
 **Visible, waiting on seo/visible (PR #3):** added to the pricing FAQ (PDF kept with bill; auto-publish only after 5 invoices, unusual bills held). FAQPage JSON-LD updates automatically from the same list. Branch rebased onto master. Still waiting: QBD bill-entry article, PO-matching article.

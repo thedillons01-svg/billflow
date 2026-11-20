@@ -75,14 +75,25 @@ const JSON_LD = {
       priceCurrency: 'USD',
       description: '25 free trial credits, no credit card required',
     },
-    {
-      '@type': 'Offer',
-      name: 'Starting plan',
-      price: '20',
-      priceCurrency: 'USD',
-      description: '50 credits / month, about $0.40 per invoice or purchase order',
-    },
+    { '@type': 'Offer', name: 'Starter', price: '20', priceCurrency: 'USD', description: '50 credits per month, $0.40 per invoice or purchase order' },
+    { '@type': 'Offer', name: 'Basic', price: '40', priceCurrency: 'USD', description: '100 credits per month, $0.40 per invoice or purchase order' },
+    { '@type': 'Offer', name: 'Professional', price: '76', priceCurrency: 'USD', description: '200 credits per month, $0.38 per invoice or purchase order' },
+    { '@type': 'Offer', name: 'Business', price: '180', priceCurrency: 'USD', description: '500 credits per month, $0.36 per invoice or purchase order' },
   ],
+  audience: {
+    '@type': 'BusinessAudience',
+    audienceType: 'Trade and service businesses (HVAC, plumbing, electrical, contractors and more) and bookkeepers who enter vendor bills in QuickBooks',
+  },
+}
+
+const SERVICE_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@type': 'Service',
+  name: 'Purchasomatic done-for-you setup',
+  serviceType: 'Vendor invoice and purchase order automation setup for QuickBooks',
+  provider: { '@type': 'Organization', name: 'Purchasomatic', url: 'https://www.purchasomatic.com' },
+  description: 'Setup plus human review of every bill until accuracy is proven, then automatic posting to QuickBooks vendor by vendor.',
+  url: 'https://www.purchasomatic.com',
 }
 
 export default async function LandingPage() {
@@ -96,6 +107,7 @@ export default async function LandingPage() {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ORG_JSON_LD) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_JSON_LD) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(SERVICE_JSON_LD) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(VIDEO_JSON_LD) }} />
       <MarketingNav isLoggedIn={!!user} />
       <Hero />
