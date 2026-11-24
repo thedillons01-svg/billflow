@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-24
+**Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on who gets processing emails (multiple recipients, Notify uploader; verified in Settings code). Sitemap lastModified bumped to 2026-11-24. tsc and build pass.
+**Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new article (Tuesday).
+**Visibility check:** due Wed 2026-11-25.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs (after PR #3 merges); FAQ on older posts.
+
 ## 2026-11-23
 **Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on QuickBooks Desktop connection alerts (Web Connector not polled in over an hour; verified in qbd-heartbeat-check cron). Sitemap lastModified bumped to 2026-11-23.
 **Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new Monday article: PR #3 still holds two unreviewed articles.
