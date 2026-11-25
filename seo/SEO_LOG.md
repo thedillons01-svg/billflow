@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-25
+**Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on mismatched vendor names (extracted name vs mapped QuickBooks name, both editable; verified in vendor page code). Sitemap lastModified bumped to 2026-11-25.
+**Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new article (Wednesday).
+**Visibility check (5 searches):** purchasomatic.com still absent; brand search "purchasomatic" returns nothing about us (unindexed). QBO email-to-bill: DocuClipper, Zapier/n8n templates, Gmail add-ons, Intuit forum. Line-item job assignment: Intuit community threads (QBO needs Plus/Advanced for per-line customer; splitting one bill across jobs is a known pain, workaround is separate bills) and Contractors Cloud: good angle for the jobs article. QBD auto import: Intuit says no native auto import; IIF-based tools and email capture failing with "no matches found" when vendor names differ (supports vendor-name quick answer). Trades AP: Enterprise DNA, Rillion, ServiceTitan, Buildertrend. Next check 2026-12-02.
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs / splitting one bill across jobs (after PR #3 merges); FAQ on older posts.
+
 ## 2026-11-24
 **Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on who gets processing emails (multiple recipients, Notify uploader; verified in Settings code). Sitemap lastModified bumped to 2026-11-24. tsc and build pass.
 **Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new article (Tuesday).

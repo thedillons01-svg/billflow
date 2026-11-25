@@ -72,6 +72,7 @@
 - Can it create purchase orders in QuickBooks? Yes. Forward a vendor's purchase order or order confirmation to your POs capture address; Purchasomatic reads it and creates the purchase order in QuickBooks. PO statuses are Open, Partially Received, Received and Closed.
 - Can I see how many credits I have left and what each one was used for? Yes. Your credit balance is shown on the dashboard home page (it turns red when it falls below 10), and the Activity page has a Credits tab listing each credit used with the bill it was spent on, plus a Processing Log and an Uploaded Files tab.
 - Who gets the emails when a bill is processed, and can more than one person be notified? Yes. Settings takes several recipient email addresses, and a Notify uploader option also sends the result to the person who forwarded the email (useful when techs forward their own invoices). Error alerts are always on; success emails can be turned off.
+- What if the vendor name on the invoice does not match the vendor name in QuickBooks? Each vendor record keeps both: the name read from the PDF and the QuickBooks vendor name it is mapped to, and both can be edited. You can correct either one on the vendor record.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
