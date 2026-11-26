@@ -73,6 +73,7 @@
 - Can I see how many credits I have left and what each one was used for? Yes. Your credit balance is shown on the dashboard home page (it turns red when it falls below 10), and the Activity page has a Credits tab listing each credit used with the bill it was spent on, plus a Processing Log and an Uploaded Files tab.
 - Who gets the emails when a bill is processed, and can more than one person be notified? Yes. Settings takes several recipient email addresses, and a Notify uploader option also sends the result to the person who forwarded the email (useful when techs forward their own invoices). Error alerts are always on; success emails can be turned off.
 - What if the vendor name on the invoice does not match the vendor name in QuickBooks? Each vendor record keeps both: the name read from the PDF and the QuickBooks vendor name it is mapped to, and both can be edited. You can correct either one on the vendor record.
+- Can I get published bills out for my field service software? Yes. The FSM Materials Export page lists published bills grouped by job. You can filter by vendor, job and date range and download the result as an Excel file or a PDF, then enter the materials in your field service platform. Past exports are listed in an export history.
 
 ## Key pages
 - [Home](https://www.purchasomatic.com/): overview and how it works
