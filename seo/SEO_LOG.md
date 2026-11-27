@@ -1,5 +1,14 @@
 # SEO log
 
+## 2026-11-27
+**Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on vendor payment terms and due dates (QB default or override; verified in vendor General tab). Sitemap lastModified bumped to 2026-11-27.
+**Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new article (Friday).
+**Visibility check:** not due (next 2026-12-02).
+**Backlog (top):**
+1. Owner: verify site in Google Search Console and submit sitemap (main blocker).
+2. Owner: merge PR #3, then add both posts to llms.txt and llms-full.txt.
+3. Visible (seo/visible): article on assigning bill lines to jobs / splitting one bill across jobs (after PR #3 merges); FAQ on older posts.
+
 ## 2026-11-26
 **Changed (invisible, master):** llms.txt and llms-full.txt: new quick answer on the FSM Materials Export (published bills grouped by job, filter by vendor/job/date, Excel or PDF, export history; verified in exports page code). Sitemap lastModified bumped to 2026-11-26. tsc and build pass.
 **Visible, waiting on seo/visible (PR #3):** unchanged (QBD article, PO-matching article, pricing FAQ additions). No new article (Thursday).

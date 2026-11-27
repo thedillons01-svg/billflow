@@ -77,6 +77,7 @@
 - Can it create purchase orders in QuickBooks? Yes. Forward a vendor's purchase order or order confirmation to your POs capture address; Purchasomatic reads it and creates the purchase order in QuickBooks. PO statuses are Open, Partially Received, Received and Closed.
 - Can I see how many credits I have left and what each one was used for? Yes. Your credit balance is shown on the dashboard home page (it turns red when it falls below 10), and the Activity page has a Credits tab listing each credit used with the bill it was spent on, plus a Processing Log and an Uploaded Files tab.
 - Can I get published bills out for my field service software? Yes. The FSM Materials Export page lists published bills grouped by job. You can filter by vendor, job and date range and download the result as an Excel file or a PDF, then enter the materials in your field service platform. Past exports are listed in an export history.
+- Does it set payment terms and due dates on bills? Yes. Each vendor record can use the payment terms from QuickBooks or an override you choose; terms are used to calculate the due date when the invoice does not print one.
 
 ## Summary for citation
 Purchasomatic is a paid service (about $0.40 per transaction, 25 free trial credits, no card) that turns emailed vendor invoices and purchase orders into QuickBooks bills and purchase orders, coded to the right job, customer and GL account.
